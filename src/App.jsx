@@ -1,41 +1,58 @@
 import { useState } from "react";
-import { AppSidebar } from "@/components/app-sidebar";
-import { ChartAreaInteractive } from "@/components/chart-area-interactive";
-import { DataTable } from "@/components/data-table";
-import { SectionCards } from "@/components/section-cards";
-import { SiteHeader } from "@/components/site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import data from "./data.json";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+// import Sidebar from './components/dashboard/Sidebar'
+import Topbar from "./components/dashboard/Topbar";
+import Dashboard from "./pages/Dashboard";
+import Members from "./pages/Members";
+import Payments from "./pages/Payments";
+import Settings from "./pages/Settings";
+import { Toaster } from "@/components/ui/sonner";
+import Plans from "./pages/Plans";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { AppSidebar } from "./components/dashboard/AppSidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useTheme } from "./contexts/ThemeContext";
+import LandingPage from "./pages/LandingPage";
+import { SideBarLayout } from "./pages/SideBarLayout";
 import "./App.css";
 
 function App() {
   const [count, setCount] = useState(0);
-
+  const [open, setOpen] = useState(false);
+  const { dark, toggleDark } = useTheme();
   return (
     <TooltipProvider>
-      <SidebarProvider
-        style={{
-          "--sidebar-width": "calc(var(--spacing) * 72)",
-          "--header-height": "calc(var(--spacing) * 12)",
-        }}
-      >
-        <AppSidebar variant="inset" />
-        <SidebarInset>
-          <SiteHeader />
-          <div className="flex flex-1 flex-col">
-            <div className="@container/main flex flex-1 flex-col gap-2">
-              <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-                <SectionCards />
-                <div className="px-4 lg:px-6">
-                  <ChartAreaInteractive />
-                </div>
-                <DataTable data={data} />
-              </div>
-            </div>
-          </div>
-        </SidebarInset>
-      </SidebarProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route element={<SideBarLayout />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/members" element={<Members />} />
+            <Route path="/payments" element={<Payments />} />
+            <Route path="/plans" element={<Plans />} />
+            <Route path="/settings" element={<Settings />} />
+          </Route>
+        </Routes>
+
+        <Toaster
+          position="top-center"
+          // 🔥 Inverse logic: If app is dark, toast is light. If app is light, toast is dark.
+          theme={dark ? "light" : "dark"}
+          richColors
+          toastOptions={{
+            style: {
+              // 🟢 In Light Mode (App): Background is Black, Text is White
+              // 🌑 In Dark Mode (App): Background is White, Text is Black
+              background: dark ? "#ffffff" : "#000000",
+              color: dark ? "#000000" : "#ffffff",
+              border: dark ? "1px solid #e5e7eb" : "1px solid #333333",
+              borderRadius: "12px",
+              fontSize: "14px",
+              fontWeight: "500",
+            },
+          }}
+        />
+      </BrowserRouter>
     </TooltipProvider>
   );
 }
