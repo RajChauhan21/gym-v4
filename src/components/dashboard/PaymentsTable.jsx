@@ -6,12 +6,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious
+} from "@/components/ui/pagination";
 import { Badge } from "@/components/ui/badge";
+import Loader from "@/components/ui/Loader"
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { TrendingUp, AlertCircle, CheckCircle2, Search } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -62,7 +69,7 @@ export default function PaymentsTable() {
       name: "Amit Verma",
       amount: 1200,
       plan: "Silver",
-      date: "2026-03-16",
+      date: "2026-04-16",
       time: "6:00 PM",
       status: "Success",
     },
@@ -78,7 +85,7 @@ export default function PaymentsTable() {
       name: "Amit Verma",
       amount: 1200,
       plan: "Silver",
-      date: "2026-03-16",
+      date: "2026-05-16",
       time: "6:00 PM",
       status: "Success",
     },
@@ -86,7 +93,7 @@ export default function PaymentsTable() {
       name: "Amit Verma",
       amount: 1200,
       plan: "Silver",
-      date: "2026-03-16",
+      date: "2026-05-16",
       time: "6:00 PM",
       status: "Success",
     },
@@ -94,7 +101,7 @@ export default function PaymentsTable() {
       name: "Amit Verma",
       amount: 1200,
       plan: "Silver",
-      date: "2026-03-16",
+      date: "2026-05-16",
       time: "6:00 PM",
       status: "Success",
     },
@@ -200,6 +207,11 @@ export default function PaymentsTable() {
   const [dateTo, setDateTo] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
+  useEffect(() => {
+    // Reset to Page 1 whenever filters change to prevent "Empty Page" bugs
+    setCurrentPage(1);
+  }, [searchTerm, filterPlan, filterStatus, dateFrom, dateTo]);
+
   const filteredPayments = payments.filter((p) => {
     const matchesName = p.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesPlan = filterPlan === "all" || p.plan === filterPlan;
@@ -213,6 +225,41 @@ export default function PaymentsTable() {
 
     return matchesName && matchesPlan && matchesStatus && matchesDate;
   });
+
+  // 1. Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // 2. Calculation Logic
+  const totalPages = Math.ceil(filteredPayments.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentData = filteredPayments.slice(startIndex, startIndex + itemsPerPage);
+
+  // To keep height fixed, calculate how many empty rows to fill
+  const emptyRows = itemsPerPage - currentData.length;
+
+  const resetFilters = () => {
+    setSearchTerm("");
+    setFilterPlan("all");
+    setFilterStatus("all");
+    setDateFrom(null);
+    setDateTo(null);
+    setCurrentPage(1);
+    setIsFilterOpen(false)
+  };
+
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setTimeout(() => setLoading(false), 1200)
+  }, [])
+
+  if (loading) {
+    return (
+      <Loader text="Loading Payments...." />
+    )
+  }
+
 
   return (
     <div className="p-3">
@@ -355,6 +402,12 @@ export default function PaymentsTable() {
             >
               Apply Filters
             </Button>
+            <Button
+              onClick={resetFilters}
+              className="w-full rounded-full"
+            >
+              Clear Filters
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -432,12 +485,21 @@ export default function PaymentsTable() {
               onChange={(e) => setDateTo(e.target.value)}
             />
           </div>
+          <div className="space-y-1.5">
+            <Button
+              onClick={resetFilters}
+              className="w-full rounded-full"
+            >
+              Clear Filters
+            </Button>
+          </div>
+
         </div>
       </Card>
 
       {/* <div className="bg-white dark:bg-white-900 rounded-2xl shadow p-4"> */}
-      <div className="bg-card text-card-foreground rounded-xl shadow border dark:border-gray-800 p-3 md:p-8">
-        <div className="overflow-auto max-h-[400px] md:max-h-[600px]">
+      {/* <div className="bg-card text-card-foreground rounded-xl shadow border dark:border-gray-800 p-3 md:p-8">
+        <div className="overflow-auto h-[490px]">
           <Table>
             <TableHeader className="sticky top-0 z-30 bg-card">
               <TableRow>
@@ -483,6 +545,99 @@ export default function PaymentsTable() {
               ))}
             </TableBody>
           </Table>
+        </div>
+      </div> */}
+      <div className="bg-card text-card-foreground rounded-xl shadow border dark:border-gray-800 p-3 md:p-8">
+        <div className="overflow-auto h-[450px]"> {/* Fixed height to prevent jumping */}
+          <Table>
+            <TableHeader className="sticky top-0 z-30 bg-card">
+              <TableRow>
+                <TableHead className="sticky left-0 top-0 z-30 bg-card min-w-[150px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] dark:text-gray-500 text-center">
+                  Name
+                </TableHead>
+                <TableHead className="dark:text-gray-500 text-center">Plan</TableHead>
+                <TableHead className="dark:text-gray-500 text-center">Amount</TableHead>
+                <TableHead className="dark:text-gray-500 text-center">Date</TableHead>
+                <TableHead className="dark:text-gray-500 text-center">Time</TableHead>
+                <TableHead className="dark:text-gray-500 text-center">Status</TableHead>
+              </TableRow>
+            </TableHeader>
+
+            <TableBody>
+              {currentData.map((payment, index) => (
+                <TableRow key={index} className="bg-red-50 hover:bg-yellow-50">
+                  <TableCell
+                    className={cn(
+                      "sticky left-0 z-10 font-bold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] bg-card min-w-[150px] text-center",
+                    )}
+                  >
+                    {payment.name}
+                  </TableCell>
+                  <TableCell className="text-center">{payment.plan}</TableCell>
+                  <TableCell className="text-center">₹{payment.amount}</TableCell>
+                  <TableCell className="text-center">{payment.date}</TableCell>
+                  <TableCell className="text-center">{payment.time}</TableCell>
+                  <TableCell className="text-center">
+                    <Badge
+                      className={cn(
+                        "rounded-lg text-white",
+                        payment.status === "Success" ? "bg-green-500" : "bg-red-500"
+                      )}
+                    >
+                      {payment.status}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+
+              {/* Placeholder Rows to maintain fixed height */}
+              {emptyRows > 0 && Array.from({ length: emptyRows }).map((_, i) => (
+                <TableRow key={`empty-${i}`} className="border-transparent">
+                  <TableCell className="sticky left-0 bg-card py-6 border-transparent" />
+                  <TableCell className="py-6 border-transparent" />
+                  <TableCell className="py-6 border-transparent" />
+                  <TableCell className="py-6 border-transparent" />
+                  <TableCell className="py-6 border-transparent" />
+                  <TableCell className="py-6 border-transparent" />
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      {/* 3. Improved Pagination Controls (No overlap) */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
+        <p className="text-sm text-muted-foreground order-2 sm:order-1">
+          Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredPayments.length)} of {filteredPayments.length} payments
+        </p>
+
+        <div className="order-1 sm:order-2">
+          <Pagination className="w-auto mx-0 justify-end">
+            <PaginationContent className="gap-1">
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={(e) => { e.preventDefault(); if (currentPage > 1) setCurrentPage(v => v - 1) }}
+                  className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                />
+              </PaginationItem>
+
+              <PaginationItem>
+                <span className="flex h-9 items-center justify-center px-3 text-sm font-medium whitespace-nowrap">
+                  Page {currentPage} of {totalPages}
+                </span>
+              </PaginationItem>
+
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(e) => { e.preventDefault(); if (currentPage < totalPages) setCurrentPage(v => v + 1) }}
+                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
         </div>
       </div>
     </div>

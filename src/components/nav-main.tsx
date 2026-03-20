@@ -7,6 +7,8 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { CirclePlusIcon, MailIcon } from "lucide-react"
+import { Link } from "react-router-dom"
+import { useSidebar } from "@/components/ui/sidebar"
 
 export function NavMain({
   items,
@@ -17,6 +19,7 @@ export function NavMain({
     icon?: React.ReactNode
   }[]
 }) {
+  const { isMobile, setOpenMobile } = useSidebar()
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
@@ -42,14 +45,24 @@ export function NavMain({
           </SidebarMenuItem>
         </SidebarMenu>
         <SidebarMenu>
-          {items.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton tooltip={item.title}>
-                {item.icon}
-                <span>{item.title}</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
+          {items.map((item) => {
+            // 1. Assign the component reference to a Capitalized variable
+            const Icon = item.icon
+
+            return (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton asChild tooltip={item.title}>
+                  <Link to={item.url} onClick={() => {
+                    if (isMobile) setOpenMobile(false)
+                  }}>
+                    {/* 2. Render the Icon as a tag */}
+                    {Icon && <Icon className="size-4!" />}
+                    <span>{item.title}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )
+          })}
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>

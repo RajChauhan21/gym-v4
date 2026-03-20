@@ -7,9 +7,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import Loader from "@/components/ui/Loader"
 import { Badge } from "@/components/ui/badge";
 import AddMemberDialog from "./AddMemberDialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
@@ -70,7 +71,7 @@ export default function MembersTable() {
       name: "Priya Singh",
       plan: "Platinum",
       status: "Paid",
-      due: 2000,
+      due: 0,
       expiry: "2026-01-20",
       phone: "919876543210",
     },
@@ -78,7 +79,7 @@ export default function MembersTable() {
       name: "Priya Singh",
       plan: "Platinum",
       status: "Paid",
-      due: 2000,
+      due: 0,
       expiry: "2026-01-20",
       phone: "919876543210",
     },
@@ -86,7 +87,7 @@ export default function MembersTable() {
       name: "Priya Singh",
       plan: "Platinum",
       status: "Paid",
-      due: 2000,
+      due: 0,
       expiry: "2026-01-20",
       phone: "919876543210",
     },
@@ -94,7 +95,7 @@ export default function MembersTable() {
       name: "Priya Singh",
       plan: "Platinum",
       status: "Paid",
-      due: 2000,
+      due: 0,
       expiry: "2026-01-20",
       phone: "919876543210",
     },
@@ -102,7 +103,7 @@ export default function MembersTable() {
       name: "Priya Singh",
       plan: "Platinum",
       status: "Paid",
-      due: 2000,
+      due: 0,
       expiry: "2026-01-20",
       phone: "919876543210",
     },
@@ -110,7 +111,7 @@ export default function MembersTable() {
       name: "Priya Singh",
       plan: "Platinum",
       status: "Paid",
-      due: 2000,
+      due: 0,
       expiry: "2026-01-20",
       phone: "919876543210",
     },
@@ -118,7 +119,7 @@ export default function MembersTable() {
       name: "Priya Singh",
       plan: "Platinum",
       status: "Paid",
-      due: 2000,
+      due: 0,
       expiry: "2026-01-20",
       phone: "919876543210",
     },
@@ -126,7 +127,7 @@ export default function MembersTable() {
       name: "Priya Singh",
       plan: "Platinum",
       status: "Paid",
-      due: 2000,
+      due: 0,
       expiry: "2026-01-20",
       phone: "919876543210",
     },
@@ -134,16 +135,16 @@ export default function MembersTable() {
       name: "Priya Singh",
       plan: "Platinum",
       status: "Paid",
-      due: 2000,
+      due: 0,
       expiry: "2026-01-20",
       phone: "919876543210",
     },
     {
       name: "Priya Singh",
-      plan: "Platinum",
+      plan: "Gold",
       status: "Paid",
-      due: 2000,
-      expiry: "2026-01-20",
+      due: 0,
+      expiry: "2026-02-20",
       phone: "919876543210",
     },
     {
@@ -165,24 +166,77 @@ export default function MembersTable() {
   const [expiryFrom, setexpiryFrom] = useState("");
   const [expiryTo, setexpiryTo] = useState("");
 
+  // const filteredMembers = members.filter((m) => {
+  //   const matchesName = m.name.toLowerCase().includes(searchTerm.toLowerCase());
+  //   const matchesPlan = filterPlan == "all" || m.plan == filterPlan;
+  //   const matchesStatus = status == "all" || m.status?.toString().toLowerCase().trim() === status.toLowerCase().trim();
+
+  //   // Date Range Logic
+  //   const memberExpiry = new Date(m.expiry);
+  //   const fromDate = expiryFrom ? new Date(expiryFrom) : null;
+  //   const toDate = expiryTo ? new Date(expiryTo) : null;
+
+  //   // Check if member's expiry falls within the selected range (inclusive)
+  //   const matchesExpiryRange =
+  //     (!fromDate || memberExpiry >= fromDate) &&
+  //     (!toDate || memberExpiry <= toDate);
+
+  //   if (m.status !== status && status !== "all") {
+  //     console.log(`Mismatch! Filter: '${status}' vs Data: '${m.status}'`);
+  //     console.log("Types:", typeof status, typeof m.status);
+  //   }
+  //   if (status !== "all" && m.status === status) {
+  //     console.log("Found a match for:", status);
+  //   }
+  //   if (m.status === "Paid" && status === "Paid") {
+  //     console.log(`Member: ${m.name}`);
+  //     console.log(`- Name Match: ${matchesName}`);
+  //     console.log(`- Plan Match: ${matchesPlan}`);
+  //     console.log(`- Status Match: ${matchesStatus}`);
+  //     console.log(`- Expiry Match: ${matchesExpiryRange} (Expiry: ${m.expiry})`);
+  //   }
+
+  //   return matchesName && matchesPlan && matchesStatus && matchesExpiryRange;
+  // });
+
+  // 1. Pagination State
+
+  useEffect(() => {
+    // Reset to Page 1 whenever filters change to prevent "Empty Page" bugs
+    setCurrentPage(1);
+  }, [searchTerm, filterPlan, status, expiryFrom, expiryTo]);
+
   const filteredMembers = members.filter((m) => {
-    const matchesName = m.name.toLowerCase().includes(searchTerm.toLowerCase());
+    // 1. Normalize Inputs (Safety First)
+    // "||" acts as the bypass. If term is empty, match becomes TRUE for everyone.
+    const term = searchTerm?.toLowerCase().trim() || "";
+    const matchesName = !term || m.name.toLowerCase().includes(term);
+
+    // 2. Exact Matches (Dropdowns)
+    // If filter is "all", we return TRUE (ignoring this specific check)
     const matchesPlan = filterPlan === "all" || m.plan === filterPlan;
     const matchesStatus = status === "all" || m.status === status;
 
-    // Date Range Logic
-    const memberExpiry = new Date(m.expiry);
-    const fromDate = expiryFrom ? new Date(expiryFrom) : null;
-    const toDate = expiryTo ? new Date(expiryTo) : null;
+    // 3. Date Range (Time-Normalized)
+    const memberDate = new Date(m.expiry);
+    memberDate.setHours(0, 0, 0, 0); // Ignore time, compare Dates only
 
-    // Check if member's expiry falls within the selected range (inclusive)
-    const matchesExpiryRange =
-      (!fromDate || memberExpiry >= fromDate) &&
-      (!toDate || memberExpiry <= toDate);
-    return matchesName && matchesPlan && matchesStatus && matchesExpiryRange;
+    const start = expiryFrom ? new Date(expiryFrom) : null;
+    if (start) start.setHours(0, 0, 0, 0);
+
+    const end = expiryTo ? new Date(expiryTo) : null;
+    if (end) end.setHours(23, 59, 59, 999); // Include full end day
+
+    const matchesDate =
+      (!start || memberDate >= start) &&
+      (!end || memberDate <= end);
+
+    // 4. The "AND" Gate
+    // All active filters must match. Inactive filters are TRUE, so they don't block.
+    return matchesName && matchesPlan && matchesStatus && matchesDate;
   });
 
-  // 1. Pagination State
+
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -196,6 +250,10 @@ export default function MembersTable() {
     setSearchTerm("");
     setFilterPlan("all");
     setStatus("all");
+    setexpiryFrom(null);
+    setexpiryTo(null);
+    setCurrentPage(1);
+    setIsFilterOpen(false)
   };
 
   const activeFilterCount = [
@@ -203,6 +261,18 @@ export default function MembersTable() {
     filterPlan !== "all",
     status !== "all",
   ].filter(Boolean).length;
+
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setTimeout(() => setLoading(false), 1200)
+  }, [])
+
+  if (loading) {
+    return (
+      <Loader text="Loading Members...." />
+    )
+  }
 
   return (
     <div className="p-3">
@@ -298,8 +368,8 @@ export default function MembersTable() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="Success">Paid</SelectItem>
-                  <SelectItem value="Failed">Pending</SelectItem>
+                  <SelectItem value="Pending">Pending</SelectItem>
+                  <SelectItem value="Paid`">Paid</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -335,6 +405,12 @@ export default function MembersTable() {
               className="w-full rounded-full"
             >
               Apply Filters
+            </Button>
+            <Button
+              onClick={resetFilters}
+              className="w-full rounded-full"
+            >
+              Clear Filters
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -412,6 +488,13 @@ export default function MembersTable() {
               onChange={(e) => setexpiryTo(e.target.value)}
             />
           </div>
+
+          <Button
+            onClick={resetFilters}
+            className="w-full rounded-full"
+          >
+            Clear Filters
+          </Button>
         </div>
       </Card>
 
@@ -490,37 +573,42 @@ export default function MembersTable() {
       </div>
 
       {/* 3. Pagination Controls */}
-      <div className="flex items-center justify-between px-2">
-        <p className="text-sm text-muted-foreground">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-4">
+        {/* Left Side: Info Text */}
+        <p className="text-sm text-muted-foreground order-2 sm:order-1">
           Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredMembers.length)} of {filteredMembers.length} members
         </p>
-        <Pagination className="justify-end">
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious
-                href="#"
-                onClick={(e) => { e.preventDefault(); if (currentPage > 1) setCurrentPage(currentPage - 1) }}
-                className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-              />
-            </PaginationItem>
 
-            <PaginationItem>
-              <PaginationLink className="cursor-default border-none">
-                Page {currentPage} of {totalPages}
-              </PaginationLink>
-            </PaginationItem>
+        {/* Right Side: Pagination Controls */}
+        <div className="order-1 sm:order-2">
+          <Pagination className="w-auto mx-0 justify-end"> {/* Added w-auto and mx-0 */}
+            <PaginationContent className="gap-0 sm:gap-1"> {/* Tighten gaps for mobile */}
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={(e) => { e.preventDefault(); if (currentPage > 1) setCurrentPage(currentPage - 1) }}
+                  className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                />
+              </PaginationItem>
 
-            <PaginationItem>
-              <PaginationNext
-                href="#"
-                onClick={(e) => { e.preventDefault(); if (currentPage < totalPages) setCurrentPage(currentPage + 1) }}
-                className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
+              <PaginationItem>
+                {/* Using a span instead of PaginationLink to prevent "button-like" hover styles on text */}
+                <span className="flex h-9 items-center justify-center px-3 text-sm whitespace-nowrap">
+                  Page {currentPage} of {totalPages}
+                </span>
+              </PaginationItem>
+
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(e) => { e.preventDefault(); if (currentPage < totalPages) setCurrentPage(currentPage + 1) }}
+                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
       </div>
-
     </div>
   );
 }

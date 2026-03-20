@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import Loader from "@/components/ui/Loader"
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import EditProfileModal from "../components/dashboard/EditProfileModal";
@@ -25,7 +26,7 @@ import { useProfile } from "../contexts/ProfileContext";
 export default function Settings() {
   const { dark, toggleDark } = useTheme();
   const [open, setOpen] = useState(false);
-  const {profile, setProfile} = useProfile();
+  const { profile, setProfile } = useProfile();
   const [payOpen, setPayOpen] = useState(false);
   const [payments, setPayments] = useState({
     upiId: "paramount@okupi",
@@ -70,6 +71,17 @@ export default function Settings() {
     }));
   };
 
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setTimeout(() => setLoading(false), 1200)
+  }, [])
+
+  if (loading) {
+    return (
+      <Loader text="Loading Settings...." />
+    )
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">

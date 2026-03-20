@@ -1,5 +1,5 @@
 import * as React from "react"
-
+import { useProfile } from "@/contexts/ProfileContext"
 import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
@@ -14,6 +14,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { LayoutDashboardIcon, ListIcon, ChartBarIcon, FolderIcon, UsersIcon, CameraIcon, FileTextIcon, Settings2Icon, CircleHelpIcon, SearchIcon, DatabaseIcon, FileChartColumnIcon, FileIcon, CommandIcon } from "lucide-react"
+import { Link } from "react-router-dom"
 
 const data = {
   user: {
@@ -24,51 +25,48 @@ const data = {
   navMain: [
     {
       title: "Dashboard",
-      url: "#",
+      url: "/dashboard",
       icon: (
-        <LayoutDashboardIcon
-        />
+        LayoutDashboardIcon
       ),
     },
     {
-      title: "Lifecycle",
-      url: "#",
+      title: "Members",
+      url: "/members",
       icon: (
-        <ListIcon
-        />
+        UsersIcon
       ),
     },
     {
-      title: "Analytics",
-      url: "#",
+      title: "Payments",
+      url: "/payments",
       icon: (
-        <ChartBarIcon
-        />
+        FileChartColumnIcon
       ),
     },
-    {
-      title: "Projects",
-      url: "#",
-      icon: (
-        <FolderIcon
-        />
-      ),
-    },
-    {
-      title: "Team",
-      url: "#",
-      icon: (
-        <UsersIcon
-        />
-      ),
-    },
+    // {
+    //   title: "Settings",
+    //   url: "/settings",
+    //   icon: (
+    //     <FolderIcon
+    //     />
+    //   ),
+    // },
+    // {
+    //   title: "Team",
+    //   url: "#",
+    //   icon: (
+    //     <UsersIcon
+    //     />
+    //   ),
+    // },
   ],
   navClouds: [
     {
       title: "Capture",
       icon: (
-        <CameraIcon
-        />
+        CameraIcon
+        
       ),
       isActive: true,
       url: "#",
@@ -86,8 +84,8 @@ const data = {
     {
       title: "Proposal",
       icon: (
-        <FileTextIcon
-        />
+        FileTextIcon
+      
       ),
       url: "#",
       items: [
@@ -104,8 +102,7 @@ const data = {
     {
       title: "Prompts",
       icon: (
-        <FileTextIcon
-        />
+        FileTextIcon
       ),
       url: "#",
       items: [
@@ -123,58 +120,38 @@ const data = {
   navSecondary: [
     {
       title: "Settings",
-      url: "#",
-      icon: (
-        <Settings2Icon
-        />
-      ),
+      url: "/settings",
+      icon: Settings2Icon,
     },
-    {
-      title: "Get Help",
-      url: "#",
-      icon: (
-        <CircleHelpIcon
-        />
-      ),
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: (
-        <SearchIcon
-        />
-      ),
-    },
+
   ],
   documents: [
     {
       name: "Data Library",
       url: "#",
       icon: (
-        <DatabaseIcon
-        />
+        DatabaseIcon
       ),
     },
     {
       name: "Reports",
       url: "#",
       icon: (
-        <FileChartColumnIcon
-        />
+        FileChartColumnIcon
       ),
     },
     {
       name: "Word Assistant",
       url: "#",
       icon: (
-        <FileIcon
-        />
+        FileIcon
       ),
     },
   ],
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { profile } = useProfile()
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -184,21 +161,32 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
-              <a href="#">
-                <CommandIcon className="size-5!" />
-                <span className="text-base font-semibold">Acme Inc.</span>
-              </a>
+              <Link to="/dashboard">
+                {/* v4 size utilities */}
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                  <img src={profile.logo} alt="Logo" className="size-5! rounded-sm" />
+                </div>
+                {/* v4 shorthand for hiding text when collapsed */}
+                <div className="grid flex-1 text-left text-sm leading-tight group-data-collapsible-icon:hidden">
+                  <span className="truncate font-semibold">{profile.gymName}</span>
+                  <span className="truncate text-xs text-muted-foreground">Admin Portal</span>
+                </div>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
+        {/* <NavDocuments items={data.documents} /> */}
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={{
+          name: profile.owner,
+          email: profile.email,
+          avatar: profile.logo
+        }} />
       </SidebarFooter>
     </Sidebar>
   )
