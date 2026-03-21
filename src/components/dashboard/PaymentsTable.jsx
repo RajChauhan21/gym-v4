@@ -11,10 +11,10 @@ import {
   PaginationContent,
   PaginationItem,
   PaginationNext,
-  PaginationPrevious
+  PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Badge } from "@/components/ui/badge";
-import Loader from "@/components/ui/Loader"
+import Loader from "@/components/ui/Loader";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { TrendingUp, AlertCircle, CheckCircle2, Search } from "lucide-react";
@@ -38,162 +38,11 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { useGymStore } from "../../store/gymStore";
 
 export default function PaymentsTable() {
-  const payments = [
-    {
-      name: "Rahul Sharma",
-      amount: 1500,
-      plan: "Gold",
-      date: "2026-03-17",
-      time: "10:30 AM",
-      status: "Success",
-    },
-    {
-      name: "Amit Verma",
-      amount: 1200,
-      plan: "Silver",
-      date: "2026-03-16",
-      time: "6:00 PM",
-      status: "Success",
-    },
-    {
-      name: "Priya Singh",
-      amount: 2000,
-      plan: "Platinum",
-      date: "2026-03-15",
-      time: "8:15 AM",
-      status: "Failed",
-    },
-    {
-      name: "Amit Verma",
-      amount: 1200,
-      plan: "Silver",
-      date: "2026-04-16",
-      time: "6:00 PM",
-      status: "Success",
-    },
-    {
-      name: "Amit Verma",
-      amount: 1200,
-      plan: "Silver",
-      date: "2026-03-16",
-      time: "6:00 PM",
-      status: "Success",
-    },
-    {
-      name: "Amit Verma",
-      amount: 1200,
-      plan: "Silver",
-      date: "2026-05-16",
-      time: "6:00 PM",
-      status: "Success",
-    },
-    {
-      name: "Amit Verma",
-      amount: 1200,
-      plan: "Silver",
-      date: "2026-05-16",
-      time: "6:00 PM",
-      status: "Success",
-    },
-    {
-      name: "Amit Verma",
-      amount: 1200,
-      plan: "Silver",
-      date: "2026-05-16",
-      time: "6:00 PM",
-      status: "Success",
-    },
-    {
-      name: "Amit Verma",
-      amount: 1200,
-      plan: "Silver",
-      date: "2026-03-16",
-      time: "6:00 PM",
-      status: "Success",
-    },
-    {
-      name: "Amit Verma",
-      amount: 1200,
-      plan: "Silver",
-      date: "2026-03-16",
-      time: "6:00 PM",
-      status: "Success",
-    },
-    {
-      name: "Amit Verma",
-      amount: 1200,
-      plan: "Silver",
-      date: "2026-03-16",
-      time: "6:00 PM",
-      status: "Success",
-    },
-    {
-      name: "Amit Verma",
-      amount: 1200,
-      plan: "Silver",
-      date: "2026-03-16",
-      time: "6:00 PM",
-      status: "Success",
-    },
-    {
-      name: "Amit Verma",
-      amount: 1200,
-      plan: "Silver",
-      date: "2026-03-16",
-      time: "6:00 PM",
-      status: "Success",
-    },
-    {
-      name: "Amit Verma",
-      amount: 1200,
-      plan: "Silver",
-      date: "2026-03-16",
-      time: "6:00 PM",
-      status: "Success",
-    },
-    {
-      name: "Amit Verma",
-      amount: 1200,
-      plan: "Silver",
-      date: "2026-03-16",
-      time: "6:00 PM",
-      status: "Success",
-    },
-    {
-      name: "Amit Verma",
-      amount: 1200,
-      plan: "Silver",
-      date: "2026-03-16",
-      time: "6:00 PM",
-      status: "Success",
-    },
-    {
-      name: "Amit Verma",
-      amount: 1200,
-      plan: "Silver",
-      date: "2026-03-16",
-      time: "6:00 PM",
-      status: "Success",
-    },
-    {
-      name: "Amit Verma",
-      amount: 1200,
-      plan: "Silver",
-      date: "2026-03-16",
-      time: "6:00 PM",
-      status: "Success",
-    },
-    {
-      name: "Amit Verma",
-      amount: 1200,
-      plan: "Silver",
-      date: "2026-03-16",
-      time: "6:00 PM",
-      status: "Success",
-    },
-  ];
+   const payments = useGymStore((state) => state.payments);
+  const setPayments = useGymStore((state) => state.setPayments);
 
   const totalRevenue = payments
     .filter((p) => p.status === "Success")
@@ -233,7 +82,10 @@ export default function PaymentsTable() {
   // 2. Calculation Logic
   const totalPages = Math.ceil(filteredPayments.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentData = filteredPayments.slice(startIndex, startIndex + itemsPerPage);
+  const currentData = filteredPayments.slice(
+    startIndex,
+    startIndex + itemsPerPage,
+  );
 
   // To keep height fixed, calculate how many empty rows to fill
   const emptyRows = itemsPerPage - currentData.length;
@@ -245,21 +97,18 @@ export default function PaymentsTable() {
     setDateFrom(null);
     setDateTo(null);
     setCurrentPage(1);
-    setIsFilterOpen(false)
+    setIsFilterOpen(false);
   };
 
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setTimeout(() => setLoading(false), 1200)
-  }, [])
+    setTimeout(() => setLoading(false), 1200);
+  }, []);
 
   if (loading) {
-    return (
-      <Loader text="Loading Payments...." />
-    )
+    return <Loader text="Loading Payments...." />;
   }
-
 
   return (
     <div className="p-3">
@@ -298,7 +147,9 @@ export default function PaymentsTable() {
             <p className="text-[10px] uppercase font-bold text-muted-foreground">
               Transactions
             </p>
-            <p className="text-xl font-bold dark:text-white">{payments.length}</p>
+            <p className="text-xl font-bold dark:text-white">
+              {payments.length}
+            </p>
           </div>
         </Card>
       </div>
@@ -402,10 +253,7 @@ export default function PaymentsTable() {
             >
               Apply Filters
             </Button>
-            <Button
-              onClick={resetFilters}
-              className="w-full rounded-full"
-            >
+            <Button onClick={resetFilters} className="w-full rounded-full">
               Clear Filters
             </Button>
           </DialogFooter>
@@ -486,86 +334,44 @@ export default function PaymentsTable() {
             />
           </div>
           <div className="space-y-1.5">
-            <Button
-              onClick={resetFilters}
-              className="w-full rounded-full"
-            >
+            <Button onClick={resetFilters} className="w-full rounded-full">
               Clear Filters
             </Button>
           </div>
-
         </div>
       </Card>
 
-      {/* <div className="bg-white dark:bg-white-900 rounded-2xl shadow p-4"> */}
-      {/* <div className="bg-card text-card-foreground rounded-xl shadow border dark:border-gray-800 p-3 md:p-8">
-        <div className="overflow-auto h-[490px]">
-          <Table>
-            <TableHeader className="sticky top-0 z-30 bg-card">
-              <TableRow>
-                <TableHead className="sticky left-0 top-0 z-30 bg-card min-w-[150px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] dark:text-gray-500">
-                  Name
-                </TableHead>
-                <TableHead className="dark:text-gray-500">Plan</TableHead>
-                <TableHead className="dark:text-gray-500">Amount</TableHead>
-                <TableHead className="dark:text-gray-500">Date</TableHead>
-                <TableHead className="dark:text-gray-500">Time</TableHead>
-                <TableHead className="dark:text-gray-500">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-
-            <TableBody>
-              {filteredPayments.map((payment, index) => (
-                <TableRow key={index} className="bg-red-50 hover:bg-yellow-50">
-                  <TableCell
-                    className={cn(
-                      "sticky left-0 z-10 font-bold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] bg-card min-w-[40px] max-w-[40px]",
-                      // Use standard bg for the sticky cell so it's opaque
-                    )}
-                  >
-                    {payment.name}
-                  </TableCell>
-                  <TableCell>{payment.plan}</TableCell>
-                  <TableCell>₹{payment.amount}</TableCell>
-                  <TableCell>{payment.date}</TableCell>
-                  <TableCell>{payment.time}</TableCell>
-
-                  <TableCell>
-                    <Badge
-                      className={
-                        payment.status === "Success"
-                          ? "bg-green-500 rounded-lg"
-                          : "bg-red-500 rounded-lg"
-                      }
-                    >
-                      {payment.status}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </div> */}
       <div className="bg-card text-card-foreground rounded-xl shadow border dark:border-gray-800 p-3 md:p-8">
-        <div className="overflow-auto h-[450px]"> {/* Fixed height to prevent jumping */}
+        <div className="overflow-auto h-[450px]">
+          {" "}
+          {/* Fixed height to prevent jumping */}
           <Table>
             <TableHeader className="sticky top-0 z-30 bg-card">
               <TableRow>
                 <TableHead className="sticky left-0 top-0 z-30 bg-card min-w-[150px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] dark:text-gray-500 text-center">
                   Name
                 </TableHead>
-                <TableHead className="dark:text-gray-500 text-center">Plan</TableHead>
-                <TableHead className="dark:text-gray-500 text-center">Amount</TableHead>
-                <TableHead className="dark:text-gray-500 text-center">Date</TableHead>
-                <TableHead className="dark:text-gray-500 text-center">Time</TableHead>
-                <TableHead className="dark:text-gray-500 text-center">Status</TableHead>
+                <TableHead className="dark:text-gray-500 text-center">
+                  Plan
+                </TableHead>
+                <TableHead className="dark:text-gray-500 text-center">
+                  Amount
+                </TableHead>
+                <TableHead className="dark:text-gray-500 text-center">
+                  Date
+                </TableHead>
+                <TableHead className="dark:text-gray-500 text-center">
+                  Time
+                </TableHead>
+                <TableHead className="dark:text-gray-500 text-center">
+                  Status
+                </TableHead>
               </TableRow>
             </TableHeader>
 
             <TableBody>
               {currentData.map((payment, index) => (
-                <TableRow key={index} className="bg-red-50 hover:bg-yellow-50">
+                <TableRow key={index} className="dark:bg-card dark:text-white">
                   <TableCell
                     className={cn(
                       "sticky left-0 z-10 font-bold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] bg-card min-w-[150px] text-center",
@@ -574,14 +380,18 @@ export default function PaymentsTable() {
                     {payment.name}
                   </TableCell>
                   <TableCell className="text-center">{payment.plan}</TableCell>
-                  <TableCell className="text-center">₹{payment.amount}</TableCell>
+                  <TableCell className="text-center">
+                    ₹{payment.amount}
+                  </TableCell>
                   <TableCell className="text-center">{payment.date}</TableCell>
                   <TableCell className="text-center">{payment.time}</TableCell>
                   <TableCell className="text-center">
                     <Badge
                       className={cn(
                         "rounded-lg text-white",
-                        payment.status === "Success" ? "bg-green-500" : "bg-red-500"
+                        payment.status === "Success"
+                          ? "font-bold text-green-500 bg-dark"
+                          : "font-bold dark:bg-card text-red-500 bg-white",
                       )}
                     >
                       {payment.status}
@@ -591,16 +401,17 @@ export default function PaymentsTable() {
               ))}
 
               {/* Placeholder Rows to maintain fixed height */}
-              {emptyRows > 0 && Array.from({ length: emptyRows }).map((_, i) => (
-                <TableRow key={`empty-${i}`} className="border-transparent">
-                  <TableCell className="sticky left-0 bg-card py-6 border-transparent" />
-                  <TableCell className="py-6 border-transparent" />
-                  <TableCell className="py-6 border-transparent" />
-                  <TableCell className="py-6 border-transparent" />
-                  <TableCell className="py-6 border-transparent" />
-                  <TableCell className="py-6 border-transparent" />
-                </TableRow>
-              ))}
+              {emptyRows > 0 &&
+                Array.from({ length: emptyRows }).map((_, i) => (
+                  <TableRow key={`empty-${i}`} className="border-transparent">
+                    <TableCell className="sticky left-0 bg-card py-6 border-transparent" />
+                    <TableCell className="py-6 border-transparent" />
+                    <TableCell className="py-6 border-transparent" />
+                    <TableCell className="py-6 border-transparent" />
+                    <TableCell className="py-6 border-transparent" />
+                    <TableCell className="py-6 border-transparent" />
+                  </TableRow>
+                ))}
             </TableBody>
           </Table>
         </div>
@@ -609,7 +420,9 @@ export default function PaymentsTable() {
       {/* 3. Improved Pagination Controls (No overlap) */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
         <p className="text-sm text-muted-foreground order-2 sm:order-1">
-          Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredPayments.length)} of {filteredPayments.length} payments
+          Showing {startIndex + 1} to{" "}
+          {Math.min(startIndex + itemsPerPage, filteredPayments.length)} of{" "}
+          {filteredPayments.length} payments
         </p>
 
         <div className="order-1 sm:order-2">
@@ -618,8 +431,15 @@ export default function PaymentsTable() {
               <PaginationItem>
                 <PaginationPrevious
                   href="#"
-                  onClick={(e) => { e.preventDefault(); if (currentPage > 1) setCurrentPage(v => v - 1) }}
-                  className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage > 1) setCurrentPage((v) => v - 1);
+                  }}
+                  className={
+                    currentPage === 1
+                      ? "pointer-events-none opacity-50"
+                      : "cursor-pointer"
+                  }
                 />
               </PaginationItem>
 
@@ -632,8 +452,15 @@ export default function PaymentsTable() {
               <PaginationItem>
                 <PaginationNext
                   href="#"
-                  onClick={(e) => { e.preventDefault(); if (currentPage < totalPages) setCurrentPage(v => v + 1) }}
-                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage < totalPages) setCurrentPage((v) => v + 1);
+                  }}
+                  className={
+                    currentPage === totalPages
+                      ? "pointer-events-none opacity-50"
+                      : "cursor-pointer"
+                  }
                 />
               </PaginationItem>
             </PaginationContent>

@@ -144,11 +144,11 @@ export function AppSidebar() {
                 >
 
                   {/* Edit Profile Link */}
-                  <DropdownMenuItem asChild className="cursor-pointer">
+                  <DropdownMenuItem asChild className="cursor-pointer" onSelect={()=>handleMobileClose()}>
                     <Link
                       to="/settings"
                       className="flex items-center gap-2 w-full"
-                      onClick={handleMobileClose}
+                      // onClick={handleMobileClose}
                     >
                       <UserPen className="size-4" />
                       <span>Edit Profile</span>

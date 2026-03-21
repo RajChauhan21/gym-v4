@@ -7,20 +7,21 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import Loader from "@/components/ui/Loader"
+import Loader from "@/components/ui/Loader";
 import { Badge } from "@/components/ui/badge";
 import AddMemberDialog from "./AddMemberDialog";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { useGymStore } from "../../store/gymStore";
 import {
   Pagination,
   PaginationContent,
   PaginationItem,
   PaginationLink,
   PaginationNext,
-  PaginationPrevious
+  PaginationPrevious,
 } from "@/components/ui/pagination";
 import {
   Dialog,
@@ -50,112 +51,9 @@ export default function MembersTable() {
     window.open(url, "_blank");
   };
 
-  const members = [
-    {
-      name: "Rahul Sharma",
-      plan: "Gold",
-      status: "Paid",
-      due: 0,
-      expiry: "2026-04-10",
-      phone: "919876543210",
-    },
-    {
-      name: "Amit Verma",
-      plan: "Silver",
-      status: "Pending",
-      due: 1500,
-      expiry: "2026-04-10",
-      phone: "919876543210",
-    },
-    {
-      name: "Priya Singh",
-      plan: "Platinum",
-      status: "Paid",
-      due: 0,
-      expiry: "2026-01-20",
-      phone: "919876543210",
-    },
-    {
-      name: "Priya Singh",
-      plan: "Platinum",
-      status: "Paid",
-      due: 0,
-      expiry: "2026-01-20",
-      phone: "919876543210",
-    },
-    {
-      name: "Priya Singh",
-      plan: "Platinum",
-      status: "Paid",
-      due: 0,
-      expiry: "2026-01-20",
-      phone: "919876543210",
-    },
-    {
-      name: "Priya Singh",
-      plan: "Platinum",
-      status: "Paid",
-      due: 0,
-      expiry: "2026-01-20",
-      phone: "919876543210",
-    },
-    {
-      name: "Priya Singh",
-      plan: "Platinum",
-      status: "Paid",
-      due: 0,
-      expiry: "2026-01-20",
-      phone: "919876543210",
-    },
-    {
-      name: "Priya Singh",
-      plan: "Platinum",
-      status: "Paid",
-      due: 0,
-      expiry: "2026-01-20",
-      phone: "919876543210",
-    },
-    {
-      name: "Priya Singh",
-      plan: "Platinum",
-      status: "Paid",
-      due: 0,
-      expiry: "2026-01-20",
-      phone: "919876543210",
-    },
-    {
-      name: "Priya Singh",
-      plan: "Platinum",
-      status: "Paid",
-      due: 0,
-      expiry: "2026-01-20",
-      phone: "919876543210",
-    },
-    {
-      name: "Priya Singh",
-      plan: "Platinum",
-      status: "Paid",
-      due: 0,
-      expiry: "2026-01-20",
-      phone: "919876543210",
-    },
-    {
-      name: "Priya Singh",
-      plan: "Gold",
-      status: "Paid",
-      due: 0,
-      expiry: "2026-02-20",
-      phone: "919876543210",
-    },
-    {
-      name: "Priya Singh",
-      plan: "Platinum",
-      status: "Pending",
-      due: 2000,
-      expiry: "2026-01-20",
-      phone: "919876543210",
-    },
-  ];
+  const members = useGymStore((state) => state.members);
+  const setMembers = useGymStore((state) => state.setMembers);
+  // setMembers(membersObject);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPlan, setFilterPlan] = useState("all");
   const [status, setStatus] = useState("all");
@@ -165,41 +63,6 @@ export default function MembersTable() {
   const totalDue = members.reduce((acc, curr) => acc + curr.due, 0);
   const [expiryFrom, setexpiryFrom] = useState("");
   const [expiryTo, setexpiryTo] = useState("");
-
-  // const filteredMembers = members.filter((m) => {
-  //   const matchesName = m.name.toLowerCase().includes(searchTerm.toLowerCase());
-  //   const matchesPlan = filterPlan == "all" || m.plan == filterPlan;
-  //   const matchesStatus = status == "all" || m.status?.toString().toLowerCase().trim() === status.toLowerCase().trim();
-
-  //   // Date Range Logic
-  //   const memberExpiry = new Date(m.expiry);
-  //   const fromDate = expiryFrom ? new Date(expiryFrom) : null;
-  //   const toDate = expiryTo ? new Date(expiryTo) : null;
-
-  //   // Check if member's expiry falls within the selected range (inclusive)
-  //   const matchesExpiryRange =
-  //     (!fromDate || memberExpiry >= fromDate) &&
-  //     (!toDate || memberExpiry <= toDate);
-
-  //   if (m.status !== status && status !== "all") {
-  //     console.log(`Mismatch! Filter: '${status}' vs Data: '${m.status}'`);
-  //     console.log("Types:", typeof status, typeof m.status);
-  //   }
-  //   if (status !== "all" && m.status === status) {
-  //     console.log("Found a match for:", status);
-  //   }
-  //   if (m.status === "Paid" && status === "Paid") {
-  //     console.log(`Member: ${m.name}`);
-  //     console.log(`- Name Match: ${matchesName}`);
-  //     console.log(`- Plan Match: ${matchesPlan}`);
-  //     console.log(`- Status Match: ${matchesStatus}`);
-  //     console.log(`- Expiry Match: ${matchesExpiryRange} (Expiry: ${m.expiry})`);
-  //   }
-
-  //   return matchesName && matchesPlan && matchesStatus && matchesExpiryRange;
-  // });
-
-  // 1. Pagination State
 
   useEffect(() => {
     // Reset to Page 1 whenever filters change to prevent "Empty Page" bugs
@@ -228,14 +91,12 @@ export default function MembersTable() {
     if (end) end.setHours(23, 59, 59, 999); // Include full end day
 
     const matchesDate =
-      (!start || memberDate >= start) &&
-      (!end || memberDate <= end);
+      (!start || memberDate >= start) && (!end || memberDate <= end);
 
     // 4. The "AND" Gate
     // All active filters must match. Inactive filters are TRUE, so they don't block.
     return matchesName && matchesPlan && matchesStatus && matchesDate;
   });
-
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -243,7 +104,10 @@ export default function MembersTable() {
   // 2. Calculate Sliced Data
   const totalPages = Math.ceil(filteredMembers.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentData = filteredMembers.slice(startIndex, startIndex + itemsPerPage);
+  const currentData = filteredMembers.slice(
+    startIndex,
+    startIndex + itemsPerPage,
+  );
   const emptyRows = itemsPerPage - currentData.length;
 
   const resetFilters = () => {
@@ -253,7 +117,7 @@ export default function MembersTable() {
     setexpiryFrom(null);
     setexpiryTo(null);
     setCurrentPage(1);
-    setIsFilterOpen(false)
+    setIsFilterOpen(false);
   };
 
   const activeFilterCount = [
@@ -262,16 +126,14 @@ export default function MembersTable() {
     status !== "all",
   ].filter(Boolean).length;
 
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setTimeout(() => setLoading(false), 1200)
-  }, [])
+    setTimeout(() => setLoading(false), 1200);
+  }, []);
 
   if (loading) {
-    return (
-      <Loader text="Loading Members...." />
-    )
+    return <Loader text="Loading Members...." />;
   }
 
   return (
@@ -286,7 +148,7 @@ export default function MembersTable() {
           <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">
             Total Members
           </p>
-          <p className="text-2xl font-bold dark:text-black">{totalMembers}</p>
+          <p className="text-2xl font-bold dark:text-white">{totalMembers}</p>
         </div>
         <div className="p-4 rounded-2xl bg-card border shadow-sm">
           <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">
@@ -311,7 +173,7 @@ export default function MembersTable() {
         <DialogTrigger asChild>
           <Button
             variant="outline"
-            className="md:hidden flex gap-2 rounded-full shadow-sm w-full mb-2"
+            className="md:hidden flex gap-2 rounded-full shadow-sm w-full mb-2 mt-2"
           >
             <Search className="size-4" />
             <span>Search & Filter</span>
@@ -351,7 +213,7 @@ export default function MembersTable() {
                 <SelectContent>
                   <SelectItem value="all">All Plans</SelectItem>
                   <SelectItem value="Gold">Gold</SelectItem>
-                  <SelectItem value="Silver">Platinum</SelectItem>
+                  <SelectItem value="Platinum">Platinum</SelectItem>
                   <SelectItem value="Silver">Silver</SelectItem>
                 </SelectContent>
               </Select>
@@ -406,17 +268,14 @@ export default function MembersTable() {
             >
               Apply Filters
             </Button>
-            <Button
-              onClick={resetFilters}
-              className="w-full rounded-full"
-            >
+            <Button onClick={resetFilters} className="w-full rounded-full">
               Clear Filters
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Card className="hidden md:block p-4 bg-card border shadow-sm mb-2">
+      <Card className="hidden md:block p-4 bg-card border shadow-sm mb-2 mt-2">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 items-end">
           {/* Search by Name */}
           <div className="space-y-1.5">
@@ -489,10 +348,7 @@ export default function MembersTable() {
             />
           </div>
 
-          <Button
-            onClick={resetFilters}
-            className="w-full rounded-full"
-          >
+          <Button onClick={resetFilters} className="w-full rounded-full">
             Clear Filters
           </Button>
         </div>
@@ -507,24 +363,30 @@ export default function MembersTable() {
                 <TableHead className="sticky left-0 z-20 bg-card min-w-[150px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] dark:text-gray-500">
                   Name
                 </TableHead>
-                <TableHead className="dark:text-gray-500 text-center">Plan</TableHead>
-                <TableHead className="dark:text-gray-500 text-center">Status</TableHead>
-                <TableHead className="dark:text-gray-500 text-center">Due Amount</TableHead>
-                <TableHead className="dark:text-gray-500 text-center">Expiry</TableHead>
-                <TableHead className="dark:text-gray-500 text-center">Action</TableHead>
+                <TableHead className="dark:text-gray-500 text-center">
+                  Plan
+                </TableHead>
+                <TableHead className="dark:text-gray-500 text-center">
+                  Status
+                </TableHead>
+                <TableHead className="dark:text-gray-500 text-center">
+                  Due Amount
+                </TableHead>
+                <TableHead className="dark:text-gray-500 text-center">
+                  Expiry
+                </TableHead>
+                <TableHead className="dark:text-gray-500 text-center">
+                  Action
+                </TableHead>
               </TableRow>
             </TableHeader>
 
             <TableBody>
               {currentData.map((member, index) => (
-                <TableRow
-                  key={index}
-                  className={member.due > 0 ? "bg-red-50/30" : "bg-green-50/30"}
-                >
+                <TableRow key={index} className="">
                   <TableCell
                     className={cn(
-                      "sticky left-0 z-10 font-bold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] text-center",
-                      member.due > 0 ? "bg-[#fff5f5]" : "bg-card"
+                      "sticky left-0 z-10 font-bold bg-card shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] text-center",
                     )}
                   >
                     {member.name}
@@ -535,7 +397,9 @@ export default function MembersTable() {
                       variant={member.due === 0 ? "success" : "destructive"}
                       className={cn(
                         "rounded-full",
-                        member.due === 0 ? "bg-green-500 text-white" : "bg-red-500 text-white"
+                        member.due === 0
+                          ? "font-bold text-green-500 bg-dark"
+                          : "font-bold dark:bg-card text-red-500 bg-white",
                       )}
                     >
                       {member.due === 0 ? "Paid" : "Pending"}
@@ -556,17 +420,21 @@ export default function MembersTable() {
                 </TableRow>
               ))}
 
-              {emptyRows > 0 && Array.from({ length: emptyRows }).map((_, index) => (
-                <TableRow key={`empty-${index}`} className="border-transparent">
-                  {/* We must match the number of columns (6) so the layout doesn't break */}
-                  <TableCell className="sticky left-0 bg-card py-6 border-transparent"></TableCell>
-                  <TableCell className="py-6 border-transparent"></TableCell>
-                  <TableCell className="py-6 border-transparent"></TableCell>
-                  <TableCell className="py-6 border-transparent"></TableCell>
-                  <TableCell className="py-6 border-transparent"></TableCell>
-                  <TableCell className="py-6 border-transparent"></TableCell>
-                </TableRow>
-              ))}
+              {emptyRows > 0 &&
+                Array.from({ length: emptyRows }).map((_, index) => (
+                  <TableRow
+                    key={`empty-${index}`}
+                    className="border-transparent"
+                  >
+                    {/* We must match the number of columns (6) so the layout doesn't break */}
+                    <TableCell className="sticky left-0 bg-card py-6 border-transparent"></TableCell>
+                    <TableCell className="py-6 border-transparent"></TableCell>
+                    <TableCell className="py-6 border-transparent"></TableCell>
+                    <TableCell className="py-6 border-transparent"></TableCell>
+                    <TableCell className="py-6 border-transparent"></TableCell>
+                    <TableCell className="py-6 border-transparent"></TableCell>
+                  </TableRow>
+                ))}
             </TableBody>
           </Table>
         </div>
@@ -576,33 +444,52 @@ export default function MembersTable() {
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-4">
         {/* Left Side: Info Text */}
         <p className="text-sm text-muted-foreground order-2 sm:order-1">
-          Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredMembers.length)} of {filteredMembers.length} members
+          Showing {startIndex + 1} to{" "}
+          {Math.min(startIndex + itemsPerPage, filteredMembers.length)} of{" "}
+          {filteredMembers.length} members
         </p>
 
         {/* Right Side: Pagination Controls */}
         <div className="order-1 sm:order-2">
-          <Pagination className="w-auto mx-0 justify-end"> {/* Added w-auto and mx-0 */}
-            <PaginationContent className="gap-0 sm:gap-1"> {/* Tighten gaps for mobile */}
+          <Pagination className="w-auto mx-0 justify-end">
+            {" "}
+            {/* Added w-auto and mx-0 */}
+            <PaginationContent className="gap-0 sm:gap-1">
+              {" "}
+              {/* Tighten gaps for mobile */}
               <PaginationItem>
                 <PaginationPrevious
                   href="#"
-                  onClick={(e) => { e.preventDefault(); if (currentPage > 1) setCurrentPage(currentPage - 1) }}
-                  className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage > 1) setCurrentPage(currentPage - 1);
+                  }}
+                  className={
+                    currentPage === 1
+                      ? "pointer-events-none opacity-50"
+                      : "cursor-pointer"
+                  }
                 />
               </PaginationItem>
-
               <PaginationItem>
                 {/* Using a span instead of PaginationLink to prevent "button-like" hover styles on text */}
                 <span className="flex h-9 items-center justify-center px-3 text-sm whitespace-nowrap">
                   Page {currentPage} of {totalPages}
                 </span>
               </PaginationItem>
-
               <PaginationItem>
                 <PaginationNext
                   href="#"
-                  onClick={(e) => { e.preventDefault(); if (currentPage < totalPages) setCurrentPage(currentPage + 1) }}
-                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage < totalPages)
+                      setCurrentPage(currentPage + 1);
+                  }}
+                  className={
+                    currentPage === totalPages
+                      ? "pointer-events-none opacity-50"
+                      : "cursor-pointer"
+                  }
                 />
               </PaginationItem>
             </PaginationContent>

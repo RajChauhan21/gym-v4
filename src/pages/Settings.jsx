@@ -148,7 +148,7 @@ export default function Settings() {
                     <User className="size-3.5" />
                     <p className="text-[10px] font-bold uppercase tracking-widest">Owner</p>
                   </div>
-                  <p className="font-semibold text-foreground dark:text-black">{profile.owner}</p>
+                  <p className="font-semibold text-foreground dark:text-white">{profile.owner}</p>
                 </div>
 
                 {/* Location Section */}
@@ -157,7 +157,7 @@ export default function Settings() {
                     <MapPin className="size-3.5" />
                     <p className="text-[10px] font-bold uppercase tracking-widest">Location</p>
                   </div>
-                  <p className="font-semibold text-foreground leading-relaxed dark:text-black">
+                  <p className="font-semibold text-foreground leading-relaxed dark:text-white">
                     {profile.address}
                   </p>
                   {profile.mapLink && (
@@ -176,7 +176,7 @@ export default function Settings() {
                     <Phone className="size-3.5" />
                     <p className="text-[10px] font-bold uppercase tracking-widest">Contact</p>
                   </div>
-                  <p className="font-semibold text-foreground dark:text-black">{profile.phone}</p>
+                  <p className="font-semibold text-foreground dark:text-white">{profile.phone}</p>
                 </div>
 
                 {/* Email Section */}
@@ -185,7 +185,7 @@ export default function Settings() {
                     <Mail className="size-3.5" />
                     <p className="text-[10px] font-bold uppercase tracking-widest">Business Email</p>
                   </div>
-                  <p className="font-semibold text-foreground truncate dark:text-black" title={profile.email}>
+                  <p className="font-semibold text-foreground truncate dark:text-white" title={profile.email}>
                     {profile.email || "Not provided"}
                   </p>
                 </div>
@@ -251,7 +251,7 @@ export default function Settings() {
               </div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Primary UPI ID</p>
             </div>
-            <p className="font-mono font-medium text-foreground ml-9 dark:text-black">{payments.upiId || "Not set"}</p>
+            <p className="font-mono font-medium text-foreground ml-9 dark:text-white">{payments.upiId || "Not set"}</p>
           </div>
 
           {/* 2. HOLDER NAME SECTION */}
@@ -262,7 +262,7 @@ export default function Settings() {
               </div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Account Holder</p>
             </div>
-            <p className="font-semibold text-foreground ml-9 dark:text-black">{payments.holderName || "Not set"}</p>
+            <p className="font-semibold text-foreground ml-9 dark:text-white">{payments.holderName || "Not set"}</p>
           </div>
 
           {/* 3. BANK DETAILS (Spans 2 columns on desktop) */}
