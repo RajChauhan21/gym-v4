@@ -15,6 +15,8 @@ import { useTheme } from "./contexts/ThemeContext";
 import LandingPage from "./pages/LandingPage";
 import { SideBarLayout } from "./pages/SideBarLayout";
 import "./App.css";
+import 'react-phone-number-input/style.css'
+
 
 function App() {
   const [count, setCount] = useState(0);

@@ -39,7 +39,7 @@ export default function LandingPage() {
                             <Link to="/login">Login</Link>
                         </Button> */}
                         {/* <Button size="sm" className="rounded-full shadow-md" asChild>
-                            <Link to="/signup">Get Started</Link>
+                            <Link to="/signup">Get Started</Link> https://tqtjpmd0-5173.inc1.devtunnels.ms/
                         </Button> */}
                         <AuthModal triggerText="Get Started"/>
                     </div>
@@ -49,9 +49,9 @@ export default function LandingPage() {
             {/* --- HERO SECTION --- */}
             <section className="relative py-20 px-4 text-center overflow-hidden">
                 <div className="max-w-4xl mx-auto space-y-6">
-                    <Badge variant="secondary" className="px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest">
+                    {/* <Badge variant="secondary" className="px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest">
                         Now in Beta
-                    </Badge>
+                    </Badge> */}
                     <h1 className="text-5xl md:text-7xl font-extrabold tracking-tighter leading-tight">
                         Manage your Gym <br />
                         <span className="text-primary">Without the Paperwork.</span>

@@ -39,6 +39,11 @@ const chartConfig = {
 export function ChartAreaInteractive({ payments }) {
   const isMobile = useIsMobile();
   const [timeRange, setTimeRange] = React.useState("90d");
+  function normalizeDate(date) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
 
   React.useEffect(() => {
     if (isMobile) {
@@ -46,13 +51,34 @@ export function ChartAreaInteractive({ payments }) {
     }
   }, [isMobile]);
 
+  // const chartData = React.useMemo(() => {
+  //   const revenueByDate = {};
+
+  //   payments
+  //     .filter((p) => p.status === "Success")
+  //     .forEach((p) => {
+  //       const date = normalizeDate(p.date).toISOString().split("T")[0];
+
+  //       if (!revenueByDate[date]) {
+  //         revenueByDate[date] = 0;
+  //       }
+
+  //       revenueByDate[date] += p.amount;
+  //     });
+
+  //   return Object.keys(revenueByDate).map((date) => ({
+  //     date,
+  //     revenue: revenueByDate[date],
+  //   }));
+  // }, [payments]);
+
   const chartData = React.useMemo(() => {
     const revenueByDate = {};
 
     payments
       .filter((p) => p.status === "Success")
       .forEach((p) => {
-        const date = p.date;
+        const date = normalizeDate(p.date);
 
         if (!revenueByDate[date]) {
           revenueByDate[date] = 0;
@@ -67,18 +93,18 @@ export function ChartAreaInteractive({ payments }) {
     }));
   }, [payments]);
 
-  const filteredData = chartData.filter((item) => {
-    const date = new Date(item.date);
-    const referenceDate = new Date();
+  const filteredData = chartData.sort((a,b) => new Date(a.date) - new Date(b.date)).filter((item) => {
+    const date = normalizeDate(item.date);
+    const today = normalizeDate(new Date());
     let daysToSubtract = 90;
     if (timeRange === "30d") {
-      daysToSubtract = 30;
+      daysToSubtract = 29;
     } else if (timeRange === "7d") {
-      daysToSubtract = 7;
+      daysToSubtract = 6;
     }
-    const startDate = new Date(referenceDate);
+    const startDate = new Date(today);
     startDate.setDate(startDate.getDate() - daysToSubtract);
-    return date >= startDate;
+    return date >= startDate && date <= today;
   });
 
   return (

@@ -4,61 +4,93 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
-import { useState, useEffect } from "react"
-import { toast } from "sonner"
-
-export default function AddPlanModal({ open, setOpen, plans, setPlans, editPlan, setEditPlan }) {
-  const [form, setForm] = useState({ name: "", duration: "", price: "" })
-  const [errors, setErrors] = useState({})
-  const [loading, setLoading] = useState(false)
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
+import { allowOnlyText, allowOnlyNumbers } from "../../lib/inputValidator";
+export default function AddPlanModal({
+  open,
+  setOpen,
+  plans,
+  setPlans,
+  editPlan,
+  setEditPlan,
+}) {
+  const [form, setForm] = useState({ name: "", duration: "", price: "" });
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
       if (editPlan) {
-        setForm({ name: editPlan.name, duration: editPlan.duration, price: editPlan.price })
+        setForm({
+          name: editPlan.name,
+          duration: editPlan.duration,
+          price: editPlan.price,
+        });
       } else {
-        setForm({ name: "", duration: "", price: "" })
+        setForm({ name: "", duration: "", price: "" });
       }
-      setErrors({})
+      setErrors({});
     }
-  }, [open, editPlan])
+  }, [open, editPlan]);
 
   const validate = () => {
-    const newErrors = {}
-    if (!form.name || !/^[A-Za-z\s]+$/.test(form.name)) newErrors.name = "Only letters allowed"
-    if (!form.duration || isNaN(form.duration)) newErrors.duration = "Enter a valid number"
-    if (!form.price || isNaN(form.price)) newErrors.price = "Enter a valid amount"
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    const newErrors = {};
+    if (!form.name || !/^[A-Za-z\s]+$/.test(form.name))
+      newErrors.name = "Only letters allowed";
+    if (!form.duration || isNaN(form.duration))
+      newErrors.duration = "Enter a valid number";
+    if (!form.price || isNaN(form.price))
+      newErrors.price = "Enter a valid amount";
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = () => {
-    if (!validate()) return
-    setLoading(true)
+    if (!validate()) return;
+
+    // 1. Check for Duplicate Name
+    const isDuplicate = plans.some((p, idx) => {
+      // If editing, ignore the current plan's index
+      if (editPlan && idx === editPlan.index) return false;
+
+      // Compare names (case-insensitive for better safety)
+      return p.name.toLowerCase() === form.name.toLowerCase();
+    });
+
+    if (isDuplicate) {
+      toast.error(`A plan named "${form.name}" already exists.`);
+      return; // Stop the function here
+    }
+
+    setLoading(true);
     setTimeout(() => {
       if (editPlan) {
-        const updatedPlans = [...plans]
-        updatedPlans[editPlan.index] = form
-        setPlans(updatedPlans)
-        toast.success("Plan updated successfully")
-        setEditPlan(null)
+        const updatedPlans = [...plans];
+        updatedPlans[editPlan.index] = form;
+        setPlans(updatedPlans);
+        toast.success("Plan updated successfully");
+        setEditPlan(null);
       } else {
-        setPlans([...plans, form])
-        toast.success("Plan added successfully")
+        setPlans([...plans, form]);
+        toast.success("Plan added successfully");
       }
-      setLoading(false)
-      setOpen(false)
-    }, 800)
-  }
+      setLoading(false);
+      setOpen(false);
+    }, 800);
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button onClick={() => setOpen(true)} className="mb-4 dark:bg-white dark:text-black">
+        <Button
+          onClick={() => setOpen(true)}
+          className="mb-4 dark:bg-white dark:text-black"
+        >
           {editPlan ? "Edit Plan" : "+ Add Plan"}
         </Button>
       </DialogTrigger>
@@ -73,12 +105,18 @@ export default function AddPlanModal({ open, setOpen, plans, setPlans, editPlan,
           <div className="space-y-1">
             <Label className="mb-1">Plan Name</Label>
             <Input
+              type="text"
               disabled={loading}
               placeholder="Gold / Silver / Platinum"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onKeyDown={allowOnlyText}
             />
-            <div className="min-h-[20px]">{errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}</div>
+            <div className="min-h-[20px]">
+              {errors.name && (
+                <p className="text-red-500 text-sm">{errors.name}</p>
+              )}
+            </div>
           </div>
 
           <div className="space-y-1">
@@ -89,8 +127,13 @@ export default function AddPlanModal({ open, setOpen, plans, setPlans, editPlan,
               placeholder="1 / 3 / 6"
               value={form.duration}
               onChange={(e) => setForm({ ...form, duration: e.target.value })}
+              onKeyDown={allowOnlyNumbers}
             />
-            <div className="min-h-[20px]">{errors.duration && <p className="text-red-500 text-sm">{errors.duration}</p>}</div>
+            <div className="min-h-[20px]">
+              {errors.duration && (
+                <p className="text-red-500 text-sm">{errors.duration}</p>
+              )}
+            </div>
           </div>
 
           <div className="space-y-1">
@@ -101,8 +144,13 @@ export default function AddPlanModal({ open, setOpen, plans, setPlans, editPlan,
               placeholder="Enter price"
               value={form.price}
               onChange={(e) => setForm({ ...form, price: e.target.value })}
+              onKeyDown={allowOnlyNumbers}
             />
-            <div className="min-h-[20px]">{errors.price && <p className="text-red-500 text-sm">{errors.price}</p>}</div>
+            <div className="min-h-[20px]">
+              {errors.price && (
+                <p className="text-red-500 text-sm">{errors.price}</p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -113,5 +161,5 @@ export default function AddPlanModal({ open, setOpen, plans, setPlans, editPlan,
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

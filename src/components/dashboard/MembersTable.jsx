@@ -14,7 +14,6 @@ import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { useGymStore } from "../../store/gymStore";
 import {
   Pagination,
   PaginationContent,
@@ -41,6 +40,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Search, SlidersHorizontal, X } from "lucide-react";
+import { useGymStore } from "../../store/gymStore";
 
 export default function MembersTable() {
   const sendWhatsAppReminder = (member) => {
@@ -52,6 +52,7 @@ export default function MembersTable() {
   };
 
   const members = useGymStore((state) => state.members);
+  const plans = useGymStore((state) => state.plans);
   const setMembers = useGymStore((state) => state.setMembers);
   // setMembers(membersObject);
   const [searchTerm, setSearchTerm] = useState("");
@@ -63,6 +64,7 @@ export default function MembersTable() {
   const totalDue = members.reduce((acc, curr) => acc + curr.due, 0);
   const [expiryFrom, setexpiryFrom] = useState("");
   const [expiryTo, setexpiryTo] = useState("");
+  const [dateType, setDateType] = useState("expiry"); // "expiry" or "joined"
 
   useEffect(() => {
     // Reset to Page 1 whenever filters change to prevent "Empty Page" bugs
@@ -78,24 +80,24 @@ export default function MembersTable() {
     // 2. Exact Matches (Dropdowns)
     // If filter is "all", we return TRUE (ignoring this specific check)
     const matchesPlan = filterPlan === "all" || m.plan === filterPlan;
-    const matchesStatus = status === "all" || m.status === status;
 
-    // 3. Date Range (Time-Normalized)
-    const memberDate = new Date(m.expiry);
-    memberDate.setHours(0, 0, 0, 0); // Ignore time, compare Dates only
-
+    // Generic Date logic
     const start = expiryFrom ? new Date(expiryFrom) : null;
-    if (start) start.setHours(0, 0, 0, 0);
-
     const end = expiryTo ? new Date(expiryTo) : null;
-    if (end) end.setHours(23, 59, 59, 999); // Include full end day
+    if (start) start.setHours(0, 0, 0, 0);
+    if (end) end.setHours(23, 59, 59, 999);
+
+    // Pick the target field based on dateType
+    const targetDateString = dateType === "expiry" ? m.expiry : m.joined;
+    const compareDate = new Date(targetDateString);
+    compareDate.setHours(0, 0, 0, 0);
 
     const matchesDate =
-      (!start || memberDate >= start) && (!end || memberDate <= end);
+      (!start || compareDate >= start) && (!end || compareDate <= end);
 
     // 4. The "AND" Gate
     // All active filters must match. Inactive filters are TRUE, so they don't block.
-    return matchesName && matchesPlan && matchesStatus && matchesDate;
+    return matchesName && matchesPlan && matchesDate;
   });
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -119,6 +121,51 @@ export default function MembersTable() {
     setCurrentPage(1);
     setIsFilterOpen(false);
   };
+
+  function getExpiryText(expiryDate) {
+    const today = new Date();
+    const expiry = new Date(expiryDate);
+
+    // Normalize both dates
+    today.setHours(0, 0, 0, 0);
+    expiry.setHours(0, 0, 0, 0);
+
+    const diffTime = expiry - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) {
+      return `Expired ${Math.abs(diffDays)} day${Math.abs(diffDays) > 1 ? "s" : ""} ago`;
+    }
+
+    if (diffDays === 0) {
+      return "Expiring Today";
+    }
+
+    if (diffDays <= 7) {
+      return `Expires in ${diffDays} day${diffDays > 1 ? "s" : ""}`;
+    }
+
+    return expiry.toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  }
+
+  function getExpiryColor(expiryDate) {
+    const today = new Date();
+    const expiry = new Date(expiryDate);
+
+    today.setHours(0, 0, 0, 0);
+    expiry.setHours(0, 0, 0, 0);
+
+    const diffDays = (expiry - today) / (1000 * 60 * 60 * 24);
+
+    if (diffDays < 0) return "text-red-500";
+    if (diffDays === 0) return "text-orange-500 font-semibold";
+    if (diffDays <= 7) return "text-yellow-500";
+    return "text-blue-500";
+  }
 
   const activeFilterCount = [
     searchTerm !== "",
@@ -206,32 +253,31 @@ export default function MembersTable() {
               <Label className="text-xs font-bold uppercase text-muted-foreground">
                 Plan
               </Label>
-              <Select value={filterPlan} onValueChange={setFilterPlan}>
+              <Select onValueChange={setFilterPlan} value={filterPlan}>
                 <SelectTrigger>
                   <SelectValue placeholder="All Plans" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Plans</SelectItem>
-                  <SelectItem value="Gold">Gold</SelectItem>
-                  <SelectItem value="Platinum">Platinum</SelectItem>
-                  <SelectItem value="Silver">Silver</SelectItem>
+                  {plans.map((plan, idx) => (
+                    <SelectItem key={idx} value={plan.name}>{plan.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* 3. Status Select */}
+            {/* Date type selector */}
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase text-muted-foreground">
-                Status
+                Filter Date By
               </Label>
-              <Select value={status} onValueChange={setStatus}>
+              <Select value={dateType} onValueChange={setDateType}>
                 <SelectTrigger>
-                  <SelectValue placeholder="All Status" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="Paid`">Paid</SelectItem>
+                  <SelectItem value="expiry">Expiry Date</SelectItem>
+                  <SelectItem value="joined">Joining Date</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -275,6 +321,7 @@ export default function MembersTable() {
         </DialogContent>
       </Dialog>
 
+      {/* Pc Filter logic */}
       <Card className="hidden md:block p-4 bg-card border shadow-sm mb-2 mt-2">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 items-end">
           {/* Search by Name */}
@@ -294,32 +341,31 @@ export default function MembersTable() {
             <Label className="text-xs font-bold uppercase text-muted-foreground">
               Plan
             </Label>
-            <Select value={filterPlan} onValueChange={setFilterPlan}>
+            <Select value={filterPlan} onValueChange={setFilterPlan} >
               <SelectTrigger>
                 <SelectValue placeholder="All Plans" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Plans</SelectItem>
-                <SelectItem value="Gold">Gold</SelectItem>
-                <SelectItem value="Silver">Silver</SelectItem>
-                <SelectItem value="Platinum">Platinum</SelectItem>
+                {plans.map((plan, idx) => (
+                  <SelectItem key={idx} value={plan.name}>{plan.name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Status Filter */}
+          {/* 3. Date Type Selector (NEW) */}
           <div className="space-y-1.5">
             <Label className="text-xs font-bold uppercase text-muted-foreground">
-              Status
+              Filter Date By
             </Label>
-            <Select value={status} onValueChange={setStatus}>
+            <Select value={dateType} onValueChange={setDateType}>
               <SelectTrigger>
-                <SelectValue placeholder="All Status" />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="Pending">Pending</SelectItem>
-                <SelectItem value="Paid">Paid</SelectItem>
+                <SelectItem value="expiry">Expiry Date</SelectItem>
+                <SelectItem value="joined">Joining Date</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -354,21 +400,24 @@ export default function MembersTable() {
         </div>
       </Card>
 
-      <div className="bg-card text-card-foreground rounded-xl shadow border dark:border-gray-800 p-2 md:p-8">
-        <div className="overflow-auto h-[490px]">
+      <div className="bg-card text-card-foreground rounded-xl shadow border dark:border-gray-800 p-3 md:p-8">
+        <div className="overflow-auto h-[450px]">
           <Table>
-            <TableHeader>
+            <TableHeader className="sticky top-0 z-30 bg-card">
               <TableRow>
                 {/* STICKY NAME COLUMN */}
-                <TableHead className="sticky left-0 z-20 bg-card min-w-[150px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] dark:text-gray-500">
+                <TableHead className="sticky left-0 top-0 z-30 bg-card min-w-[150px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] dark:text-gray-500 text-center">
                   Name
                 </TableHead>
                 <TableHead className="dark:text-gray-500 text-center">
                   Plan
                 </TableHead>
                 <TableHead className="dark:text-gray-500 text-center">
-                  Status
+                  Joined
                 </TableHead>
+                {/* <TableHead className="dark:text-gray-500 text-center">
+                  Status
+                </TableHead> */}
                 <TableHead className="dark:text-gray-500 text-center">
                   Due Amount
                 </TableHead>
@@ -392,21 +441,20 @@ export default function MembersTable() {
                     {member.name}
                   </TableCell>
                   <TableCell className="text-center">{member.plan}</TableCell>
-                  <TableCell className="text-center">
-                    <Badge
-                      variant={member.due === 0 ? "success" : "destructive"}
-                      className={cn(
-                        "rounded-full",
-                        member.due === 0
-                          ? "font-bold text-green-500 bg-dark"
-                          : "font-bold dark:bg-card text-red-500 bg-white",
-                      )}
+                  <TableCell className="text-center">{member.joined}</TableCell>
+                  {/* <TableCell className="text-center">
+                    <span
+                     className= {getStatusColor(member.expiry)}
                     >
-                      {member.due === 0 ? "Paid" : "Pending"}
-                    </Badge>
-                  </TableCell>
+                      {member.status}
+                    </span>
+                  </TableCell> */}
                   <TableCell className="text-center">₹{member.due}</TableCell>
-                  <TableCell className="text-center">{member.expiry}</TableCell>
+                  <TableCell className="text-center">
+                    <span className={getExpiryColor(member.expiry)}>
+                      {getExpiryText(member.expiry)}
+                    </span>
+                  </TableCell>
                   <TableCell className="text-center">
                     {member.due > 0 && (
                       <button

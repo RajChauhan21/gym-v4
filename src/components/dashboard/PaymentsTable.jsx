@@ -41,9 +41,9 @@ import {
 import { useGymStore } from "../../store/gymStore";
 
 export default function PaymentsTable() {
-   const payments = useGymStore((state) => state.payments);
+  const payments = useGymStore((state) => state.payments);
   const setPayments = useGymStore((state) => state.setPayments);
-
+  const plans = useGymStore((state) => state.plans);
   const totalRevenue = payments
     .filter((p) => p.status === "Success")
     .reduce((acc, curr) => acc + curr.amount, 0);
@@ -54,6 +54,7 @@ export default function PaymentsTable() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [method, setMethod] = useState("all");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   useEffect(() => {
@@ -65,14 +66,20 @@ export default function PaymentsTable() {
     const matchesName = p.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesPlan = filterPlan === "all" || p.plan === filterPlan;
     const matchesStatus = filterStatus === "all" || p.status === filterStatus;
-
+    const matchesMethod = method === "all" || p.method === method;
     // Date Range Logic
     const pDate = new Date(p.date);
     const from = dateFrom ? new Date(dateFrom) : null;
     const to = dateTo ? new Date(dateTo) : null;
     const matchesDate = (!from || pDate >= from) && (!to || pDate <= to);
 
-    return matchesName && matchesPlan && matchesStatus && matchesDate;
+    return (
+      matchesName &&
+      matchesPlan &&
+      matchesStatus &&
+      matchesDate &&
+      matchesMethod
+    );
   });
 
   // 1. Pagination State
@@ -98,6 +105,7 @@ export default function PaymentsTable() {
     setDateTo(null);
     setCurrentPage(1);
     setIsFilterOpen(false);
+    setMethod("all");
   };
 
   const [loading, setLoading] = useState(true);
@@ -192,14 +200,17 @@ export default function PaymentsTable() {
               <Label className="text-xs font-bold uppercase text-muted-foreground">
                 Plan Type
               </Label>
-              <Select value={filterPlan} onValueChange={setFilterPlan}>
+              <Select onValueChange={setFilterPlan} value={filterPlan}>
                 <SelectTrigger>
                   <SelectValue placeholder="All Plans" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Plans</SelectItem>
-                  <SelectItem value="Gold">Gold</SelectItem>
-                  <SelectItem value="Silver">Silver</SelectItem>
+                  {plans.map((plan, idx) => (
+                    <SelectItem key={idx} value={plan.name}>
+                      {plan.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -217,6 +228,22 @@ export default function PaymentsTable() {
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="Success">Success</SelectItem>
                   <SelectItem value="Failed">Failed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase text-muted-foreground">
+                Payment Method
+              </Label>
+              <Select value={method} onValueChange={setMethod}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Methods" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Methods</SelectItem>
+                  <SelectItem value="Cash">Cash</SelectItem>
+                  <SelectItem value="UPI">UPI</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -280,17 +307,19 @@ export default function PaymentsTable() {
             <Label className="text-xs font-bold uppercase text-muted-foreground">
               Plan
             </Label>
-            <Select value={filterPlan} onValueChange={setFilterPlan}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Plans" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Plans</SelectItem>
-                <SelectItem value="Gold">Gold</SelectItem>
-                <SelectItem value="Silver">Silver</SelectItem>
-                <SelectItem value="Platinum">Platinum</SelectItem>
-              </SelectContent>
-            </Select>
+            <Select onValueChange={setFilterPlan} value={filterPlan}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Plans" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Plans</SelectItem>
+                  {plans.map((plan, idx) => (
+                    <SelectItem key={idx} value={plan.name}>
+                      {plan.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
           </div>
 
           {/* Status Filter */}
@@ -306,6 +335,22 @@ export default function PaymentsTable() {
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="Success">Success</SelectItem>
                 <SelectItem value="Failed">Failed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold uppercase text-muted-foreground">
+              Method
+            </Label>
+            <Select value={method} onValueChange={setMethod}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Methods" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Methods</SelectItem>
+                <SelectItem value="Cash">Cash</SelectItem>
+                <SelectItem value="UPI">UPI</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -364,6 +409,9 @@ export default function PaymentsTable() {
                   Time
                 </TableHead>
                 <TableHead className="dark:text-gray-500 text-center">
+                  Method
+                </TableHead>
+                <TableHead className="dark:text-gray-500 text-center">
                   Status
                 </TableHead>
               </TableRow>
@@ -385,6 +433,10 @@ export default function PaymentsTable() {
                   </TableCell>
                   <TableCell className="text-center">{payment.date}</TableCell>
                   <TableCell className="text-center">{payment.time}</TableCell>
+                  <TableCell className="text-center">
+                    {payment.method}
+                  </TableCell>
+
                   <TableCell className="text-center">
                     <Badge
                       className={cn(

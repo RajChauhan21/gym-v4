@@ -131,3 +131,29 @@
 body[style*="pointer-events: none"] {
   pointer-events: auto !important;
 }
+
+.PhoneInput {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.PhoneInputInput {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 14px;
+}
+
+.PhoneInputCountrySelect {
+  background: transparent;
+  border: none;
+  outline: none;
+  cursor: pointer;
+}
+
+.PhoneInputCountrySelect option {
+  background-color: hsl(var(--card));
+  color: hsl(var(--foreground));
+}

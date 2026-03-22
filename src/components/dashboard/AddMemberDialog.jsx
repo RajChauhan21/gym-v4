@@ -6,14 +6,23 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-// import { useToast } from "@/components/ui/use-toast"
+import { useGymStore } from "../../store/gymStore";
 import { toast } from "sonner";
+import { PhoneNumberInput } from "@/components/ui/phone-input";
+import { allowOnlyText, allowOnlyNumbers } from "../../lib/inputValidator";
 
 export default function AddMemberDialog() {
+  const plans = useGymStore((state) => state.plans);
   const [errors, setErrors] = useState({});
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -28,6 +37,7 @@ export default function AddMemberDialog() {
   const [form, setForm] = useState({
     name: "",
     phone: "",
+    countryCode: "+91",
     plan: "",
     amount: "",
     duration: "1", // months
@@ -76,9 +86,11 @@ export default function AddMemberDialog() {
           <div>
             <Label className="mb-1 block">Name</Label>
             <Input
+              type="text"
               disabled={loading}
               placeholder="Enter name"
               onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onKeyDown= {allowOnlyText}
             />
             {/* Placeholder for error messages to prevent layout jumping */}
             <div className="min-h-[20px]">
@@ -89,12 +101,24 @@ export default function AddMemberDialog() {
           </div>
 
           <div>
-            <Label className="mb-1 block">Plan</Label>
-            <Input
+            <Label className="mb-1 block">Package</Label>
+            <Select
               disabled={loading}
-              placeholder="Gold / Silver"
-              onChange={(e) => setForm({ ...form, plan: e.target.value })}
-            />
+              onValueChange={(value) => setForm({ ...form, plan: value })}
+              value={form.plan}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a plan" />
+              </SelectTrigger>
+              <SelectContent>
+                {plans.map((plan, idx) => (
+                  <SelectItem key={idx} value={plan.name}>
+                    {plan.name} ({plan.duration} Month
+                    {plan.duration > 1 ? "s" : ""}) - ₹{plan.price}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <div className="min-h-[20px]">
               {errors?.plan && (
                 <p className="text-red-500 text-sm">{errors.plan}</p>
@@ -103,16 +127,15 @@ export default function AddMemberDialog() {
           </div>
 
           <div>
-            <Label className="mb-1 block">Duration (months)</Label>
-            <Input
+            <Label className="mb-1 block">Phone Number</Label>
+            <PhoneNumberInput
               disabled={loading}
-              type="number"
-              placeholder="1 / 3 / 6"
-              onChange={(e) => setForm({ ...form, duration: e.target.value })}
+              value={form.phone}
+              onChange={(value) => setForm({ ...form, phone: value })}
             />
             <div className="min-h-[20px]">
-              {errors?.duration && (
-                <p className="text-red-500 text-sm">{errors.duration}</p>
+              {errors?.phone && (
+                <p className="text-red-500 text-sm">{errors.phone}</p>
               )}
             </div>
           </div>
@@ -124,6 +147,7 @@ export default function AddMemberDialog() {
               type="number"
               placeholder="Enter amount"
               onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              onKeyDown={allowOnlyNumbers}
             />
             <div className="min-h-[20px]">
               {errors?.amount && (
