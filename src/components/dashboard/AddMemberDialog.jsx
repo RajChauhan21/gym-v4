@@ -157,7 +157,7 @@ export default function AddMemberDialog() {
           </div>
         </div>
 
-        {/* Footer: Stays at bottom of content or bottom of modal */}
+        {/* Footer: Stays at bottom of content or bottom of modal */} 
         <div className="p-6 border-t shrink-0 bg-white dark:bg-zinc-950 mt-auto">
           <Button className="w-full" disabled={loading} onClick={handleSubmit}>
             {loading ? "Saving..." : "Save Member"}
