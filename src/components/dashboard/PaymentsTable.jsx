@@ -53,6 +53,8 @@ export default function PaymentsTable() {
   const payments = useGymStore((state) => state.payments) ?? [];
   const addPayment = useGymStore((state) => state.addPayment);
   const plans = useGymStore((state) => state.plans);
+  const [errors, setErrors] = useState({});
+
   // const totalRevenue = payments
   //   .filter((p) => p.status === "Success")
   //   .reduce((acc, curr) => acc + curr.amount, 0);
@@ -137,7 +139,41 @@ export default function PaymentsTable() {
     status: "Success",
   });
 
+  const validate = () => {
+    let newErrors = {};
+    const textRegex = /^[a-zA-Z\s'.-]+$/;
+
+    if (!newPayment.name.trim()) {
+      newErrors.name = "member name required";
+    } else if (!textRegex.test(newPayment.name)) {
+      newErrors.name = "Member name should only contain letters";
+    }
+
+    if (!newPayment.amount.trim()) {
+      newErrors.amount = "Amount required";
+    }
+
+    if (!newPayment.plan.trim()) {
+      newErrors.plan = "Plan required";
+    }
+
+    if (!newPayment.method.trim()) {
+      newErrors.method = "Method required";
+    }
+
+    if (!newPayment.date) {
+      newErrors.date = "Date required";
+    }
+    return newErrors;
+  };
+
   const handleAddPayment = () => {
+    const validation = validate();
+    if (Object.keys(validation).length > 0) {
+      setErrors(validation);
+      setLoading(false);
+      return;
+    }
     const payment = {
       ...newPayment,
       time: new Date().toLocaleTimeString(),
@@ -202,10 +238,7 @@ export default function PaymentsTable() {
       <div className="flex items-center justify-between mb-4">
         <Dialog open={openPayment} onOpenChange={setOpenPayment}>
           <DialogTrigger asChild>
-            <Button className="rounded-md flex gap-2">
-              <Plus className="size-4" />
-              Record Payment
-            </Button>
+            <Button className="rounded-md flex gap-2">+ Record Payment</Button>
           </DialogTrigger>
 
           <DialogContent className="max-w-md">
@@ -224,6 +257,11 @@ export default function PaymentsTable() {
                     setNewPayment({ ...newPayment, name: e.target.value })
                   }
                 />
+                <div className="min-h-[20px]">
+                  {errors?.name && (
+                    <p className="text-red-500 text-sm">{errors.name}</p>
+                  )}
+                </div>
               </div>
 
               {/* Plan */}
@@ -246,6 +284,11 @@ export default function PaymentsTable() {
                     ))}
                   </SelectContent>
                 </Select>
+                <div className="min-h-[20px]">
+                  {errors?.plan && (
+                    <p className="text-red-500 text-sm">{errors.plan}</p>
+                  )}
+                </div>
               </div>
 
               {/* Amount */}
@@ -259,6 +302,11 @@ export default function PaymentsTable() {
                     setNewPayment({ ...newPayment, amount: e.target.value })
                   }
                 />
+                <div className="min-h-[20px]">
+                  {errors?.amount && (
+                    <p className="text-red-500 text-sm">{errors.amount}</p>
+                  )}
+                </div>
               </div>
 
               {/* Payment Method */}
@@ -280,6 +328,11 @@ export default function PaymentsTable() {
                     <SelectItem value="Bank">Bank Transfer</SelectItem>
                   </SelectContent>
                 </Select>
+                <div className="min-h-[20px]">
+                  {errors?.method && (
+                    <p className="text-red-500 text-sm">{errors.method}</p>
+                  )}
+                </div>
               </div>
 
               {/* Date */}
@@ -292,6 +345,11 @@ export default function PaymentsTable() {
                     setNewPayment({ ...newPayment, date: e.target.value })
                   }
                 />
+                <div className="min-h-[20px]">
+                  {errors?.date && (
+                    <p className="text-red-500 text-sm">{errors.date}</p>
+                  )}
+                </div>
               </div>
 
               <Button className="w-full" onClick={handleAddPayment}>
