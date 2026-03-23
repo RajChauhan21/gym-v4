@@ -14,12 +14,27 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useState } from "react";
 
 export function SignupForm({
   onNavigateToLogin,
   className,
   ...props
 }: React.ComponentProps<"div">) {
+
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+  })
+
+  // 2. Handle Form Submission
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    console.log("Signup Data:", formData)
+    // Send to your backend (e.g., Firebase, Supabase, or API)
+  }
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
@@ -30,11 +45,14 @@ export function SignupForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form>
+          <form onClick={handleSubmit}>
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="name">Full Name</FieldLabel>
-                <Input id="name" type="text" placeholder="John Doe" required />
+                <Input id="name" type="text" placeholder="John Doe" required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
               </Field>
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
@@ -43,6 +61,8 @@ export function SignupForm({
                   type="email"
                   placeholder="m@example.com"
                   required
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
               </Field>
               <Field>
@@ -55,7 +75,10 @@ export function SignupForm({
                     <FieldLabel htmlFor="confirm-password">
                       Confirm Password
                     </FieldLabel>
-                    <Input id="confirm-password" type="password" required />
+                    <Input id="confirm-password" type="password" required
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    />
                   </Field>
                 </Field>
                 <FieldDescription>

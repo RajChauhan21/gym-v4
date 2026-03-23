@@ -50,9 +50,9 @@ export function SectionCards({ members, payments }) {
     lastMonthRevenue === 0
       ? 100
       : (
-          ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) *
-          100
-        ).toFixed(1);
+        ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) *
+        100
+      ).toFixed(1);
 
   // ---------- NEW MEMBERS ----------
   const newMembersThisMonth = members.filter(
@@ -69,9 +69,9 @@ export function SectionCards({ members, payments }) {
     newMembersLastMonth === 0
       ? 100
       : (
-          ((newMembersThisMonth - newMembersLastMonth) / newMembersLastMonth) *
-          100
-        ).toFixed(1);
+        ((newMembersThisMonth - newMembersLastMonth) / newMembersLastMonth) *
+        100
+      ).toFixed(1);
 
   const difference = newMembersThisMonth - newMembersLastMonth;
 
@@ -104,10 +104,10 @@ export function SectionCards({ members, payments }) {
     activeMembers3MonthsAgo === 0
       ? 100
       : (
-          ((activeMembers - activeMembers3MonthsAgo) /
-            activeMembers3MonthsAgo) *
-          100
-        ).toFixed(1);
+        ((activeMembers - activeMembers3MonthsAgo) /
+          activeMembers3MonthsAgo) *
+        100
+      ).toFixed(1);
 
   return (
     <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
@@ -148,7 +148,7 @@ export function SectionCards({ members, payments }) {
             </Badge> */}
             {/* <span>+{difference} from last month</span> */}
             <Badge variant="outline">
-              <span>+{difference} from last month</span> 
+              <span>+{difference} from last month</span>
             </Badge>
           </CardAction>
         </CardHeader>

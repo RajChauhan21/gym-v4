@@ -11,7 +11,7 @@ export function AuthModal({ triggerText = "Get Started" }) {
   return (
     <Dialog onOpenChange={() => setMode("login")}>
       <DialogTrigger asChild>
-        <Button size="lg" className="rounded-full shadow-lg">
+        <Button size="lg" className="rounded-full shadow-lg bg-white text-black cursor-pointer">
           {triggerText}
         </Button>
       </DialogTrigger>

@@ -74,7 +74,7 @@ export default function Plans() {
             className="relative overflow-hidden border-2 hover:border-primary/50 transition-all group"
           >
             {/* Design Element: Top Accent Bar */}
-            <div className="h-2 w-full dark:md:bg-primary/20 md:dark:group-hover:bg-primary transition-colors dark:bg-white" />
+            <div className="h-2 w-full bg-black dark:bg-white md:bg-white dark:md:bg-black transition-colors duration-200 md:hover:bg-black md:dark:hover:bg-white md:group-hover:bg-black md:dark:group-hover:bg-white" />
 
             <CardHeader className="pb-2">
               <div className="flex justify-between items-start">

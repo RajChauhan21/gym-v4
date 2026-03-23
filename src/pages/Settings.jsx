@@ -22,6 +22,9 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { useTheme } from "../contexts/ThemeContext";
 import { useProfile } from "../contexts/ProfileContext";
+import { ChangePasswordModal } from "../components/dashboard/ChangePasswordModal";
+import { LogoutModal } from "../components/dashboard/LogoutModal";
+import { DeleteAccountModal } from "../components/dashboard/DeleteAccoutModal";
 
 export default function Settings() {
   const { dark, toggleDark } = useTheme();
@@ -426,8 +429,10 @@ export default function Settings() {
         </CardHeader>
 
         <CardContent className="space-y-3">
-          <Button className="mr-2">Change Password</Button>
-          <Button>Logout from all devices</Button>
+          {/* <Button className="mr-2">Change Password</Button> */}
+          {/* <Button>Logout from all devices</Button> */}
+          <ChangePasswordModal/>
+          <LogoutModal/>
         </CardContent>
       </Card>
 
@@ -438,7 +443,8 @@ export default function Settings() {
         </CardHeader>
 
         <CardContent>
-          <Button variant="destructive">Delete Account</Button>
+          {/* <Button variant="destructive">Delete Account</Button> */}
+          <DeleteAccountModal/>
         </CardContent>
       </Card>
     </div>

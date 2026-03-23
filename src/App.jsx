@@ -16,17 +16,18 @@ import LandingPage from "./pages/LandingPage";
 import { SideBarLayout } from "./pages/SideBarLayout";
 import "./App.css";
 import 'react-phone-number-input/style.css'
+import LandingPage2 from "./pages/LandingPage2";
 
 
 function App() {
-  const [count, setCount] = useState(0);
-  const [open, setOpen] = useState(false);
   const { dark, toggleDark } = useTheme();
   return (
     <TooltipProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<LandingPage />} />
+          {/* <Route path="/l" element={<LandingPage />} /> */}
+
           <Route element={<SideBarLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/members" element={<Members />} />

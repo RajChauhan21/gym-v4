@@ -8,7 +8,10 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {toast} from "sonner"
+import { toast } from "sonner"
+import { allowOnlyText, allowOnlyNumbers } from "../../lib/inputValidator";
+import { PhoneNumberInput } from "@/components/ui/phone-input";
+
 export default function EditProfileModal({
   open,
   setOpen,
@@ -27,29 +30,58 @@ export default function EditProfileModal({
   }, [open, profile])
 
   const validate = () => {
-    let newErrors = {}
+    let newErrors = {};
 
-    if (!form.gymName.trim()) newErrors.gymName = "Gym name required"
-    if (!form.owner.trim()) newErrors.owner = "Owner name required"
+    // Text-only validation (Allows letters, spaces, and basic punctuation like hyphens/apostrophes)
+    const textRegex = /^[a-zA-Z\s'.-]+$/;
 
-    if (!/^\d{10}$/.test(form.phone))
-      newErrors.phone = "Enter valid 10-digit phone"
+    if (!form.gymName.trim()) {
+      newErrors.gymName = "Gym name required";
+    } else if (!textRegex.test(form.gymName)) {
+      newErrors.gymName = "Gym name should only contain letters";
+    }
 
-    if (!form.address.trim()) newErrors.address = "Address required"
+    if (!form.owner.trim()) {
+      newErrors.owner = "Owner name required";
+    } else if (!textRegex.test(form.owner)) {
+      newErrors.owner = "Owner name should only contain letters";
+    }
 
-    if (form.email && !/\S+@\S+\.\S+/.test(form.email)) {
+    // Address: Allows letters, numbers, spaces, and common separators (/, #, -)
+    const addressRegex = /^[a-zA-Z0-9\s,.'#/-]+$/;
+    if (!form.address.trim()) {
+      newErrors.address = "Address required";
+    } else if (!addressRegex.test(form.address)) {
+      newErrors.address = "Invalid characters found in address";
+    }
+
+    // Phone Validation
+    const phoneRegex = /^\+?[1-9]\d{9,14}$/;
+
+    if (!form.phone || !form.phone.trim()) {
+      newErrors.phone = "Phone number is required";
+    } else if (!phoneRegex.test(form.phone.replace(/[\s()-]/g, ""))) {
+      // We strip spaces, dashes, and brackets before testing the regex
+      newErrors.phone = "Enter a valid international phone number";
+    }
+
+    // Strict Email Validation
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (form.email && !emailRegex.test(form.email)) {
       newErrors.email = "Invalid email format";
     }
+
+    // Website Validation (Supports http, https, or starting with www)
     if (form.website.trim()) {
-      // This regex checks for common patterns like www.google.com or https://google.com
-      const urlPattern = /^(https?:\/\/)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,6}(\/[a-zA-Z0-9._~:/?#[\]@!$&'()*+,;=%-]*)?$/;
+      const urlPattern = /^(https?:\/\/)?(www\.)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,6}(\/.*)?$/;
       if (!urlPattern.test(form.website.trim())) {
         newErrors.website = "Enter a valid website (e.g., www.gym.com)";
       }
     }
 
-    return newErrors
-  }
+    return newErrors;
+  };
+
 
   const handleSave = () => {
     setLoading(true);
@@ -59,7 +91,7 @@ export default function EditProfileModal({
       return
     }
 
-    setProfile({...form})
+    setProfile({ ...form })
     setOpen(false)
     setTimeout(() => {
       setLoading(false);
@@ -110,12 +142,16 @@ export default function EditProfileModal({
           {/* Phone */}
           <div>
             <Label className="mb-3">Phone</Label>
-            <Input
+            {/* <Input
               type="number"
               value={form.phone}
               onChange={(e) =>
                 setForm({ ...form, phone: e.target.value })
               }
+            /> */}
+            <PhoneNumberInput
+              value={form.phone}
+              onChange={(value) => setForm({ ...form, phone: value })}
             />
             <p className="text-red-500 text-xs min-h-[16px]">
               {errors.phone}

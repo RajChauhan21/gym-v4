@@ -131,7 +131,7 @@ export default function PaymentsTable() {
             <p className="text-[10px] uppercase font-bold text-muted-foreground">
               Total Collected
             </p>
-            <p className="text-xl font-bold dark:text-white">₹{totalRevenue}</p>
+            <p className="text-xl font-bold text-center dark:text-white">₹{totalRevenue}</p>
           </div>
         </Card>
 
@@ -143,7 +143,7 @@ export default function PaymentsTable() {
             <p className="text-[10px] uppercase font-bold text-muted-foreground">
               Failed Attempts
             </p>
-            <p className="text-xl font-bold text-red-600">{failedCount}</p>
+            <p className="text-xl font-bold text-center text-red-600">{failedCount}</p>
           </div>
         </Card>
 
@@ -155,7 +155,7 @@ export default function PaymentsTable() {
             <p className="text-[10px] uppercase font-bold text-muted-foreground">
               Transactions
             </p>
-            <p className="text-xl font-bold dark:text-white">
+            <p className="text-xl font-bold dark:text-white text-center">
               {payments.length}
             </p>
           </div>

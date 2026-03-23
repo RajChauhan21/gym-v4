@@ -264,6 +264,55 @@ export const useGymStore = create((set) => ({
       phone: "919420077663",
       joined: "2026-03-08",
     },
+    {
+      name: "Arjun Reddy",
+      plan: "Basic",
+      status: "Active",
+      due: 1200,
+      joined: "2011-08-22",
+      expiry: "2026-08-22", // Valid past today
+      phone: "919717788990",
+    },
+    // CASE 2: Active 3 months ago, but EXPIRED now (Counts in '3 Months Ago' only)
+    {
+      name: "Sriya Sharma",
+      plan: "Premium",
+      status: "Expired",
+      due: 0,
+      joined: "2025-01-10",
+      expiry: "2026-02-10", // Was active on Dec 23, 2025; Expired before Mar 23, 2026
+      phone: "919717788991",
+    },
+    // CASE 3: NEW Member (Counts in 'Current Active' only)
+    {
+      name: "Kabir Singh",
+      plan: "Basic",
+      status: "Active",
+      due: 500,
+      joined: "2025-11-15", // Joined AFTER Dec 23, 2025
+      expiry: "2026-07-15",
+      phone: "919717788992",
+    },
+    // CASE 4: Joined & Expired between the two dates (Counts in neither)
+    {
+      name: "Rohan Varma",
+      plan: "Basic",
+      status: "Expired",
+      due: 0,
+      joined: "2025-12-12", // Joined AFTER 3-month cutoff
+      expiry: "2026-03-01", // Expired BEFORE today
+      phone: "919717788993",
+    },
+    // CASE 5: Long-term Active (Should count in both)
+    {
+      name: "Aditi Rao",
+      plan: "Gold",
+      status: "Active",
+      due: 0,
+      joined: "2025-12-20",
+      expiry: "2027-05-20",
+      phone: "919717788994",
+    }
   ],
 
   payments: [

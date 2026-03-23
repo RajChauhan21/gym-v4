@@ -55,7 +55,7 @@ export default function AddPlanModal({
 
     // 1. Check for Duplicate Name
     const isDuplicate = plans.some((p, idx) => {
-      // If editing, ignore the current plan's index
+      // If editing, ignore the current plan's index https://t4w7zrs7-5173.inc1.devtunnels.ms/
       if (editPlan && idx === editPlan.index) return false;
 
       // Compare names (case-insensitive for better safety)
