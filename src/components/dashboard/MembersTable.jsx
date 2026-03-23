@@ -9,6 +9,8 @@ import {
 import { cn } from "@/lib/utils";
 import Loader from "@/components/ui/Loader";
 import { Badge } from "@/components/ui/badge";
+import React from "react";
+import { ArrowUp, ArrowDown } from "lucide-react";
 import AddMemberDialog from "./AddMemberDialog";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
@@ -101,6 +103,10 @@ export default function MembersTable() {
   });
 
   const [currentPage, setCurrentPage] = useState(1);
+  const [sortConfig, setSortConfig] = useState({
+    key: null,
+    direction: "asc",
+  });
   const itemsPerPage = 10;
 
   // 2. Calculate Sliced Data
@@ -174,6 +180,36 @@ export default function MembersTable() {
   ].filter(Boolean).length;
 
   const [loading, setLoading] = useState(true);
+
+  const sortedMembers = React.useMemo(() => {
+    if (!sortConfig.key) return currentData;
+
+    const sorted = [...currentData].sort((a, b) => {
+      let valueA = a[sortConfig.key];
+      let valueB = b[sortConfig.key];
+
+      // handle numbers
+      if (typeof valueA === "number" && typeof valueB === "number") {
+        return sortConfig.direction === "asc"
+          ? valueA - valueB
+          : valueB - valueA;
+      }
+
+      // handle strings
+      return sortConfig.direction === "asc"
+        ? String(valueA).localeCompare(String(valueB))
+        : String(valueB).localeCompare(String(valueA));
+    });
+
+    return sorted;
+  }, [currentData, sortConfig]);
+
+  const handleSort = (key) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+    }));
+  };
 
   useEffect(() => {
     setTimeout(() => setLoading(false), 1200);
@@ -260,7 +296,9 @@ export default function MembersTable() {
                 <SelectContent>
                   <SelectItem value="all">All Plans</SelectItem>
                   {plans.map((plan, idx) => (
-                    <SelectItem key={idx} value={plan.name}>{plan.name}</SelectItem>
+                    <SelectItem key={idx} value={plan.name}>
+                      {plan.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -341,14 +379,16 @@ export default function MembersTable() {
             <Label className="text-xs font-bold uppercase text-muted-foreground">
               Plan
             </Label>
-            <Select value={filterPlan} onValueChange={setFilterPlan} >
+            <Select value={filterPlan} onValueChange={setFilterPlan}>
               <SelectTrigger>
                 <SelectValue placeholder="All Plans" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Plans</SelectItem>
                 {plans.map((plan, idx) => (
-                  <SelectItem key={idx} value={plan.name}>{plan.name}</SelectItem>
+                  <SelectItem key={idx} value={plan.name}>
+                    {plan.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -406,20 +446,56 @@ export default function MembersTable() {
             <TableHeader className="sticky top-0 z-30 bg-card">
               <TableRow>
                 {/* STICKY NAME COLUMN */}
-                <TableHead className="sticky left-0 top-0 z-30 bg-card min-w-[150px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] dark:text-gray-500 text-center">
-                  Name
+                <TableHead
+                  onClick={() => handleSort("name")}
+                  className="sticky left-0 top-0 z-30 bg-card min-w-[150px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] dark:text-gray-500 text-center"
+                >
+                  <div className="inline-flex items-center justify-center gap-1">
+                    <span>Name</span>
+                    <div className="flex flex-row -space-y-1">
+                      <ArrowUp className="size-3" />
+                      <ArrowDown className="size-3" />
+                    </div>
+                  </div>
                 </TableHead>
-                <TableHead className="dark:text-gray-500 text-center">
-                  Plan
+                <TableHead
+                  onClick={() => handleSort("plan")}
+                  className="dark:text-gray-500 text-center"
+                >
+                  <div className="inline-flex items-center justify-center gap-1">
+                    <span>Plan</span>
+                    <div className="flex flex-row -space-y-1">
+                      <ArrowUp className="size-3" />
+                      <ArrowDown className="size-3" />
+                    </div>
+                  </div>
                 </TableHead>
-                <TableHead className="dark:text-gray-500 text-center">
-                  Joined
+                <TableHead
+                  onClick={() => handleSort("joined")}
+                  className="dark:text-gray-500 text-center"
+                >
+                  <div className="inline-flex items-center justify-center gap-1">
+                    <span>Joined</span>
+                    <div className="flex flex-row -space-y-1">
+                      <ArrowUp className="size-3" />
+                      <ArrowDown className="size-3" />
+                    </div>
+                  </div>
                 </TableHead>
                 {/* <TableHead className="dark:text-gray-500 text-center">
                   Status
                 </TableHead> */}
-                <TableHead className="dark:text-gray-500 text-center">
-                  Due Amount
+                <TableHead
+                  onClick={() => handleSort("due")}
+                  className="dark:text-gray-500 text-center"
+                >
+                  <div className="inline-flex items-center justify-center gap-1">
+                    <span>Due Amount</span>
+                    <div className="flex flex-row -space-y-1">
+                      <ArrowUp className="size-3" />
+                      <ArrowDown className="size-3" />
+                    </div>
+                  </div>
                 </TableHead>
                 <TableHead className="dark:text-gray-500 text-center">
                   Expiry
@@ -431,7 +507,7 @@ export default function MembersTable() {
             </TableHeader>
 
             <TableBody>
-              {currentData.map((member, index) => (
+              {sortedMembers.map((member, index) => (
                 <TableRow key={index} className="">
                   <TableCell
                     className={cn(

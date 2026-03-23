@@ -6,6 +6,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -17,7 +18,14 @@ import { Badge } from "@/components/ui/badge";
 import Loader from "@/components/ui/Loader";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
-import { TrendingUp, AlertCircle, CheckCircle2, Search } from "lucide-react";
+import React from "react";
+import {
+  TrendingUp,
+  AlertCircle,
+  CheckCircle2,
+  Search,
+  Plus,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -39,14 +47,20 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { useGymStore } from "../../store/gymStore";
+import { toast } from "sonner";
 
 export default function PaymentsTable() {
-  const payments = useGymStore((state) => state.payments);
-  const setPayments = useGymStore((state) => state.setPayments);
+  const payments = useGymStore((state) => state.payments) ?? [];
+  const addPayment = useGymStore((state) => state.addPayment);
   const plans = useGymStore((state) => state.plans);
-  const totalRevenue = payments
-    .filter((p) => p.status === "Success")
-    .reduce((acc, curr) => acc + curr.amount, 0);
+  // const totalRevenue = payments
+  //   .filter((p) => p.status === "Success")
+  //   .reduce((acc, curr) => acc + curr.amount, 0);
+  const totalRevenue = Array.isArray(payments)
+    ? payments
+        .filter((p) => p.status === "Success")
+        .reduce((acc, curr) => acc + curr.amount, 0)
+    : 0;
   const failedCount = payments.filter((p) => p.status === "Failed").length;
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -109,6 +123,70 @@ export default function PaymentsTable() {
   };
 
   const [loading, setLoading] = useState(true);
+  const [openPayment, setOpenPayment] = useState(false);
+  const [sortConfig, setSortConfig] = useState({
+    key: null,
+    direction: "asc",
+  });
+  const [newPayment, setNewPayment] = useState({
+    name: "",
+    plan: "",
+    amount: "",
+    method: "",
+    date: "",
+    status: "Success",
+  });
+
+  const handleAddPayment = () => {
+    const payment = {
+      ...newPayment,
+      time: new Date().toLocaleTimeString(),
+      amount: Number(newPayment.amount),
+    };
+
+    addPayment(payment);
+    setOpenPayment(false);
+
+    setNewPayment({
+      name: "",
+      plan: "",
+      amount: "",
+      method: "",
+      date: "",
+      status: "Success",
+    });
+    toast.success("Payement recorded successfully");
+  };
+
+  const sortedPayments = React.useMemo(() => {
+    if (!sortConfig.key) return currentData;
+
+    const sorted = [...currentData].sort((a, b) => {
+      let valueA = a[sortConfig.key];
+      let valueB = b[sortConfig.key];
+
+      // handle numbers
+      if (typeof valueA === "number" && typeof valueB === "number") {
+        return sortConfig.direction === "asc"
+          ? valueA - valueB
+          : valueB - valueA;
+      }
+
+      // handle strings
+      return sortConfig.direction === "asc"
+        ? String(valueA).localeCompare(String(valueB))
+        : String(valueB).localeCompare(String(valueA));
+    });
+
+    return sorted;
+  }, [currentData, sortConfig]);
+
+  const handleSort = (key) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+    }));
+  };
 
   useEffect(() => {
     setTimeout(() => setLoading(false), 1200);
@@ -121,6 +199,109 @@ export default function PaymentsTable() {
   return (
     <div className="p-3">
       <h2 className="text-xl font-semibold mb-4 dark:text-white">Payments</h2>
+      <div className="flex items-center justify-between mb-4">
+        <Dialog open={openPayment} onOpenChange={setOpenPayment}>
+          <DialogTrigger asChild>
+            <Button className="rounded-md flex gap-2">
+              <Plus className="size-4" />
+              Record Payment
+            </Button>
+          </DialogTrigger>
+
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Add Payment</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {/* Member Name */}
+              <div>
+                <Label className="mb-1">Member</Label>
+                <Input
+                  placeholder="Enter member name"
+                  value={newPayment.name}
+                  onChange={(e) =>
+                    setNewPayment({ ...newPayment, name: e.target.value })
+                  }
+                />
+              </div>
+
+              {/* Plan */}
+              <div>
+                <Label className="mb-1">Plan</Label>
+                <Select
+                  value={newPayment.plan}
+                  onValueChange={(value) =>
+                    setNewPayment({ ...newPayment, plan: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select plan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {plans.map((plan, i) => (
+                      <SelectItem key={i} value={plan.name}>
+                        {plan.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Amount */}
+              <div>
+                <Label className="mb-1">Amount</Label>
+                <Input
+                  type="number"
+                  placeholder="Enter amount"
+                  value={newPayment.amount}
+                  onChange={(e) =>
+                    setNewPayment({ ...newPayment, amount: e.target.value })
+                  }
+                />
+              </div>
+
+              {/* Payment Method */}
+              <div>
+                <Label className="mb-1">Payment Method</Label>
+                <Select
+                  value={newPayment.method}
+                  onValueChange={(value) =>
+                    setNewPayment({ ...newPayment, method: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Cash">Cash</SelectItem>
+                    <SelectItem value="UPI">UPI</SelectItem>
+                    <SelectItem value="Card">Card</SelectItem>
+                    <SelectItem value="Bank">Bank Transfer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Date */}
+              <div>
+                <Label className="mb-1">Date</Label>
+                <Input
+                  type="date"
+                  value={newPayment.date}
+                  onChange={(e) =>
+                    setNewPayment({ ...newPayment, date: e.target.value })
+                  }
+                />
+              </div>
+
+              <Button className="w-full" onClick={handleAddPayment}>
+                Save Payment
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
       {/* --- QUICK STATS CARDS --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
         <Card className="p-4 flex items-center gap-4 bg-green-500/5 border-green-500/20">
@@ -131,7 +312,9 @@ export default function PaymentsTable() {
             <p className="text-[10px] uppercase font-bold text-muted-foreground">
               Total Collected
             </p>
-            <p className="text-xl font-bold text-center dark:text-white">₹{totalRevenue}</p>
+            <p className="text-xl font-bold text-center dark:text-white">
+              ₹{totalRevenue}
+            </p>
           </div>
         </Card>
 
@@ -143,7 +326,9 @@ export default function PaymentsTable() {
             <p className="text-[10px] uppercase font-bold text-muted-foreground">
               Failed Attempts
             </p>
-            <p className="text-xl font-bold text-center text-red-600">{failedCount}</p>
+            <p className="text-xl font-bold text-center text-red-600">
+              {failedCount}
+            </p>
           </div>
         </Card>
 
@@ -308,18 +493,18 @@ export default function PaymentsTable() {
               Plan
             </Label>
             <Select onValueChange={setFilterPlan} value={filterPlan}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Plans" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Plans</SelectItem>
-                  {plans.map((plan, idx) => (
-                    <SelectItem key={idx} value={plan.name}>
-                      {plan.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SelectTrigger>
+                <SelectValue placeholder="All Plans" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Plans</SelectItem>
+                {plans.map((plan, idx) => (
+                  <SelectItem key={idx} value={plan.name}>
+                    {plan.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Status Filter */}
@@ -393,18 +578,58 @@ export default function PaymentsTable() {
           <Table>
             <TableHeader className="sticky top-0 z-30 bg-card">
               <TableRow>
-                <TableHead className="sticky left-0 top-0 z-30 bg-card min-w-[150px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] dark:text-gray-500 text-center">
-                  Name
+                <TableHead
+                  onClick={() => handleSort("name")}
+                  className="sticky left-0 top-0 z-30 bg-card min-w-[150px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] dark:text-gray-500 text-center cursor-pointer"
+                >
+                  <div className="inline-flex items-center justify-center gap-1">
+                    <span>Name</span>
+                    <div className="flex flex-row -space-y-1">
+                      <ArrowUp className="size-3" />
+                      <ArrowDown className="size-3" />
+                    </div>
+                  </div>
                 </TableHead>
-                <TableHead className="dark:text-gray-500 text-center">
-                  Plan
+
+                <TableHead
+                  onClick={() => handleSort("plan")}
+                  className="dark:text-gray-500 text-center cursor-pointer"
+                >
+                  <div className="inline-flex items-center justify-center gap-1">
+                    <span>Plan</span>
+                    <div className="flex flex-row -space-y-1">
+                      <ArrowUp className="size-3" />
+                      <ArrowDown className="size-3" />
+                    </div>
+                  </div>
                 </TableHead>
-                <TableHead className="dark:text-gray-500 text-center">
-                  Amount
+
+                <TableHead
+                  onClick={() => handleSort("amount")}
+                  className="dark:text-gray-500 text-center cursor-pointer"
+                >
+                  <div className="inline-flex items-center justify-center gap-1">
+                    <span>Amount</span>
+                    <div className="flex flex-row -space-y-1">
+                      <ArrowUp className="size-3" />
+                      <ArrowDown className="size-3" />
+                    </div>
+                  </div>
                 </TableHead>
-                <TableHead className="dark:text-gray-500 text-center">
-                  Date
+
+                <TableHead
+                  onClick={() => handleSort("date")}
+                  className="dark:text-gray-500 text-center cursor-pointer"
+                >
+                  <div className="inline-flex items-center justify-center gap-1">
+                    <span>Date</span>
+                    <div className="flex flex-row -space-y-1">
+                      <ArrowUp className="size-3" />
+                      <ArrowDown className="size-3" />
+                    </div>
+                  </div>
                 </TableHead>
+
                 <TableHead className="dark:text-gray-500 text-center">
                   Time
                 </TableHead>
@@ -418,7 +643,7 @@ export default function PaymentsTable() {
             </TableHeader>
 
             <TableBody>
-              {currentData.map((payment, index) => (
+              {sortedPayments.map((payment, index) => (
                 <TableRow key={index} className="dark:bg-card dark:text-white">
                   <TableCell
                     className={cn(

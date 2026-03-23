@@ -21,7 +21,7 @@ export default function LandingPage() {
             {/* --- STICKY NAVIGATION --- */}
             <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                 <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    <div className="flex  items-center gap-2">
                         <Dumbbell className="size-6 text-primary" />
                         <span className="font-bold text-xl tracking-tighter mr-2">IRON FORGE</span>
                     </div>
