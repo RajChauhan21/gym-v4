@@ -49,7 +49,7 @@ export function ChangePasswordModal() {
     return (
         <Dialog open={open} onOpenChange={(val) => { setOpen(val); if (!val) resetAndClose(); }}>
             <DialogTrigger asChild>
-                <Button className="cursor-pointer bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 rounded-xl">
+                <Button className="cursor-pointer bg-zinc-900 mr-2 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 rounded-xl">
                     Change Password
                 </Button>
             </DialogTrigger>

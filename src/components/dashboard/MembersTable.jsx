@@ -6,11 +6,25 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  MoreVertical,
+  Pencil,
+  Trash2,
+  MessageCircle,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import Loader from "@/components/ui/Loader";
 import { Badge } from "@/components/ui/badge";
 import React from "react";
-import { ArrowUp, ArrowDown } from "lucide-react";
 import AddMemberDialog from "./AddMemberDialog";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
@@ -43,6 +57,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { useGymStore } from "../../store/gymStore";
+import { MemberDetailsModal } from "./MemberDetailsModal";
 
 export default function MembersTable() {
   const sendWhatsAppReminder = (member) => {
@@ -53,6 +68,7 @@ export default function MembersTable() {
     window.open(url, "_blank");
   };
 
+  const [open, setOpen] = useState(false);
   const members = useGymStore((state) => state.members);
   const plans = useGymStore((state) => state.plans);
   const setMembers = useGymStore((state) => state.setMembers);
@@ -67,6 +83,9 @@ export default function MembersTable() {
   const [expiryFrom, setexpiryFrom] = useState("");
   const [expiryTo, setexpiryTo] = useState("");
   const [dateType, setDateType] = useState("expiry"); // "expiry" or "joined"
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [viewingMember, setViewingMember] = useState(null);
 
   useEffect(() => {
     // Reset to Page 1 whenever filters change to prevent "Empty Page" bugs
@@ -151,11 +170,12 @@ export default function MembersTable() {
       return `Expires in ${diffDays} day${diffDays > 1 ? "s" : ""}`;
     }
 
-    return expiry.toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
+    // return expiry.toLocaleDateString("en-IN", {
+    //   day: "numeric",
+    //   month: "short",
+    //   year: "numeric",
+    // });
+    return "Active"
   }
 
   function getExpiryColor(expiryDate) {
@@ -222,7 +242,10 @@ export default function MembersTable() {
   return (
     <div className="p-3">
       <h2 className="text-xl font-semibold mb-4 dark:text-white">Members</h2>
-      <AddMemberDialog />
+      <AddMemberDialog open={isModalOpen}
+        setOpen={setIsModalOpen}
+        editingMember={selectedMember}
+        setEditingMember={setSelectedMember} />
       {/* <div className="bg-white rounded-xl shadow p-6 md:p-8"> */}
 
       {/* --- QUICK STATS CARDS --- */}
@@ -235,7 +258,7 @@ export default function MembersTable() {
         </div>
         <div className="p-4 rounded-2xl bg-card border shadow-sm">
           <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">
-            Pending
+            Pending Dues
           </p>
           <p className="text-2xl font-bold text-orange-500">
             {pendingPayments}
@@ -443,122 +466,111 @@ export default function MembersTable() {
       <div className="bg-card text-card-foreground rounded-xl shadow border dark:border-gray-800 p-3 md:p-8">
         <div className="overflow-auto h-[450px]">
           <Table>
-            <TableHeader className="sticky top-0 z-30 bg-card">
-              <TableRow>
-                {/* STICKY NAME COLUMN */}
+            <TableHeader className="sticky top-0 z-40 bg-card backdrop-blur-md">
+              <TableRow className="hover:bg-transparent">
+                {/* STICKY NAME HEADER */}
                 <TableHead
                   onClick={() => handleSort("name")}
-                  className="sticky left-0 top-0 z-30 bg-card min-w-[150px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] dark:text-gray-500 text-center"
+                  className="sticky left-0 top-0 z-50 bg-card min-w-[150px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] cursor-pointer dark:text-gray-500 text-left pl-6"
                 >
-                  <div className="inline-flex items-center justify-center gap-1">
-                    <span>Name</span>
-                    <div className="flex flex-row -space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm tracking-wider">Name</span>
+                    <div className="flex flex-row -space-y-2 opacity-40">
                       <ArrowUp className="size-3" />
                       <ArrowDown className="size-3" />
                     </div>
                   </div>
                 </TableHead>
-                <TableHead
-                  onClick={() => handleSort("plan")}
-                  className="dark:text-gray-500 text-center"
-                >
-                  <div className="inline-flex items-center justify-center gap-1">
-                    <span>Plan</span>
-                    <div className="flex flex-row -space-y-1">
-                      <ArrowUp className="size-3" />
-                      <ArrowDown className="size-3" />
+
+                {/* OTHER HEADERS */}
+                {[
+                  { label: "Phone", key: "phone" },
+                  { label: "Plan", key: "plan" },
+                  { label: "Joined", key: "joined" },
+                  { label: "Expiry", key: "expiry" },
+                  { label: "Due", key: "due" },
+                ].map((col) => (
+                  <TableHead
+                    key={col.key}
+                    onClick={() => handleSort(col.key)}
+                    className="top-0 z-30 bg-secondary/30 text-center px-4 min-w-[90px] cursor-pointer"
+                  >
+                    <div className="inline-flex items-center justify-center gap-2">
+                      <span className="text-sm dark:text-gray-500 tracking-wider">{col.label}</span>
+                      <div className="flex flex-row -space-y-2 opacity-40">
+                        <ArrowUp className="size-3" />
+                        <ArrowDown className="size-3" />
+                      </div>
                     </div>
-                  </div>
-                </TableHead>
-                <TableHead
-                  onClick={() => handleSort("joined")}
-                  className="dark:text-gray-500 text-center"
-                >
-                  <div className="inline-flex items-center justify-center gap-1">
-                    <span>Joined</span>
-                    <div className="flex flex-row -space-y-1">
-                      <ArrowUp className="size-3" />
-                      <ArrowDown className="size-3" />
-                    </div>
-                  </div>
-                </TableHead>
-                {/* <TableHead className="dark:text-gray-500 text-center">
+                  </TableHead>
+                ))}
+                <TableHead className="top-0 z-30 bg-secondary/30 text-center dark:text-gray-500 text-sm tracking-wider min-w-[90px]">
                   Status
-                </TableHead> */}
-                <TableHead
-                  onClick={() => handleSort("due")}
-                  className="dark:text-gray-500 text-center"
-                >
-                  <div className="inline-flex items-center justify-center gap-1">
-                    <span>Due Amount</span>
-                    <div className="flex flex-row -space-y-1">
-                      <ArrowUp className="size-3" />
-                      <ArrowDown className="size-3" />
-                    </div>
-                  </div>
                 </TableHead>
-                <TableHead className="dark:text-gray-500 text-center">
-                  Expiry
-                </TableHead>
-                <TableHead className="dark:text-gray-500 text-center">
-                  Action
+                <TableHead className="top-0 z-30 bg-secondary/30 text-center dark:text-gray-500 text-sm tracking-wider w-[90px]">
+                  Actions
                 </TableHead>
               </TableRow>
             </TableHeader>
 
             <TableBody>
               {sortedMembers.map((member, index) => (
-                <TableRow key={index} className="">
-                  <TableCell
-                    className={cn(
-                      "sticky left-0 z-10 font-bold bg-card shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] text-center",
-                    )}
-                  >
+                <TableRow key={index} className="group hover:bg-muted/30 transition-colors">
+                  {/* STICKY NAME CELL */}
+                  <TableCell onClick={() => setViewingMember(member)} className="sticky left-0 z-10 cursor-pointer font-bold bg-card shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-left pl-6">
                     {member.name}
                   </TableCell>
-                  <TableCell className="text-center">{member.plan}</TableCell>
-                  <TableCell className="text-center">{member.joined}</TableCell>
-                  {/* <TableCell className="text-center">
-                    <span
-                     className= {getStatusColor(member.expiry)}
-                    >
-                      {member.status}
-                    </span>
-                  </TableCell> */}
-                  <TableCell className="text-center">₹{member.due}</TableCell>
+
+                  <TableCell className="text-center font-mono text-sm">{member.phone}</TableCell>
                   <TableCell className="text-center">
-                    <span className={getExpiryColor(member.expiry)}>
+                    <span className="text-xs font-medium px-2 py-1 rounded bg-muted">
+                      {member.plan}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center text-muted-foreground whitespace-nowrap">{member.joined}</TableCell>
+                  <TableCell className="text-center whitespace-nowrap">{member.expiry}</TableCell>
+                  <TableCell className="text-center font-semibold">₹{member.due}</TableCell>
+                  <TableCell className="text-center">
+                    <span className= {getExpiryColor(member.expiry)}>
                       {getExpiryText(member.expiry)}
                     </span>
                   </TableCell>
+
+                  {/* ACTION DROPDOWN */}
                   <TableCell className="text-center">
-                    {member.due > 0 && (
-                      <button
-                        onClick={() => sendWhatsAppReminder(member)}
-                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-lg text-sm transition-colors"
-                      >
-                        Remind
-                      </button>
-                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                          <MoreVertical className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40 rounded-xl">
+                        <DropdownMenuItem onClick={() => {
+                          setSelectedMember(member); // Set the member to edit
+                          setIsModalOpen(true);      // Open the modal
+                        }} className="gap-2 cursor-pointer">
+                          <Pencil className="size-4 text-blue-500" />
+                          <span>Update</span>
+                        </DropdownMenuItem>
+
+                        {member.due > 0 && (
+                          <DropdownMenuItem onClick={() => sendWhatsAppReminder(member)} className="gap-2 cursor-pointer">
+                            <MessageCircle className="size-4 text-green-500" />
+                            <span>Remind</span>
+                          </DropdownMenuItem>
+                        )}
+
+                        <DropdownMenuSeparator />
+
+                        <DropdownMenuItem onClick={() => handleDelete(member)} className="gap-2 cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50">
+                          <Trash2 className="size-4" />
+                          <span>Delete</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}
-
-              {emptyRows > 0 &&
-                Array.from({ length: emptyRows }).map((_, index) => (
-                  <TableRow
-                    key={`empty-${index}`}
-                    className="border-transparent"
-                  >
-                    {/* We must match the number of columns (6) so the layout doesn't break */}
-                    <TableCell className="sticky left-0 bg-card py-6 border-transparent"></TableCell>
-                    <TableCell className="py-6 border-transparent"></TableCell>
-                    <TableCell className="py-6 border-transparent"></TableCell>
-                    <TableCell className="py-6 border-transparent"></TableCell>
-                    <TableCell className="py-6 border-transparent"></TableCell>
-                    <TableCell className="py-6 border-transparent"></TableCell>
-                  </TableRow>
-                ))}
             </TableBody>
           </Table>
         </div>
@@ -620,6 +632,11 @@ export default function MembersTable() {
           </Pagination>
         </div>
       </div>
+      <MemberDetailsModal
+        member={viewingMember}
+        open={!!viewingMember}
+        onOpenChange={() => setViewingMember(null)}
+      />
     </div>
   );
 }

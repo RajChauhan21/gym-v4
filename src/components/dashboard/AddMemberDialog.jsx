@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -23,12 +23,27 @@ import { toast } from "sonner";
 import { PhoneNumberInput } from "@/components/ui/phone-input";
 import { allowOnlyText, allowOnlyNumbers } from "../../lib/inputValidator";
 
-export default function AddMemberDialog() {
+export default function AddMemberDialog({ open, setOpen, editingMember, setEditingMember }) {
   const plans = useGymStore((state) => state.plans);
   const [errors, setErrors] = useState({});
-  const [open, setOpen] = useState(false);
+  // const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   // const { toast } = useToast()
+
+  useEffect(() => {
+    if (editingMember) {
+      setForm({
+        name: editingMember.name,
+        plan: editingMember.plan,
+        phone: editingMember.phone,
+        email: editingMember.email || "craj4757@gmail.com",
+        address: editingMember.address || "12",
+        amount: editingMember.due || 0,
+      });
+    } else {
+      resetForm(); // Clear if adding new
+    }
+  }, [editingMember]);
 
   const calculateExpiry = (months) => {
     const date = new Date();
@@ -56,6 +71,14 @@ export default function AddMemberDialog() {
     email: "",
   };
 
+  const handleClose = (isOpen) => {
+    setOpen(isOpen);
+    if (!isOpen) {
+      setEditingMember(null); // Crucial: Reset to "Add Mode"
+      resetForm();
+    }
+  };
+
   const validate = () => {
     let newErrors = {};
 
@@ -79,7 +102,7 @@ export default function AddMemberDialog() {
     // Phone Validation
     const phoneRegex = /^\+?[1-9]\d{9,14}$/;
 
-    if (!form.phone || !form.phone.trim()) {
+    if (!form.phone) {
       newErrors.phone = "Phone number is required";
     } else if (!phoneRegex.test(form.phone.replace(/[\s()-]/g, ""))) {
       // We strip spaces, dashes, and brackets before testing the regex
@@ -95,7 +118,7 @@ export default function AddMemberDialog() {
       newErrors.email = "Invalid email format";
     }
 
-    if (!form.amount.trim()) {
+    if (!form.amount && !editingMember) {
       newErrors.amount = "Amount required";
     }
 
@@ -113,7 +136,11 @@ export default function AddMemberDialog() {
       setLoading(false)
       return
     }
-    const expiry = calculateExpiry(form.plan);
+    const selectedPlan = plans.find((p) => p.name === form.plan);
+    const duration = selectedPlan ? selectedPlan.duration : 0;
+
+    // Now pass the number to your calculation function
+    const expiry = calculateExpiry(duration);
 
     const newMember = {
       ...form,
@@ -127,7 +154,7 @@ export default function AddMemberDialog() {
     setTimeout(() => {
       setLoading(false);
       resetForm();
-      toast.success("Member added successfully.");
+      toast.success(editingMember ? "Member updated successfully." : "Member added successfully.");
       setOpen(false);
     }, 1000);
   };
@@ -138,10 +165,7 @@ export default function AddMemberDialog() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => {
-      setOpen(isOpen);
-      if (!isOpen) resetForm(); // ✅ Clears data & errors on close
-    }}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogTrigger asChild>
         <Button
           onClick={() => setOpen(true)}
@@ -155,7 +179,7 @@ export default function AddMemberDialog() {
       <DialogContent className="w-[90%] max-w-md max-h-[600px] rounded-2xl p-0 shadow-xl flex flex-col overflow-hidden">
         {/* Header: shrink-0 keeps it from squishing */}
         <DialogHeader className="p-6 border-b shrink-0">
-          <DialogTitle>Add New Member</DialogTitle>
+          <DialogTitle>  {editingMember ? "Update Member" : "Add New Member"}</DialogTitle>
           <DialogPrimitive.Close
             className="absolute right-4 top-4 opacity-70 hover:opacity-100 transition-opacity outline-none"
             onClick={resetForm} // Also clear form if they just close the modal
@@ -174,6 +198,7 @@ export default function AddMemberDialog() {
               disabled={loading}
               placeholder="Enter name"
               onChange={(e) => setForm({ ...form, name: e.target.value })}
+              value={form.name}
               onKeyDown={allowOnlyText}
             />
             {/* Placeholder for error messages to prevent layout jumping */}
@@ -189,16 +214,17 @@ export default function AddMemberDialog() {
             <Select
               disabled={loading}
               onValueChange={(value) => setForm({ ...form, plan: value })}
-              value={form.plan}
+              value={form.plan ? String(form.plan).trim() : ""}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a plan" />
               </SelectTrigger>
               <SelectContent>
                 {plans.map((plan, idx) => (
-                  <SelectItem key={idx} value={plan.duration}>
-                    {plan.name} ({plan.duration} Month
-                    {plan.duration > 1 ? "s" : ""}) - ₹{plan.price}
+                  <SelectItem key={idx} value={String(plan.name).trim()}>
+                    {/* {plan.name} ({plan.duration} Month
+                    {plan.duration > 1 ? "s" : ""}) - ₹{plan.price} */}
+                    {plan.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -230,6 +256,7 @@ export default function AddMemberDialog() {
               type="email"
               disabled={loading}
               placeholder="Enter email"
+              value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
             />
             {/* Placeholder for error messages to prevent layout jumping */}
@@ -246,6 +273,7 @@ export default function AddMemberDialog() {
               type="text"
               disabled={loading}
               placeholder="Enter address"
+              valuse={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
             />
             {/* Placeholder for error messages to prevent layout jumping */}
@@ -262,6 +290,7 @@ export default function AddMemberDialog() {
               disabled={loading}
               type="number"
               placeholder="Enter amount"
+              value={form.amount}
               onChange={(e) => setForm({ ...form, amount: e.target.value })}
               onKeyDown={allowOnlyNumbers}
             />
@@ -276,7 +305,10 @@ export default function AddMemberDialog() {
         {/* Footer: Stays at bottom of content or bottom of modal */}
         <div className="p-6 border-t shrink-0 bg-white dark:bg-zinc-950 mt-auto">
           <Button className="w-full" disabled={loading} onClick={handleSubmit}>
-            {loading ? "Saving..." : "Save Member"}
+            {loading
+              ? (editingMember ? "Updating..." : "Saving...")
+              : (editingMember ? "Update Member" : "Save Member")
+            }
           </Button>
         </div>
       </DialogContent>

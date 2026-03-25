@@ -74,34 +74,6 @@ export default function LandingPage() {
             </section>
 
             {/* --- PROBLEM & SOLUTION CARDS --- */}
-            {/* <section id="features" className="py-24 bg-muted/30">
-                <div className="max-w-7xl mx-auto px-4">
-                    <div className="text-center mb-16 space-y-4">
-                        <h2 className="text-3xl font-bold tracking-tight">Built for Real Gym Problems</h2>
-                        <p className="text-muted-foreground">Why stick to manual when digital is 10x faster?</p>
-                    </div>
-                    <div className="grid md:grid-cols-3 gap-8">
-                        <FeatureCard
-                            icon={<Zap className="size-6" />}
-                            title="One-Click Reminders"
-                            problem="Chasing payments manually on WhatsApp."
-                            solution="Automated templates that send payment links in seconds."
-                        />
-                        <FeatureCard
-                            icon={<QrCode className="size-6" />}
-                            title="Digital Presence"
-                            problem="Members can't find your location or UPI."
-                            solution="A professional profile with Google Maps & Bank details integration."
-                        />
-                        <FeatureCard
-                            icon={<ShieldCheck className="size-6" />}
-                            title="Expiry Alerts"
-                            problem="Missing renewals and losing revenue."
-                            solution="Instant 'Red Zone' alerts for memberships expiring soon."
-                        />
-                    </div>
-                </div>
-            </section> */}
             <section id="features" className="py-24 bg-background text-foreground">
                 <div className="max-w-6xl mx-auto px-6">
 

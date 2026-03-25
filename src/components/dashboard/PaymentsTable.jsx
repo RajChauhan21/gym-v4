@@ -30,6 +30,8 @@ import { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { X } from "lucide-react";
 import {
   Select,
   SelectTrigger,
@@ -60,8 +62,8 @@ export default function PaymentsTable() {
   //   .reduce((acc, curr) => acc + curr.amount, 0);
   const totalRevenue = Array.isArray(payments)
     ? payments
-        .filter((p) => p.status === "Success")
-        .reduce((acc, curr) => acc + curr.amount, 0)
+      .filter((p) => p.status === "Success")
+      .reduce((acc, curr) => acc + curr.amount, 0)
     : 0;
   const failedCount = payments.filter((p) => p.status === "Failed").length;
 
@@ -191,7 +193,21 @@ export default function PaymentsTable() {
       date: "",
       status: "Success",
     });
+
+    setErrors({})
     toast.success("Payement recorded successfully");
+  };
+
+  const resetForm = () => {
+    setNewPayment({
+      name: "",
+      plan: "",
+      amount: "",
+      method: "",
+      date: "",
+      status: "Success",
+    });
+    setErrors({});
   };
 
   const sortedPayments = React.useMemo(() => {
@@ -236,7 +252,10 @@ export default function PaymentsTable() {
     <div className="p-3">
       <h2 className="text-xl font-semibold mb-4 dark:text-white">Payments</h2>
       <div className="flex items-center justify-between mb-4">
-        <Dialog open={openPayment} onOpenChange={setOpenPayment}>
+        <Dialog open={openPayment} onOpenChange={(openPayment) => {
+          setOpenPayment(openPayment);
+          if (!openPayment) resetForm(); // ✅ Clears data & errors on close
+        }}>
           <DialogTrigger asChild>
             <Button className="rounded-md flex gap-2">+ Record Payment</Button>
           </DialogTrigger>
@@ -244,6 +263,13 @@ export default function PaymentsTable() {
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Add Payment</DialogTitle>
+              <DialogPrimitive.Close
+                className="absolute right-4 top-4 opacity-70 hover:opacity-100 transition-opacity outline-none"
+                onClick={resetForm} // Also clear form if they just close the modal
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </DialogPrimitive.Close>
             </DialogHeader>
 
             <div className="space-y-4">
@@ -688,9 +714,9 @@ export default function PaymentsTable() {
                   </div>
                 </TableHead>
 
-                <TableHead className="dark:text-gray-500 text-center">
+                {/* <TableHead className="dark:text-gray-500 text-center">
                   Time
-                </TableHead>
+                </TableHead> */}
                 <TableHead className="dark:text-gray-500 text-center">
                   Method
                 </TableHead>
@@ -715,7 +741,7 @@ export default function PaymentsTable() {
                     ₹{payment.amount}
                   </TableCell>
                   <TableCell className="text-center">{payment.date}</TableCell>
-                  <TableCell className="text-center">{payment.time}</TableCell>
+                  {/* <TableCell className="text-center">{payment.time}</TableCell> */}
                   <TableCell className="text-center">
                     {payment.method}
                   </TableCell>
