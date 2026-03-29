@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import {login, getAllOwners} from "../apis/backend_apis";
 import {
   CheckCircle2,
   Dumbbell,
@@ -48,7 +49,7 @@ export default function LandingPage() {
         <div className="flex h-16 w-full items-center justify-between px-4 sm:px-8">
           {/* LEFT: Logo - stays pinned to the left */}
           <div className="flex items-center gap-2 shrink-0">
-            <Dumbbell className="size-6 text-primary" />
+            <Dumbbell className="size-6 text-primary" onClick={getAllOwners}/>
             <span className="text-xl font-bold tracking-tighter">
               IRON FORGE
             </span>
@@ -107,6 +108,7 @@ export default function LandingPage() {
                         </Button> */}
             <AuthModal triggerText="Get Started" />
             <Button
+            onClick={login}
               size="lg"
               variant="outline"
               className="h-10 px-8 rounded-full text-md font-bold"
