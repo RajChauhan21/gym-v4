@@ -8,10 +8,8 @@ const constant = axios.create({
 constant.interceptors.response.use(
     (response) => response,
     async (error) => {
-
         const originalRequest = error.config;
-
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if (error.response?.status == 401 && !originalRequest._retry) {
 
             originalRequest._retry = true;
 
@@ -22,14 +20,14 @@ constant.interceptors.response.use(
                     {},
                     { withCredentials: true }
                 );
-
+                console.log("Token refreshed successfully, retrying original request...");
                 return constant(originalRequest);
 
             } catch (refreshError) {
 
                 console.log("Refresh token expired");
 
-                window.location.href = "http://localhost:8180/oauth2/authorization/google";
+                // window.location.href = "http://localhost:8180/oauth2/authorization/google";
             }
         }
 

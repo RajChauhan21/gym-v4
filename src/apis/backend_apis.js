@@ -12,7 +12,7 @@ export function getAllOwners() {
 export function login() {
   constant.post("/owner/login",
     {
-      email: "manoj@gmail.com",
+      email: "john.doe@example.com",
       password: "12345"
     },
     {
