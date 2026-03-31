@@ -158,7 +158,7 @@ export default function Settings() {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
                     <MapPin className="size-3.5" />
-                    <p className="text-[10px] font-bold uppercase tracking-widest">Location</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest">Gym Location</p>
                   </div>
                   <p className="font-semibold text-foreground leading-relaxed dark:text-white">
                     {profile.address}

@@ -15,25 +15,35 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
+import { signup } from "../apis/backend_apis";
+import { toast } from "sonner";
 
 export function SignupForm({
   onNavigateToLogin,
   className,
   ...props
 }: React.ComponentProps<"div">) {
-
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
-  })
+  });
 
   // 2. Handle Form Submission
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    console.log("Signup Data:", formData)
-    // Send to your backend (e.g., Firebase, Supabase, or API)
-  }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    console.log("Signup Data:", formData);
+    try {
+      const response = await signup(formData);
+      if (response.data.statusCodeValue === 200) {
+        toast.success(
+          "Account created successfully, please sign in to continue!!",
+        );
+      }
+    } catch (error) {
+      toast.error("Error creating account");
+    }
+  };
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
@@ -49,9 +59,15 @@ export function SignupForm({
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="name">Full Name</FieldLabel>
-                <Input id="name" type="text" placeholder="John Doe" required
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="John Doe"
+                  required
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                 />
               </Field>
               <Field>
@@ -62,7 +78,9 @@ export function SignupForm({
                   placeholder="m@example.com"
                   required
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
                 />
               </Field>
               <Field>
@@ -75,9 +93,14 @@ export function SignupForm({
                     <FieldLabel htmlFor="confirm-password">
                       Confirm Password
                     </FieldLabel>
-                    <Input id="confirm-password" type="password" required
+                    <Input
+                      id="confirm-password"
+                      type="password"
+                      required
                       value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, password: e.target.value })
+                      }
                     />
                   </Field>
                 </Field>

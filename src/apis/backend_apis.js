@@ -1,39 +1,59 @@
 import constant from "./constant";
 
 export function getAllOwners() {
-  constant.get('/gym/findAll', {
-    withCredentials: true
-  }).then((response) => {
-    console.log(response.data)
-  })
+  constant
+    .get("/gym/findAll", {
+      withCredentials: true,
+    })
+    .then((response) => {
+      console.log(response.data);
+    });
 }
 
 export async function login(email, password) {
- return await constant.post("/owner/login",
+  return await constant.post(
+    "/owner/login",
     {
       email: email,
-      password: password
+      password: password,
     },
     {
-      withCredentials: true
-    }
+      withCredentials: true,
+    },
+  );
+}
+
+export async function signup(form) {
+  return await constant.post(
+    "/owner/signup",
+    {
+      name: form.name,
+      email: form.email,
+      password: form.password,
+    },
+    {
+      withCredentials: true,
+    },
   );
 }
 
 export function saveGym() {
-  constant.post("/gym/save",
-    {
-      name: "Elite Fitness Gym",
-      website: "http://www.elitefitnessgym.com",
-      location: "new panvel, navi mumbai",
-      googleMapUrl: "https://www.google.com/"
-    },
-    {
-      withCredentials: true
-    }
-  ).then((r) => {
-    console.log(r.data)
-  })
+  constant
+    .post(
+      "/gym/save",
+      {
+        name: "Elite Fitness Gym",
+        website: "http://www.elitefitnessgym.com",
+        location: "new panvel, navi mumbai",
+        googleMapUrl: "https://www.google.com/",
+      },
+      {
+        withCredentials: true,
+      },
+    )
+    .then((r) => {
+      console.log(r.data);
+    });
 }
 
 export function loginByGoogle() {

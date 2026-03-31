@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import constant from "../apis/constant" // your axios instance
+import constant from "../apis/constant"; // your axios instance
 
 const AuthContext = createContext();
 
@@ -20,33 +20,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // useEffect(() => {
-  //   const params = new URLSearchParams(window.location.search);
-  //   const oauthSuccess = params.get("login") == "success";
-
-  //   if (oauthSuccess) {
-  //     // 1. Handle the initial redirect from Google
-  //     localStorage.setItem("isLoggedIn", "true");
-  //     setIsAuthenticated(true);
-  //     setLoading(false);
-  //     // Clean URL: Remove ?login=success
-  //     window.history.replaceState({}, document.title, window.location.pathname);
-  //     console.log("OAuth login successful, user authenticated");
-  //   }
-  //   else if (localStorage.getItem("isLoggedIn") === "true") {
-  //     // 2. Handle manual URL typing (we already have the hint)
-  //     setIsAuthenticated(true);
-  //     setLoading(false);
-  //     console.log("User is already authenticated based on localStorage hint");
-  //   }
-  //   else {
-  //     // 3. Not logged in
-  //     setIsAuthenticated(false);
-  //     setLoading(false);
-  //     console.log("User is not authenticated");
-  //   }
-  // }, []);
-
   useEffect(() => {
     const checkAuth = () => {
       const params = new URLSearchParams(window.location.search);
@@ -57,7 +30,11 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem("isLoggedIn", "true");
         setIsAuthenticated(true);
         // Clean the URL without triggering a full re-render loop
-        window.history.replaceState({}, document.title, window.location.pathname);
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname,
+        );
       } else if (hasHint) {
         setIsAuthenticated(true);
       } else {
@@ -67,13 +44,13 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
-
   return (
-    <AuthContext.Provider value={{ isAuthenticated, setIsAuthenticated, loading, logout }}>
+    <AuthContext.Provider
+      value={{ isAuthenticated, setIsAuthenticated, loading, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );
 };
-
 
 export const useAuth = () => useContext(AuthContext);

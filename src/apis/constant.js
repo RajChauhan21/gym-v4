@@ -35,8 +35,6 @@ constant.interceptors.response.use(
                     window.location.href = "/";
                 }
                 toast.error("Session expired. Please log in again.");
-
-                // window.location.href = "http://localhost:8180/oauth2/authorization/google";
             }
         }
 
