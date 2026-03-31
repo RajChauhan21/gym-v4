@@ -1,9 +1,11 @@
 import axios from "axios";
+import { toast } from "sonner";
 
 const constant = axios.create({
     baseURL: "http://localhost:8180",
     withCredentials: true
 });
+
 
 constant.interceptors.response.use(
     (response) => response,
@@ -16,7 +18,7 @@ constant.interceptors.response.use(
             try {
 
                 await axios.post(
-                    "http://localhost:8180/owner/refresh",
+                    "http://localhost:8180/owner/auth/refresh",
                     {},
                     { withCredentials: true }
                 );
@@ -26,6 +28,13 @@ constant.interceptors.response.use(
             } catch (refreshError) {
 
                 console.log("Refresh token expired");
+
+                // If refresh fails, call the failure callback (which will redirect to landing)
+                localStorage.removeItem("isLoggedIn");
+                if (window.location.pathname !== "/") {
+                    window.location.href = "/";
+                }
+                toast.error("Session expired. Please log in again.");
 
                 // window.location.href = "http://localhost:8180/oauth2/authorization/google";
             }

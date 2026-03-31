@@ -1,4 +1,3 @@
-import axios from "axios";
 import constant from "./constant";
 
 export function getAllOwners() {
@@ -9,11 +8,11 @@ export function getAllOwners() {
   })
 }
 
-export function login() {
-  constant.post("/owner/login",
+export async function login(email, password) {
+ return await constant.post("/owner/login",
     {
-      email: "john.doe@example.com",
-      password: "12345"
+      email: email,
+      password: password
     },
     {
       withCredentials: true

@@ -35,6 +35,9 @@ import { LogOut, UserPen } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronsUpDown, Dumbbell } from "lucide-react";
 import { useProfile } from "../../contexts/ProfileContext";
+import { useAuth } from "../../contexts/AuthContext";
+import { Button } from "../ui/button";
+
 const items = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Members", url: "/members", icon: Users },
@@ -59,6 +62,9 @@ export function AppSidebar() {
       setOpenMobile(false); // ✅ Closes the mobile sidebar
     }
   };
+
+  const { logout } = useAuth();
+
 
   return (
     <Sidebar variant="inset" collapsible="icon" className="md:w-60 w-[240px]">
@@ -144,11 +150,11 @@ export function AppSidebar() {
                 >
 
                   {/* Edit Profile Link */}
-                  <DropdownMenuItem asChild className="cursor-pointer" onSelect={()=>handleMobileClose()}>
+                  <DropdownMenuItem asChild className="cursor-pointer" onSelect={() => handleMobileClose()}>
                     <Link
                       to="/settings"
                       className="flex items-center gap-2 w-full"
-                      // onClick={handleMobileClose}
+                    // onClick={handleMobileClose}
                     >
                       <UserPen className="size-4" />
                       <span>Edit Profile</span>
@@ -158,7 +164,11 @@ export function AppSidebar() {
                   <DropdownMenuSeparator />
 
                   {/* Logout Button */}
-                  <DropdownMenuItem onClick={handleMobileClose} className="text-red-500 cursor-pointer focus:bg-red-50 dark:focus:bg-red-950">
+                  <DropdownMenuItem onSelect={(e) => {
+                    e.preventDefault(); // Prevents the menu from closing before logic runs if needed
+                    logout();
+                    handleMobileClose();
+                  }} className="text-red-500 cursor-pointer focus:bg-red-50 dark:focus:bg-red-950">
                     <LogOut className="size-4" />
                     <span>Log out</span>
                   </DropdownMenuItem>
