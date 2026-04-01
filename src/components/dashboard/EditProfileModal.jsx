@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { allowOnlyText, allowOnlyNumbers } from "../../lib/inputValidator";
 import { PhoneNumberInput } from "@/components/ui/phone-input";
+import { saveGymDetails } from "../../apis/backend_apis"
 
 export default function EditProfileModal({
   open,
@@ -19,7 +20,17 @@ export default function EditProfileModal({
   setProfile,
 }) {
   const [form, setForm] = useState(profile)
-
+  const [owner, setOwner] = useState({
+    ownerId: null,
+    gymId: null,
+    name: "",
+    ownerName: "",
+    email: "",
+    phone: "",
+    website: "",
+    location: "",
+    googleMapUrl: ""
+  });
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   useEffect(() => {
@@ -28,6 +39,29 @@ export default function EditProfileModal({
       setErrors({})
     }
   }, [open, profile])
+
+
+  useEffect(() => {
+    const savedData = localStorage.getItem("userProfile");
+
+    if (savedData) {
+      const user = JSON.parse(savedData);
+      console.log("Loaded user data from localStorage:", user);
+      // Map the localStorage object to your form state
+      setOwner({
+        ownerId: user.ownerId,               // 17
+        gymId: user.gymId,                   // null
+        name: user.gymName || "",            // Mapping gymName to 'name'
+        ownerName: user.ownerName || "",     // "Vikram Diwan"
+        email: user.email || "",             // "vikram12345@gmail.com"
+        phone: user.phone || "",             // null -> ""
+        website: user.website || "",         // ""
+        location: user.location || "",       // ""
+        googleMapUrl: user.googleMapUrl || "" // ""
+      });
+    }
+  }, []);
+
 
   const validate = () => {
     let newErrors = {};
@@ -83,13 +117,25 @@ export default function EditProfileModal({
   };
 
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setLoading(true);
     const validation = validate()
     if (Object.keys(validation).length > 0) {
       setErrors(validation)
       return
     }
+
+    const payload = {
+      gymId: owner.gymId,           // mapping gymId
+      ownerId: owner.ownerId,     // mapping ownerId
+      name: form.gymName,             // mapping from 'name'
+      website: form.website,       // mapping from 'website'
+      location: form.location,     // mapping from 'location'
+      googleMapUrl: form.googleMapUrl // mapping from 'googleMapUrl'
+    };
+
+    const response = await saveGymDetails(payload);
+    console.log("Save Gym Response:", response);
 
     setProfile({ ...form })
     setOpen(false)

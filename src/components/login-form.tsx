@@ -21,6 +21,7 @@ import { useNavigate } from "react-router-dom";
 import constant from "../apis/constant"
 import { login, loginByGoogle } from "../apis/backend_apis"
 import { toast } from "sonner";
+import { useProfile } from "../contexts/ProfileContext";
 
 export function LoginForm({
   onNavigateToSignup,
@@ -29,6 +30,7 @@ export function LoginForm({
 }: React.ComponentProps<"div">) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const { profile, setProfile } = useProfile();
   // 3. Handle Email/Password Login
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,12 +39,29 @@ export function LoginForm({
     try {
       const response = await login(email, password);
       if (response.data.statusCodeValue === 200) {
+        const userData = response.data.body;
+
+        const updatedProfile = {
+          ownerId: userData?.ownerId,
+          gymId: userData?.gymId,
+          gymName: userData.gymName || "Paramounts Gym",
+          owner: userData.ownerName, // Mapping backend 'ownerName' to frontend 'owner'
+          email: userData.email,
+          phone: userData.phone || "9876543210",
+          address: userData.location || "Sector 9, Delhi",
+          website: userData.website || "://paramountgym.com",
+          gymLogo: userData.gymImage || "https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/back06.jpg",
+          ownerLogo: userData.ownerImage || "https://codeskulptor-demos.commondatastorage.googleapis.com/AddressableObject/ironman.jpg",
+        };
+
+        setProfile(updatedProfile);
+        localStorage.setItem("userProfile", JSON.stringify(updatedProfile)); //store user details in LS
+
+        //Auth Logic
         // 1. Set the hint for URL protection
         localStorage.setItem("isLoggedIn", "true");
-
         // 2. Update React State
         setIsAuthenticated(true);
-
         // 3. Redirect to secure area
         toast.success("Welcome back!");
         navigate("/dashboard");
@@ -75,7 +94,7 @@ export function LoginForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onClick={handleSubmit}>
+          <form onSubmit={handleSubmit}>
             <FieldGroup>
               <Field>
                 <Button typeof="button" variant="outline" type="button" onClick={() => handleSocialLogin("Apple")}>

@@ -164,7 +164,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <Link to="/dashboard">
                 {/* v4 size utilities */}
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <img src={profile.logo} alt="Logo" className="size-5! rounded-sm" />
+                  <img src={profile.gymLogo} alt="Logo" className="size-5! rounded-sm" />
                 </div>
                 {/* v4 shorthand for hiding text when collapsed */}
                 <div className="grid flex-1 text-left text-sm leading-tight group-data-collapsible-icon:hidden">
@@ -185,7 +185,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavUser user={{
           name: profile.owner,
           email: profile.email,
-          avatar: profile.logo
+          avatar: profile.ownerLogo
         }} />
       </SidebarFooter>
     </Sidebar>

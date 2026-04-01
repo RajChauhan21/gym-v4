@@ -23,6 +23,13 @@ export async function login(email, password) {
   );
 }
 
+export async function getMe() {
+  return await constant.get("/owner/me").then((r) => {
+    console.log("Profile Data:", r);
+    return r;
+  })
+}
+
 export async function signup(form) {
   return await constant.post(
     "/owner/signup",
@@ -58,4 +65,11 @@ export function saveGym() {
 
 export function loginByGoogle() {
   window.location.href = "http://localhost:8180/oauth2/authorization/google";
+}
+
+export function saveGymDetails(gymData) {
+  constant.post("/gym/save", gymData).then((r) => {
+    console.log("Gym Data:", r);
+    return r;
+  })
 }

@@ -75,7 +75,7 @@ export function AppSidebar() {
               {/* Company Logo Container */}
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                 {/* <Dumbbell className="size-5" /> */}
-                <img src={profile.logo} alt="Logo" className="rounded-sm" />
+                <img src={profile.gymLogo} alt="Logo" className="rounded-sm" />
               </div>
 
               {/* Company Name & Tagline */}
@@ -84,7 +84,7 @@ export function AppSidebar() {
                   {profile.gymName}
                 </span>
                 <span className="truncate text-xs text-sidebar-foreground/60">
-                  Premium Fitness
+                  Fitness Data manager
                 </span>
               </div>
             </SidebarMenuButton>
@@ -127,14 +127,14 @@ export function AppSidebar() {
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
                   <Avatar className="h-8 w-8 rounded-lg">
-                    <AvatarImage src="/owner.jpg" alt="Rahul" />
+                    <AvatarImage src={profile.ownerLogo} alt="Rahul" referrerPolicy={profile.ownerLogo?.includes("google") ? "no-referrer" : "strict-origin-when-cross-origin"} />
                     <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">
                       {getInitials(profile.owner)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                     <span className="truncate font-semibold">{profile.owner}</span>
-                    <span className="truncate text-xs opacity-60">Admin</span>
+                    <span className="truncate text-xs opacity-60">Admin Area</span>
                   </div>
                   <ChevronsUpDown className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
                 </SidebarMenuButton>

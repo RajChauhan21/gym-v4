@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import Loader from "@/components/ui/Loader";
 import {
   Field,
   FieldDescription,
@@ -17,9 +18,11 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { signup } from "../apis/backend_apis";
 import { toast } from "sonner";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 export function SignupForm({
   onNavigateToLogin,
+  closeModal,
   className,
   ...props
 }: React.ComponentProps<"div">) {
@@ -29,19 +32,46 @@ export function SignupForm({
     password: "",
   });
 
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
   // 2. Handle Form Submission
   const handleSubmit = async (e) => {
+    setLoading(true);
     e.preventDefault();
+    // 1. Check if passwords match
+    if (formData.password !== confirmPassword) {
+      toast.error("Passwords do not match!");
+      setLoading(false);
+      return;
+    }
+
+    // 2. Password complexity validation (8+ chars, Upper, Lower, Number)
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+
+    if (!passwordRegex.test(formData.password)) {
+      toast.error(
+        "Password must be 8+ characters and include uppercase, lowercase, and a number."
+      );
+      setLoading(false);
+      return;
+    }
     console.log("Signup Data:", formData);
     try {
       const response = await signup(formData);
-      if (response.data.statusCodeValue === 200) {
+      console.log(response);
+      if (response.status == 202) {
         toast.success(
           "Account created successfully, please sign in to continue!!",
         );
+        closeModal();
       }
     } catch (error) {
       toast.error("Error creating account");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -55,7 +85,7 @@ export function SignupForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onClick={handleSubmit}>
+          <form onSubmit={handleSubmit}>
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="name">Full Name</FieldLabel>
@@ -64,6 +94,7 @@ export function SignupForm({
                   type="text"
                   placeholder="John Doe"
                   required
+                  disabled={loading}
                   value={formData.name}
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
@@ -77,39 +108,67 @@ export function SignupForm({
                   type="email"
                   placeholder="m@example.com"
                   required
+                  disabled={loading}
                   value={formData.email}
                   onChange={(e) =>
                     setFormData({ ...formData, email: e.target.value })
                   }
                 />
               </Field>
-              <Field>
-                <Field className="grid grid-cols-2 gap-4">
-                  <Field>
-                    <FieldLabel htmlFor="password">Password</FieldLabel>
-                    <Input id="password" type="password" required />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="confirm-password">
-                      Confirm Password
-                    </FieldLabel>
+              <Field className="grid grid-cols-2 gap-4">
+                {/* Password Field */}
+                <Field>
+                  <FieldLabel htmlFor="password">Password</FieldLabel>
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={formData.password}
+                    disabled={loading}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    required
+                  />
+                </Field>
+
+                {/* Confirm Password Field + Icon */}
+                <Field>
+                  <FieldLabel htmlFor="confirm-password">Confirm Password</FieldLabel>
+                  <div className="relative"> {/* This relative wrapper keeps the icon inside the input */}
                     <Input
                       id="confirm-password"
-                      type="password"
+                      className="pr-10" // Space for the icon
+                      type={showPassword ? "text" : "password"}
                       required
-                      value={formData.password}
-                      onChange={(e) =>
-                        setFormData({ ...formData, password: e.target.value })
-                      }
+                      disabled={loading}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
                     />
-                  </Field>
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </Field>
-                <FieldDescription>
-                  Must be at least 8 characters long.
-                </FieldDescription>
               </Field>
+
               <Field>
-                <Button type="submit">Create Account</Button>
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex items-center justify-center"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Please wait
+                    </>
+                  ) : (
+                    "Create Account"
+                  )}
+                </Button>
                 <FieldDescription className="text-center">
                   Already have an account?{" "}
                   <a onClick={onNavigateToLogin}>Sign in</a>

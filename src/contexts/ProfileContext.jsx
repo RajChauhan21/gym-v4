@@ -10,7 +10,8 @@ export const ProfileProvider = ({ children }) => {
         address: "Sector 9, Delhi",
         email: "contact@paramount.com",
         website: "www.paramountgym.com",
-        logo: "https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/back06.jpg", // Default logo
+        ownerLogo:"https://codeskulptor-demos.commondatastorage.googleapis.com/AddressableObject/ironman.jpg",
+        gymLogo: "https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/back06.jpg", // Default logo
     });
 
     return (

@@ -35,7 +35,7 @@ export default function Settings() {
     upiId: "paramount@okupi",
     bankAccount: "1234567890",
     ifscCode: "HDFC0001234",
-    holderName: "Raj Sharma",
+    holderName: profile.owner,
   });
   const [notifications, setNotifications] = useState({
     reminders: true,
@@ -98,7 +98,7 @@ export default function Settings() {
             <div className="relative group mb-4">
               {/* Using the logo from your profile state */}
               <img
-                src={profile.logo || "https://via.placeholder.com"}
+                src={profile.gymLogo || "https://via.placeholder.com"}
                 alt="Logo"
                 className="w-24 h-24 rounded-2xl object-cover border-4 border-background shadow-sm transition-transform group-hover:scale-105"
               />
