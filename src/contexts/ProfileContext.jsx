@@ -1,30 +1,37 @@
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useState, useContext } from "react";
 
 const ProfileContext = createContext();
 
 export const ProfileProvider = ({ children }) => {
-    const [profile, setProfile] = useState({
-        gymName: "Paramount Gym",
-        owner: "Raj Sharma",
-        phone: "9876543210",
-        address: "Sector 9, Delhi",
-        email: "contact@paramount.com",
-        website: "www.paramountgym.com",
-        ownerLogo:"https://codeskulptor-demos.commondatastorage.googleapis.com/AddressableObject/ironman.jpg",
-        gymLogo: "https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/back06.jpg", // Default logo
-    });
+  const [profile, setProfile] = useState(() => {
+    const savedProfile = localStorage.getItem("userProfile");
+    // 2. If it exists, parse and use it; otherwise, use defaults
+    return savedProfile
+      ? JSON.parse(savedProfile)
+      : {
+          gymName: "Paramount Gym",
+          owner: "Raj Sharma",
+          phone: "9876543210",
+          address: "Sector 9, Delhi",
+          email: "contact@paramount.com",
+          website: "://paramountgym.com",
+          gymLogo: "https://googleapis.com",
+          ownerLogo: "https://codeskulptor-demos.commondatastorage.googleapis.com/AddressableObject/ironman.jpg",
+          googleMapUrl:"https://maps.google.com/?q=paramount+gym",
+        };
+  });
 
-    return (
-        <ProfileContext.Provider value={{ profile, setProfile }}>
-            {children}
-        </ProfileContext.Provider>
-    );
+  return (
+    <ProfileContext.Provider value={{ profile, setProfile }}>
+      {children}
+    </ProfileContext.Provider>
+  );
 };
 
 export const useProfile = () => {
-    const context = useContext(ProfileContext);
-    if (!context) {
-        throw new Error("useProfile must be used within a ProfileProvider");
-    }
-    return context;
+  const context = useContext(ProfileContext);
+  if (!context) {
+    throw new Error("useProfile must be used within a ProfileProvider");
+  }
+  return context;
 };

@@ -48,6 +48,7 @@ export const AuthProvider = ({ children }) => {
             website: userData?.website || "://paramountgym.com",
             gymLogo: userData.gymImage || "https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/back06.jpg",
             ownerLogo: userData.ownerImage || "https://codeskulptor-demos.commondatastorage.googleapis.com/AddressableObject/ironman.jpg",
+            googleMapUrl: userData.googleMapUrl || "https://maps.google.com/?q=paramount+gym",
           };
 
           setProfile(updatedProfile);

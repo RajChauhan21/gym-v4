@@ -2,13 +2,13 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import Loader from "@/components/ui/Loader"
+import Loader from "@/components/ui/Loader";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import EditProfileModal from "../components/dashboard/EditProfileModal";
 import EditPaymentModal from "../components/dashboard/EditPaymentModal";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Globe, MapPin, Phone, User, Building2, Mail } from "lucide-react"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Globe, MapPin, Phone, User, Building2, Mail } from "lucide-react";
 import { CreditCard, Landmark, QrCode, UserCircle } from "lucide-react";
 import {
   Select,
@@ -69,21 +69,19 @@ export default function Settings() {
     // 4. Update State
     setProfile((prev) => ({
       ...prev,
-      logo: url,       // For immediate UI preview
-      logoFile: file   // Save the raw file to upload to your database later
+      logo: url, // For immediate UI preview
+      logoFile: file, // Save the raw file to upload to your database later
     }));
   };
 
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setTimeout(() => setLoading(false), 1200)
-  }, [])
+    setTimeout(() => setLoading(false), 1200);
+  }, []);
 
   if (loading) {
-    return (
-      <Loader text="Loading Settings...." />
-    )
+    return <Loader text="Loading Settings...." />;
   }
 
   return (
@@ -92,7 +90,6 @@ export default function Settings() {
 
       <Card className="rounded-2xl shadow-sm border dark:border-zinc-800 bg-card overflow-hidden">
         <div className="flex flex-col md:flex-row min-h-[300px]">
-
           {/* Left Side: Brand Identity (The Sidebar) */}
           <div className="md:w-72 bg-muted/30 p-8 flex flex-col items-center justify-center text-center border-b md:border-b-0 md:border-r dark:border-zinc-800">
             <div className="relative group mb-4">
@@ -103,8 +100,15 @@ export default function Settings() {
                 className="w-24 h-24 rounded-2xl object-cover border-4 border-background shadow-sm transition-transform group-hover:scale-105"
               />
               <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-2xl transition cursor-pointer">
-                <span className="text-white text-[10px] font-bold uppercase tracking-tighter">Change</span>
-                <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                <span className="text-white text-[10px] font-bold uppercase tracking-tighter">
+                  Change
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                />
               </label>
             </div>
 
@@ -149,22 +153,33 @@ export default function Settings() {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
                     <User className="size-3.5" />
-                    <p className="text-[10px] font-bold uppercase tracking-widest">Owner</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest">
+                      Owner
+                    </p>
                   </div>
-                  <p className="font-semibold text-foreground dark:text-white">{profile.owner}</p>
+                  <p className="font-semibold text-foreground dark:text-white">
+                    {profile.owner}
+                  </p>
                 </div>
 
                 {/* Location Section */}
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
                     <MapPin className="size-3.5" />
-                    <p className="text-[10px] font-bold uppercase tracking-widest">Gym Location</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest">
+                      Gym Location
+                    </p>
                   </div>
                   <p className="font-semibold text-foreground leading-relaxed dark:text-white">
                     {profile.address}
                   </p>
-                  {profile.mapLink && (
-                    <a href={profile.mapLink} target="_blank" rel="noreferrer" className="text-[10px] text-green-600 hover:text-green-700 font-bold uppercase mt-2 inline-block transition-colors">
+                  {profile.googleMapUrl && (
+                    <a
+                      href={profile.googleMapUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[10px] text-green-600 hover:text-green-700 font-bold uppercase mt-2 inline-block transition-colors"
+                    >
                       Open Maps
                     </a>
                   )}
@@ -177,18 +192,27 @@ export default function Settings() {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
                     <Phone className="size-3.5" />
-                    <p className="text-[10px] font-bold uppercase tracking-widest">Contact</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest">
+                      Contact
+                    </p>
                   </div>
-                  <p className="font-semibold text-foreground dark:text-white">{profile.phone}</p>
+                  <p className="font-semibold text-foreground dark:text-white">
+                    {profile.phone}
+                  </p>
                 </div>
 
                 {/* Email Section */}
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
                     <Mail className="size-3.5" />
-                    <p className="text-[10px] font-bold uppercase tracking-widest">Business Email</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest">
+                      Business Email
+                    </p>
                   </div>
-                  <p className="font-semibold text-foreground truncate dark:text-white" title={profile.email}>
+                  <p
+                    className="font-semibold text-foreground truncate dark:text-white"
+                    title={profile.email}
+                  >
                     {profile.email || "Not provided"}
                   </p>
                 </div>
@@ -197,7 +221,6 @@ export default function Settings() {
           </div>
         </div>
       </Card>
-
 
       {/* PAYMENTS */}
       {/* <Card className="rounded-2xl shadow">
@@ -238,9 +261,15 @@ export default function Settings() {
         <CardHeader className="flex flex-row justify-between items-center border-b pb-4">
           <div className="space-y-1">
             <CardTitle className="text-lg">Payment Settings</CardTitle>
-            <p className="text-xs text-muted-foreground">Account details used for member payments.</p>
+            <p className="text-xs text-muted-foreground">
+              Account details used for member payments.
+            </p>
           </div>
-          <Button size="sm" onClick={() => setPayOpen(true)} className="rounded-lg">
+          <Button
+            size="sm"
+            onClick={() => setPayOpen(true)}
+            className="rounded-lg"
+          >
             Update
           </Button>
         </CardHeader>
@@ -252,9 +281,13 @@ export default function Settings() {
               <div className="p-2 rounded-lg bg-green-500/10 text-green-600">
                 <QrCode className="size-4" />
               </div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Primary UPI ID</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                Primary UPI ID
+              </p>
             </div>
-            <p className="font-mono font-medium text-foreground ml-9 dark:text-white">{payments.upiId || "Not set"}</p>
+            <p className="font-mono font-medium text-foreground ml-9 dark:text-white">
+              {payments.upiId || "Not set"}
+            </p>
           </div>
 
           {/* 2. HOLDER NAME SECTION */}
@@ -263,9 +296,13 @@ export default function Settings() {
               <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600">
                 <UserCircle className="size-4" />
               </div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Account Holder</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                Account Holder
+              </p>
             </div>
-            <p className="font-semibold text-foreground ml-9 dark:text-white">{payments.holderName || "Not set"}</p>
+            <p className="font-semibold text-foreground ml-9 dark:text-white">
+              {payments.holderName || "Not set"}
+            </p>
           </div>
 
           {/* 3. BANK DETAILS (Spans 2 columns on desktop) */}
@@ -275,12 +312,20 @@ export default function Settings() {
                 <Landmark className="size-5" />
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">Bank Account Details</p>
-                <p className="font-medium">A/C: {payments.bankAccount || "XXXX XXXX XXXX"}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">
+                  Bank Account Details
+                </p>
+                <p className="font-medium">
+                  A/C: {payments.bankAccount || "XXXX XXXX XXXX"}
+                </p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-bold uppercase text-muted-foreground">IFSC Code</p>
-                <p className="font-mono text-sm uppercase">{payments.ifscCode || "NONE0000000"}</p>
+                <p className="text-[10px] font-bold uppercase text-muted-foreground">
+                  IFSC Code
+                </p>
+                <p className="font-mono text-sm uppercase">
+                  {payments.ifscCode || "NONE0000000"}
+                </p>
               </div>
             </div>
           </div>
@@ -372,7 +417,9 @@ export default function Settings() {
       <Card className="rounded-2xl shadow border dark:border-zinc-800">
         <CardHeader>
           <CardTitle>Preferences</CardTitle>
-          <p className="text-sm text-muted-foreground">Manage your app experience and billing currency.</p>
+          <p className="text-sm text-muted-foreground">
+            Manage your app experience and billing currency.
+          </p>
         </CardHeader>
 
         <CardContent className="space-y-6 z-50">
@@ -390,7 +437,10 @@ export default function Settings() {
               checked={dark}
               onCheckedChange={toggleDark}
             />
-            <label htmlFor="darkMode" className="text-sm font-medium cursor-pointer">
+            <label
+              htmlFor="darkMode"
+              className="text-sm font-medium cursor-pointer"
+            >
               Enable Dark Mode
             </label>
           </div>
@@ -400,22 +450,36 @@ export default function Settings() {
           {/* CURRENCY SELECTION */}
           <div className="space-y-3">
             <Label className="text-sm font-semibold">Base Currency</Label>
-            <p className="text-xs text-muted-foreground">Select the primary currency for your gym payments.</p>
+            <p className="text-xs text-muted-foreground">
+              Select the primary currency for your gym payments.
+            </p>
 
             <RadioGroup
               value={preferences.currency}
-              onValueChange={(val) => setPreferences({ ...preferences, currency: val })}
+              onValueChange={(val) =>
+                setPreferences({ ...preferences, currency: val })
+              }
               className="flex items-center gap-6"
               defaultValue="INR"
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="INR" id="inr" />
-                <label htmlFor="inr" className="text-sm cursor-pointer font-medium">INR (₹)</label>
+                <label
+                  htmlFor="inr"
+                  className="text-sm cursor-pointer font-medium"
+                >
+                  INR (₹)
+                </label>
               </div>
 
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="USD" id="usd" />
-                <label htmlFor="usd" className="text-sm cursor-pointer font-medium">USD ($)</label>
+                <label
+                  htmlFor="usd"
+                  className="text-sm cursor-pointer font-medium"
+                >
+                  USD ($)
+                </label>
               </div>
             </RadioGroup>
           </div>
@@ -431,8 +495,8 @@ export default function Settings() {
         <CardContent className="space-y-3">
           {/* <Button className="mr-2">Change Password</Button> */}
           {/* <Button>Logout from all devices</Button> */}
-          <ChangePasswordModal/>
-          <LogoutModal/>
+          <ChangePasswordModal />
+          <LogoutModal />
         </CardContent>
       </Card>
 
@@ -444,7 +508,7 @@ export default function Settings() {
 
         <CardContent>
           {/* <Button variant="destructive">Delete Account</Button> */}
-          <DeleteAccountModal/>
+          <DeleteAccountModal />
         </CardContent>
       </Card>
     </div>

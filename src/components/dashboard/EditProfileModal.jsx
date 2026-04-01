@@ -1,17 +1,18 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { toast } from "sonner"
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import { allowOnlyText, allowOnlyNumbers } from "../../lib/inputValidator";
 import { PhoneNumberInput } from "@/components/ui/phone-input";
-import { saveGymDetails } from "../../apis/backend_apis"
+import { saveGymDetails } from "../../apis/backend_apis";
+import { Loader2 } from "lucide-react";
 
 export default function EditProfileModal({
   open,
@@ -19,7 +20,7 @@ export default function EditProfileModal({
   profile,
   setProfile,
 }) {
-  const [form, setForm] = useState(profile)
+  const [form, setForm] = useState(profile);
   const [owner, setOwner] = useState({
     ownerId: null,
     gymId: null,
@@ -29,17 +30,16 @@ export default function EditProfileModal({
     phone: "",
     website: "",
     location: "",
-    googleMapUrl: ""
+    googleMapUrl: "",
   });
-  const [errors, setErrors] = useState({})
-  const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
   useEffect(() => {
     if (open) {
-      setForm(profile)
-      setErrors({})
+      setForm(profile);
+      setErrors({});
     }
-  }, [open, profile])
-
+  }, [open, profile]);
 
   useEffect(() => {
     const savedData = localStorage.getItem("userProfile");
@@ -49,19 +49,18 @@ export default function EditProfileModal({
       console.log("Loaded user data from localStorage:", user);
       // Map the localStorage object to your form state
       setOwner({
-        ownerId: user.ownerId,               // 17
-        gymId: user.gymId,                   // null
-        name: user.gymName || "",            // Mapping gymName to 'name'
-        ownerName: user.ownerName || "",     // "Vikram Diwan"
-        email: user.email || "",             // "vikram12345@gmail.com"
-        phone: user.phone || "",             // null -> ""
-        website: user.website || "",         // ""
-        location: user.location || "",       // ""
-        googleMapUrl: user.googleMapUrl || "" // ""
+        ownerId: user.ownerId, // 17
+        gymId: user.gymId, // null
+        name: user.gymName || "", // Mapping gymName to 'name'
+        ownerName: user.ownerName || "", // "Vikram Diwan"
+        email: user.email || "", // "vikram12345@gmail.com"
+        phone: user.phone || "", // null -> ""
+        website: user.website || "", // ""
+        location: user.location || "", // ""
+        googleMapUrl: user.googleMapUrl || "", // ""
       });
     }
   }, []);
-
 
   const validate = () => {
     let newErrors = {};
@@ -84,9 +83,9 @@ export default function EditProfileModal({
     // Address: Allows letters, numbers, spaces, and common separators (/, #, -)
     const addressRegex = /^[a-zA-Z0-9\s,.'#/-]+$/;
     if (!form.address.trim()) {
-      newErrors.address = "Address required";
+      newErrors.address = "Location required";
     } else if (!addressRegex.test(form.address)) {
-      newErrors.address = "Invalid characters found in address";
+      newErrors.address = "Invalid characters found in location";
     }
 
     // Phone Validation
@@ -107,7 +106,8 @@ export default function EditProfileModal({
 
     // Website Validation (Supports http, https, or starting with www)
     if (form.website.trim()) {
-      const urlPattern = /^(https?:\/\/)?(www\.)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,6}(\/.*)?$/;
+      const urlPattern =
+        /^(https?:\/\/)?(www\.)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,6}(\/.*)?$/;
       if (!urlPattern.test(form.website.trim())) {
         newErrors.website = "Enter a valid website (e.g., www.gym.com)";
       }
@@ -116,55 +116,55 @@ export default function EditProfileModal({
     return newErrors;
   };
 
-
   const handleSave = async () => {
     setLoading(true);
-    const validation = validate()
+    const validation = validate();
     if (Object.keys(validation).length > 0) {
-      setErrors(validation)
-      return
+      setErrors(validation);
+      setLoading(false);
+      return;
     }
 
     const payload = {
-      gymId: owner.gymId,           // mapping gymId
-      ownerId: owner.ownerId,     // mapping ownerId
-      name: form.gymName,             // mapping from 'name'
-      website: form.website,       // mapping from 'website'
-      location: form.location,     // mapping from 'location'
-      googleMapUrl: form.googleMapUrl // mapping from 'googleMapUrl'
+      gymId: owner.gymId, // mapping gymId
+      ownerId: owner.ownerId, // mapping ownerId
+      gymName: form.gymName, // mapping from 'name'
+      ownerName: owner.ownerName, // mapping from 'ownerName'
+      website: form.website, // mapping from 'website'
+      googleMapUrl: form.googleMapUrl, // mapping from 'googleMapUrl'
+      number: form.phone,
+      location: form.location,
+      email: owner.email,
     };
 
     const response = await saveGymDetails(payload);
     console.log("Save Gym Response:", response);
 
-    setProfile({ ...form })
-    setOpen(false)
+    setProfile({ ...form });
+    setOpen(false);
     setTimeout(() => {
       setLoading(false);
       toast.success("Profile details updated successfully.");
       setOpen(false);
     }, 1000);
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="w-[90%] max-w-md h-[520px] flex flex-col rounded-2xl">
-
         <DialogHeader>
           <DialogTitle>Edit Profile</DialogTitle>
         </DialogHeader>
 
         {/* FORM */}
         <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-
           {/* Gym Name */}
           <div>
             <Label className="mb-3">Gym Name</Label>
             <Input
+              disabled={loading}
               value={form.gymName}
-              onChange={(e) =>
-                setForm({ ...form, gymName: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, gymName: e.target.value })}
             />
             <p className="text-red-500 text-xs min-h-[16px]">
               {errors.gymName}
@@ -175,14 +175,11 @@ export default function EditProfileModal({
           <div>
             <Label className="mb-3">Owner</Label>
             <Input
+              disabled={loading}
               value={form.owner}
-              onChange={(e) =>
-                setForm({ ...form, owner: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, owner: e.target.value })}
             />
-            <p className="text-red-500 text-xs min-h-[16px]">
-              {errors.owner}
-            </p>
+            <p className="text-red-500 text-xs min-h-[16px]">{errors.owner}</p>
           </div>
 
           {/* Phone */}
@@ -196,22 +193,20 @@ export default function EditProfileModal({
               }
             /> */}
             <PhoneNumberInput
+              disabled={loading}
               value={form.phone}
               onChange={(value) => setForm({ ...form, phone: value })}
             />
-            <p className="text-red-500 text-xs min-h-[16px]">
-              {errors.phone}
-            </p>
+            <p className="text-red-500 text-xs min-h-[16px]">{errors.phone}</p>
           </div>
 
           {/* Address */}
           <div>
-            <Label className="mb-3">Address</Label>
+            <Label className="mb-3">Address/Location</Label>
             <Input
+              disabled={loading}
               value={form.address}
-              onChange={(e) =>
-                setForm({ ...form, address: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
             />
             <p className="text-red-500 text-xs min-h-[16px]">
               {errors.address}
@@ -222,21 +217,19 @@ export default function EditProfileModal({
           <div>
             <Label className="mb-3">Email</Label>
             <Input
+              disabled={loading}
               type="email"
               value={form.email}
-              onChange={(e) =>
-                setForm({ ...form, email: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
             />
-            <p className="text-red-500 text-xs min-h-[16px]">
-              {errors.email}
-            </p>
+            <p className="text-red-500 text-xs min-h-[16px]">{errors.email}</p>
           </div>
 
           {/* Website */}
           <div>
             <Label className="mb-3">Website (Optional)</Label>
             <Input
+              disabled={loading}
               placeholder="www.yourgym.com"
               value={form.website}
               onChange={(e) => setForm({ ...form, website: e.target.value })}
@@ -250,22 +243,28 @@ export default function EditProfileModal({
           <div>
             <Label className="mb-3">Google Maps URL</Label>
             <Input
+              disabled={loading}
               placeholder="Paste Google Maps link here"
-              value={form.mapLink}
-              onChange={(e) => setForm({ ...form, mapLink: e.target.value })}
+              value={form.googleMapUrl}
+              onChange={(e) => setForm({ ...form, googleMapUrl: e.target.value })}
             />
           </div>
-
         </div>
 
         {/* FOOTER BUTTON */}
         <div className="pt-3">
           <Button onClick={handleSave} className="w-full">
-            Save Changes
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Please wait
+              </>
+            ) : (
+              "Save Changes"
+            )}
           </Button>
         </div>
-
       </DialogContent>
     </Dialog>
-  )
+  );
 }
