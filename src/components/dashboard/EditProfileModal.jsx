@@ -52,12 +52,14 @@ export default function EditProfileModal({
         ownerId: user.ownerId, // 17
         gymId: user.gymId, // null
         name: user.gymName || "", // Mapping gymName to 'name'
-        ownerName: user.ownerName || "", // "Vikram Diwan"
+        ownerName: user.owner || "", // "Vikram Diwan"
         email: user.email || "", // "vikram12345@gmail.com"
         phone: user.phone || "", // null -> ""
         website: user.website || "", // ""
-        location: user.location || "", // ""
+        location: user.address || "", // ""
         googleMapUrl: user.googleMapUrl || "", // ""
+        gymLogo: user.ownerImage,
+        ownerLogo: user.gymImage,
       });
     }
   }, []);
@@ -89,13 +91,16 @@ export default function EditProfileModal({
     }
 
     // Phone Validation
-    const phoneRegex = /^\+?[1-9]\d{9,14}$/;
-
     if (!form.phone || !form.phone.trim()) {
       newErrors.phone = "Phone number is required";
-    } else if (!phoneRegex.test(form.phone.replace(/[\s()-]/g, ""))) {
-      // We strip spaces, dashes, and brackets before testing the regex
-      newErrors.phone = "Enter a valid international phone number";
+    } else {
+      // react-phone-number-input values usually start with '+'
+      // A valid E.164 number is typically between 10 and 15 digits (including country code)
+      const cleanPhone = form.phone.replace(/\D/g, ""); // Remove everything except digits
+
+      if (cleanPhone.length < 10 || cleanPhone.length > 15) {
+        newErrors.phone = "Enter a valid international phone number (e.g., +91...)";
+      }
     }
 
     // Strict Email Validation
@@ -126,27 +131,51 @@ export default function EditProfileModal({
     }
 
     const payload = {
-      gymId: owner.gymId, // mapping gymId
-      ownerId: owner.ownerId, // mapping ownerId
+      gymId: profile.gymId, // mapping gymId
+      ownerId: profile.ownerId, // mapping ownerId
       gymName: form.gymName, // mapping from 'name'
-      ownerName: owner.ownerName, // mapping from 'ownerName'
+      ownerName: form.owner, // mapping from 'ownerName'
       website: form.website, // mapping from 'website'
       googleMapUrl: form.googleMapUrl, // mapping from 'googleMapUrl'
       number: form.phone,
-      location: form.location,
-      email: owner.email,
+      location: form.address,
+      email: form.email,
     };
-
     const response = await saveGymDetails(payload);
-    console.log("Save Gym Response:", response);
+    try {
 
-    setProfile({ ...form });
-    setOpen(false);
-    setTimeout(() => {
+      console.log("Save Gym Response:", response);
+      if (response.status === 202) {
+        console.log("form data " + form);
+        const payload = {
+          ...profile,
+          ownerId: response?.data.ownerId,
+          gymId: response?.data.gymId,
+          gymName: response?.data.gymName,
+          owner: response?.data.ownerName, // mapping ownerName to owner
+          email: response?.data.email,
+          phone: response?.data.number,    // mapping number back to phone
+          address: response?.data.location, // mapping location back to address
+          website: response?.data.website,
+          googleMapUrl: response?.data.googleMapUrl,
+        };
+
+        console.log("Updated profile payload:", payload);
+        setProfile(payload);
+        localStorage.setItem("userProfile", JSON.stringify(payload));
+        toast.success("Profile details updated successfully.");
+        setOpen(false);
+
+      }
+      else {
+        toast.error(response?.data?.message || "Failed to update profile details. Please try again.");
+      }
+    } catch (error) {
+      toast.error(response?.data?.message || "Failed to update profile details. Please try again.");
+    }
+    finally {
       setLoading(false);
-      toast.success("Profile details updated successfully.");
-      setOpen(false);
-    }, 1000);
+    }
   };
 
   return (

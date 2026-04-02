@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import {login, getAllOwners, saveGym, loginByGoogle} from "../apis/backend_apis";
+import {login, getAllOwners, loginByGoogle} from "../apis/backend_apis";
 import {
   CheckCircle2,
   Dumbbell,

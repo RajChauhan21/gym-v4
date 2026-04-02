@@ -9,16 +9,18 @@ export const ProfileProvider = ({ children }) => {
     return savedProfile
       ? JSON.parse(savedProfile)
       : {
-          gymName: "Paramount Gym",
-          owner: "Raj Sharma",
-          phone: "9876543210",
-          address: "Sector 9, Delhi",
-          email: "contact@paramount.com",
-          website: "://paramountgym.com",
-          gymLogo: "https://googleapis.com",
-          ownerLogo: "https://codeskulptor-demos.commondatastorage.googleapis.com/AddressableObject/ironman.jpg",
-          googleMapUrl:"https://maps.google.com/?q=paramount+gym",
-        };
+        ownerId: null,
+        gymId: null,
+        gymName: "Paramount Gym",
+        owner: "Raj Sharma",
+        phone: "9876543210",
+        address: "Sector 9, Delhi",
+        email: "contact@paramount.com",
+        website: "www.paramountgym.com",
+        gymLogo: "https://googleapis.com",
+        ownerLogo: "https://codeskulptor-demos.commondatastorage.googleapis.com/AddressableObject/ironman.jpg",
+        googleMapUrl: "https://maps.google.com/?q=paramount+gym",
+      };
   });
 
   return (

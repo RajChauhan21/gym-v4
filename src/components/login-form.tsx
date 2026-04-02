@@ -22,7 +22,7 @@ import constant from "../apis/constant"
 import { login, loginByGoogle } from "../apis/backend_apis"
 import { toast } from "sonner";
 import { useProfile } from "../contexts/ProfileContext";
-
+import { Loader2 } from "lucide-react";
 export function LoginForm({
   onNavigateToSignup,
   className,
@@ -31,9 +31,12 @@ export function LoginForm({
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const { profile, setProfile } = useProfile();
+  const [loading, setLoading] = useState(false);
+
   // 3. Handle Email/Password Login
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setLoading(true);
     console.log("Login Attempt:", { email, password })
     // Add your login logic here (e.g., Firebase, Supabase, or API call)
     try {
@@ -70,6 +73,9 @@ export function LoginForm({
     }
     catch (error) {
       toast.error("Invalid email or password");
+    }
+    finally {
+      setLoading(false);
     }
 
   }
@@ -123,6 +129,7 @@ export function LoginForm({
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input
+                  disabled={loading}
                   id="email"
                   type="email"
                   placeholder="m@example.com"
@@ -141,10 +148,19 @@ export function LoginForm({
                     Forgot your password?
                   </a>
                 </div>
-                <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+                <Input id="password"  disabled={loading} type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
               </Field>
               <Field>
-                <Button type="submit">Login</Button>
+                <Button type="submit" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Please wait
+                    </>
+                  ) : (
+                    "Login"
+                  )}
+                </Button>
                 <FieldDescription className="text-center">
                   Don&apos;t have an account?{" "}
                   <a onClick={onNavigateToSignup}>Sign up</a>

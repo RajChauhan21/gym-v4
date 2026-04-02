@@ -301,7 +301,7 @@ export default function Settings() {
               </p>
             </div>
             <p className="font-semibold text-foreground ml-9 dark:text-white">
-              {payments.holderName || "Not set"}
+              {profile.owner || "Not set"}
             </p>
           </div>
 
