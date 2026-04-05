@@ -13,20 +13,49 @@ import {
 } from "@/components/ui/card";
 import { Package, Clock, Edit3, Trash2 } from "lucide-react";
 import { DeleteModal } from "./DeleteModal";
-import { useGymStore } from "../store/gymStore"
+import { useGymStore } from "../store/gymStore";
+import { deletePlanById, getAllPlans } from "../apis/backend_apis";
 
 export default function Plans() {
   const plans = useGymStore((state) => state.plans);
   const setPlans = useGymStore((state) => state.setPlans);
   const [modalOpen, setModalOpen] = useState(false);
   const [editPlan, setEditPlan] = useState(null);
+  const fetchPlans = useGymStore((state) => state.fetchPlans);
+
+  useEffect(() => {
+    const fetchAndPopulate = async () => {
+      try {
+        // If ownerId is available in scope (from props/context), use it here
+        const data = await getAllPlans();
+        setPlans(data);
+        console.log("Fetched plans data:", data);
+      } catch (err) {
+        console.error("Initial load failed:", err);
+      }
+    };
+
+    fetchAndPopulate();
+
+    // Empty array [] ensures this runs exactly once on mount
+  }, []);
 
   // Delete confirmation
-  const confirmDelete = (idx) => {
-    const planName = plans[idx].name;
-    const newPlans = plans.filter((_, i) => i !== idx);
-    setPlans(newPlans);
-    toast.success(`"${planName}" plan deleted successfully`);
+  const confirmDelete = async (idx) => {
+    const id = plans[idx].id;
+    try {
+      const response = await deletePlanById(id);
+      if (response.status === 202) {
+        console.log(response);
+        toast.success("Plan deleted successfully");
+        fetchPlans();
+      }
+    } catch (error) {
+      toast.error(error)
+    }
+    // const newPlans = plans.filter((_, i) => i !== idx);
+    // setPlans(newPlans);
+    // toast.success(`"${planName}" plan deleted successfully`);
   };
 
   // Edit button
@@ -94,8 +123,8 @@ export default function Plans() {
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <Clock className="size-4 text-primary" />
                 <span>
-                  Valid for {plan.duration}{" "}
-                  {plan.duration > 1 ? "months" : "month"}
+                  Valid for {plan.validity}{" "}
+                  {plan.validity > 1 ? "months" : "month"}
                 </span>
               </div>
 

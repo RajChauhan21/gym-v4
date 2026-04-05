@@ -11,6 +11,10 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { allowOnlyText, allowOnlyNumbers } from "../../lib/inputValidator";
+import { addPlan } from "../../apis/backend_apis";
+import { useGymStore } from "../../store/gymStore";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { X } from "lucide-react";
 export default function AddPlanModal({
   open,
   setOpen,
@@ -19,20 +23,21 @@ export default function AddPlanModal({
   editPlan,
   setEditPlan,
 }) {
-  const [form, setForm] = useState({ name: "", duration: "", price: "" });
+  const [form, setForm] = useState({ name: "", validity: "", price: "" });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const fetchPlans = useGymStore((state) => state.fetchPlans);
 
   useEffect(() => {
     if (open) {
       if (editPlan) {
         setForm({
           name: editPlan.name,
-          duration: editPlan.duration,
+          validity: editPlan.validity,
           price: editPlan.price,
         });
       } else {
-        setForm({ name: "", duration: "", price: "" });
+        resetForm();
       }
       setErrors({});
     }
@@ -42,62 +47,88 @@ export default function AddPlanModal({
     const newErrors = {};
     if (!form.name || !/^[A-Za-z\s]+$/.test(form.name))
       newErrors.name = "Only letters allowed";
-    if (!form.duration || isNaN(form.duration))
-      newErrors.duration = "Enter a valid number";
+    if (!form.validity || isNaN(form.validity))
+      newErrors.validity = "Enter a valid number";
     if (!form.price || isNaN(form.price))
       newErrors.price = "Enter a valid amount";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return;
-
-    // 1. Check for Duplicate Name
-    const isDuplicate = plans.some((p, idx) => {
-      // If editing, ignore the current plan's index https://t4w7zrs7-5173.inc1.devtunnels.ms/
-      if (editPlan && idx === editPlan.index) return false;
-
-      // Compare names (case-insensitive for better safety)
-      return p.name.toLowerCase() === form.name.toLowerCase();
-    });
-
-    if (isDuplicate) {
-      toast.error(`A plan named "${form.name}" already exists.`);
-      return; // Stop the function here
-    }
-
     setLoading(true);
-    setTimeout(() => {
-      if (editPlan) {
-        const updatedPlans = [...plans];
-        updatedPlans[editPlan.index] = form;
-        setPlans(updatedPlans);
-        toast.success("Plan updated successfully");
+    try {
+      const plan = {
+        id: editPlan?.id ?? null,
+        name: form.name,
+        validity: form.validity,
+        price: form.price,
+      };
+
+      const response = await addPlan(plan);
+      if (response.status === 202) {
+        console.log(response);
+        toast.success(
+          editPlan ? "Plan updated succeessfully" : "Plan added successfully",
+        );
+        fetchPlans();
         setEditPlan(null);
-      } else {
-        setPlans([...plans, form]);
-        toast.success("Plan added successfully");
+      } else if (response.status === 404) {
+        toast.error(
+          response.data.message ||
+            "Plan not found. Please select a valid plan.",
+        );
       }
+    } catch (error) {
+      toast.error("Error saving plan");
+    } finally {
       setLoading(false);
       setOpen(false);
-    }, 800);
+      resetForm();
+    }
+  };
+
+  const initialFormState = {
+    name: "",
+    validity: "",
+    price: "",
+  };
+
+  const resetForm = () => {
+    setForm(initialFormState);
+    setErrors({});
+  };
+
+  const handleClose = (isOpen) => {
+    setOpen(isOpen);
+    if (!isOpen) {
+      setEditPlan(null); // Crucial: Reset to "Add Mode"
+      resetForm();
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogTrigger asChild>
         <Button
           onClick={() => setOpen(true)}
           className="mb-4 dark:bg-white dark:text-black"
         >
-          {editPlan ? "Edit Plan" : "+ Add Plan"}
+          {"+ Add Plan"}
         </Button>
       </DialogTrigger>
 
       <DialogContent className="w-[90%] max-w-md rounded-2xl p-0 shadow-xl flex flex-col h-[480px]">
         <DialogHeader className="p-6 border-b">
           <DialogTitle>{editPlan ? "Edit Plan" : "Add New Plan"}</DialogTitle>
+          <DialogPrimitive.Close
+            className="absolute right-4 top-4 opacity-70 hover:opacity-100 transition-opacity outline-none"
+            onClick={handleClose} // Also clear form if they just close the modal
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </DialogPrimitive.Close>
         </DialogHeader>
 
         {/* Scrollable Body */}
@@ -120,18 +151,18 @@ export default function AddPlanModal({
           </div>
 
           <div className="space-y-1">
-            <Label className="mb-1">Duration (months)</Label>
+            <Label className="mb-1">validity (months)</Label>
             <Input
               disabled={loading}
               type="number"
-              placeholder="1 / 3 / 6"
-              value={form.duration}
-              onChange={(e) => setForm({ ...form, duration: e.target.value })}
+              placeholder="1 / 3 / 6 / 12"
+              value={form.validity}
+              onChange={(e) => setForm({ ...form, validity: e.target.value })}
               onKeyDown={allowOnlyNumbers}
             />
             <div className="min-h-[20px]">
-              {errors.duration && (
-                <p className="text-red-500 text-sm">{errors.duration}</p>
+              {errors.validity && (
+                <p className="text-red-500 text-sm">{errors.validity}</p>
               )}
             </div>
           </div>

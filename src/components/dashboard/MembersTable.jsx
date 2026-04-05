@@ -58,39 +58,67 @@ import { Button } from "@/components/ui/button";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { useGymStore } from "../../store/gymStore";
 import { MemberDetailsModal } from "./MemberDetailsModal";
-
+import { useProfile } from "../../contexts/ProfileContext";
+import { deleteMemberById, getAllMembers } from "../../apis/backend_apis";
+import { toast } from "sonner";
 export default function MembersTable() {
   const sendWhatsAppReminder = (member) => {
-    const message = `Hello ${member.name}, your gym payment of ₹${member.due} is pending. Please pay before ${member.expiry}.`;
+    const message = `Hello ${member.name}, your gym payment of ₹${member.dueAmount} is pending. Please pay before ${member.expiry}.`;
 
     const url = `https://wa.me/${member.phone}?text=${encodeURIComponent(message)}`;
 
     window.open(url, "_blank");
   };
-
-  const [open, setOpen] = useState(false);
-  const members = useGymStore((state) => state.members);
-  const plans = useGymStore((state) => state.plans);
-  const setMembers = useGymStore((state) => state.setMembers);
-  // setMembers(membersObject);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPlan, setFilterPlan] = useState("all");
   const [status, setStatus] = useState("all");
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const totalMembers = members.length;
-  const pendingPayments = members.filter((m) => m.due > 0).length;
-  const totalDue = members.reduce((acc, curr) => acc + curr.due, 0);
   const [expiryFrom, setexpiryFrom] = useState("");
   const [expiryTo, setexpiryTo] = useState("");
-  const [dateType, setDateType] = useState("expiry"); // "expiry" or "joined"
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedMember, setSelectedMember] = useState(null);
-  const [viewingMember, setViewingMember] = useState(null);
+
+  useEffect(() => {
+    const fetchAndPopulate = async (retries = 3) => {
+      try {
+        const data = await getAllMembers(profile.ownerId);
+        setMembers(Array.isArray(data) ? data : []);
+        console.log("Fetched members:", data);
+      } catch (err) {
+        // If it's a rate limit (429) and we have retries left
+        if (err.response?.status === 429 && retries > 0) {
+          toast.error(
+            `Rate limited. Retrying in 2 seconds... (${retries} left)`,
+          );
+          setTimeout(() => fetchAndPopulate(retries - 1), 2000);
+        } else {
+          setMembers([]); // Give up and set empty to stop the crash
+        }
+      }
+    };
+    fetchAndPopulate();
+    fetchPlans();
+    // Empty array [] ensures this runs exactly once on mount
+  }, []);
 
   useEffect(() => {
     // Reset to Page 1 whenever filters change to prevent "Empty Page" bugs
     setCurrentPage(1);
   }, [searchTerm, filterPlan, status, expiryFrom, expiryTo]);
+
+  const { profile } = useProfile();
+  const [open, setOpen] = useState(false);
+  const members = useGymStore((state) => state.members);
+  const plans = useGymStore((state) => state.plans);
+  const setMembers = useGymStore((state) => state.setMembers);
+  // setMembers(membersObject);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const totalMembers = members.length;
+  const pendingPayments = members.filter((m) => m.dueAmount > 0).length;
+  const totalDue = members.reduce((acc, curr) => acc + curr.dueAmount, 0);
+
+  const [dateType, setDateType] = useState("expiry"); // "expiry" or "joined"
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [viewingMember, setViewingMember] = useState(null);
+  const fetchPlans = useGymStore((state) => state.fetchPlans);
 
   const filteredMembers = members.filter((m) => {
     // 1. Normalize Inputs (Safety First)
@@ -145,37 +173,37 @@ export default function MembersTable() {
     setexpiryTo(null);
     setCurrentPage(1);
     setIsFilterOpen(false);
+    fetchAndPopulate();
   };
 
   function getExpiryText(expiryDate) {
     const today = new Date();
     const expiry = new Date(expiryDate);
 
-    // Normalize both dates
     today.setHours(0, 0, 0, 0);
     expiry.setHours(0, 0, 0, 0);
 
-    const diffTime = expiry - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
 
     if (diffDays < 0) {
-      return `Expired ${Math.abs(diffDays)} day${Math.abs(diffDays) > 1 ? "s" : ""} ago`;
+      const absDays = Math.abs(diffDays);
+
+      // Shortened labels to ensure text fits within the original sizing
+      if (absDays < 30) {
+        return `Exp. ${absDays}d ago`;
+      } else if (absDays < 365) {
+        const months = Math.round(absDays / 30.44);
+        return `Exp. ${months}mo ago`;
+      } else {
+        const years = Math.round(absDays / 365.25);
+        return `Exp. ${years} ${years === 1 ? "yr" : "yrs"} ago`;
+      }
     }
 
-    if (diffDays === 0) {
-      return "Expiring Today";
-    }
+    if (diffDays === 0) return "Exp. Today";
+    if (diffDays <= 7) return `Exp. in ${diffDays}d`;
 
-    if (diffDays <= 7) {
-      return `Expires in ${diffDays} day${diffDays > 1 ? "s" : ""}`;
-    }
-
-    // return expiry.toLocaleDateString("en-IN", {
-    //   day: "numeric",
-    //   month: "short",
-    //   year: "numeric",
-    // });
-    return "Active"
+    return "Active";
   }
 
   function getExpiryColor(expiryDate) {
@@ -231,6 +259,19 @@ export default function MembersTable() {
     }));
   };
 
+  const handleDelete = async (member) => {
+    try {
+      const response = await deleteMemberById(member.id);
+      if (response.status === 202) {
+        toast.success(response.data || "Member deleted");
+        const data = await getAllMembers(profile.ownerId);
+        setMembers(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      toast.error(error.response?.data || "Failed to delete member");
+    }
+  };
+
   useEffect(() => {
     setTimeout(() => setLoading(false), 1200);
   }, []);
@@ -242,10 +283,12 @@ export default function MembersTable() {
   return (
     <div className="p-3">
       <h2 className="text-xl font-semibold mb-4 dark:text-white">Members</h2>
-      <AddMemberDialog open={isModalOpen}
+      <AddMemberDialog
+        open={isModalOpen}
         setOpen={setIsModalOpen}
         editingMember={selectedMember}
-        setEditingMember={setSelectedMember} />
+        setEditingMember={setSelectedMember}
+      />
       {/* <div className="bg-white rounded-xl shadow p-6 md:p-8"> */}
 
       {/* --- QUICK STATS CARDS --- */}
@@ -488,15 +531,17 @@ export default function MembersTable() {
                   { label: "Plan", key: "plan" },
                   { label: "Joined", key: "joined" },
                   { label: "Expiry", key: "expiry" },
-                  { label: "Due", key: "due" },
+                  { label: "Due", key: "dueAmount" },
                 ].map((col) => (
                   <TableHead
                     key={col.key}
                     onClick={() => handleSort(col.key)}
-                    className="top-0 z-30 bg-secondary/30 text-center px-4 min-w-[90px] cursor-pointer"
+                    className="top-0 z-30  text-center px-4 min-w-[90px]"
                   >
                     <div className="inline-flex items-center justify-center gap-2">
-                      <span className="text-sm dark:text-gray-500 tracking-wider">{col.label}</span>
+                      <span className="text-sm dark:text-gray-500 tracking-wider">
+                        {col.label}
+                      </span>
                       <div className="flex flex-row -space-y-2 opacity-40">
                         <ArrowUp className="size-3" />
                         <ArrowDown className="size-3" />
@@ -504,73 +549,117 @@ export default function MembersTable() {
                     </div>
                   </TableHead>
                 ))}
-                <TableHead className="top-0 z-30 bg-secondary/30 text-center dark:text-gray-500 text-sm tracking-wider min-w-[90px]">
+                <TableHead className="top-0 z-30 text-center dark:text-gray-500 text-sm tracking-wider min-w-[90px]">
                   Status
                 </TableHead>
-                <TableHead className="top-0 z-30 bg-secondary/30 text-center dark:text-gray-500 text-sm tracking-wider w-[90px]">
+                <TableHead className="top-0 z-30 text-center dark:text-gray-500 text-sm tracking-wider w-[90px]">
                   Actions
                 </TableHead>
               </TableRow>
             </TableHeader>
 
             <TableBody>
-              {sortedMembers.map((member, index) => (
-                <TableRow key={index} className="group hover:bg-muted/30 transition-colors">
-                  {/* STICKY NAME CELL */}
-                  <TableCell onClick={() => setViewingMember(member)} className="sticky left-0 z-10 cursor-pointer font-bold bg-card shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-left pl-6">
-                    {member.name}
-                  </TableCell>
+              {Array.isArray(sortedMembers) && sortedMembers.length > 0 ? (
+                sortedMembers.map((member, index) => (
+                  <TableRow
+                    key={index}
+                    className="group hover:bg-muted/30 transition-colors"
+                  >
+                    {/* STICKY NAME CELL */}
+                    <TableCell
+                      onClick={() => setViewingMember(member)}
+                      className="sticky left-0 z-10 cursor-pointer font-bold bg-card shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-left pl-6"
+                    >
+                      {member.name}
+                    </TableCell>
 
-                  <TableCell className="text-center font-mono text-sm">{member.phone}</TableCell>
-                  <TableCell className="text-center">
-                    <span className="text-xs font-medium px-2 py-1 rounded bg-muted">
-                      {member.plan}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-center text-muted-foreground whitespace-nowrap">{member.joined}</TableCell>
-                  <TableCell className="text-center whitespace-nowrap">{member.expiry}</TableCell>
-                  <TableCell className="text-center font-semibold">₹{member.due}</TableCell>
-                  <TableCell className="text-center">
-                    <span className= {getExpiryColor(member.expiry)}>
-                      {getExpiryText(member.expiry)}
-                    </span>
-                  </TableCell>
+                    <TableCell className="text-center font-mono text-sm">
+                      {member.phone}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className="text-xs font-medium px-2 py-1 rounded bg-muted">
+                        {member.plan}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-center text-muted-foreground whitespace-nowrap">
+                      {member.joined}
+                    </TableCell>
+                    <TableCell className="text-center whitespace-nowrap">
+                      {member.expiry}
+                    </TableCell>
+                    <TableCell className="text-center font-semibold">
+                      ₹{member.dueAmount}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className={getExpiryColor(member.expiry)}>
+                        {getExpiryText(member.expiry)}
+                      </span>
+                    </TableCell>
 
-                  {/* ACTION DROPDOWN */}
-                  <TableCell className="text-center">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-                          <MoreVertical className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40 rounded-xl">
-                        <DropdownMenuItem onClick={() => {
-                          setSelectedMember(member); // Set the member to edit
-                          setIsModalOpen(true);      // Open the modal
-                        }} className="gap-2 cursor-pointer">
-                          <Pencil className="size-4 text-blue-500" />
-                          <span>Update</span>
-                        </DropdownMenuItem>
-
-                        {member.due > 0 && (
-                          <DropdownMenuItem onClick={() => sendWhatsAppReminder(member)} className="gap-2 cursor-pointer">
-                            <MessageCircle className="size-4 text-green-500" />
-                            <span>Remind</span>
+                    {/* ACTION DROPDOWN */}
+                    <TableCell className="text-center">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-full"
+                          >
+                            <MoreVertical className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          className="w-40 rounded-xl"
+                        >
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedMember(member); // Set the member to edit
+                              setIsModalOpen(true); // Open the modal
+                            }}
+                            className="gap-2 cursor-pointer"
+                          >
+                            <Pencil className="size-4 text-blue-500" />
+                            <span>Update</span>
                           </DropdownMenuItem>
-                        )}
 
-                        <DropdownMenuSeparator />
+                          {member.dueAmount > 0 && (
+                            <DropdownMenuItem
+                              onClick={() => sendWhatsAppReminder(member)}
+                              className="gap-2 cursor-pointer"
+                            >
+                              <MessageCircle className="size-4 text-green-500" />
+                              <span>Remind</span>
+                            </DropdownMenuItem>
+                          )}
 
-                        <DropdownMenuItem onClick={() => handleDelete(member)} className="gap-2 cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50">
-                          <Trash2 className="size-4" />
-                          <span>Delete</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                          <DropdownMenuSeparator />
+
+                          <DropdownMenuItem
+                            onClick={() => handleDelete(member)}
+                            className="gap-2 cursor-pointer text-white-600"
+                          >
+                            <Trash2 className="size-4 text-red-500" />
+                            <span>Delete</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                /* EMPTY STATE MESSAGE */
+                <TableRow>
+                  <TableCell colSpan={8} className="h-32 text-center">
+                    <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                      <p className="text-lg font-medium">No members found</p>
+                      <p className="text-sm">
+                        Try adding a new member or check your connection.
+                      </p>
+                    </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </div>

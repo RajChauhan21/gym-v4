@@ -27,7 +27,7 @@ export async function getMe() {
   return await constant.get("/owner/me").then((r) => {
     console.log("Profile Data:", r);
     return r;
-  })
+  });
 }
 
 export async function signup(form) {
@@ -43,25 +43,6 @@ export async function signup(form) {
     },
   );
 }
-
-// export function saveGym() {
-//   constant
-//     .post(
-//       "/gym/save",
-//       {
-//         name: "Elite Fitness Gym",
-//         website: "http://www.elitefitnessgym.com",
-//         location: "new panvel, navi mumbai",
-//         googleMapUrl: "https://www.google.com/",
-//       },
-//       {
-//         withCredentials: true,
-//       },
-//     )
-//     .then((r) => {
-//       console.log(r.data);
-//     });
-// }
 
 export function loginByGoogle() {
   window.location.href = "http://localhost:8180/oauth2/authorization/google";
@@ -80,21 +61,111 @@ export async function saveGymDetails(gymData) {
   }
 }
 
-
 export async function getAllMembers(ownerId) {
   try {
-    // We pass 'null' for data and use the 'params' config for query strings
-    const response = await constant.post("/owner/getAllMembersOfOwner", null, {
-      params: {
-        q: ownerId // This appends ?q=ownerId to the URL
-      }
+    const response = await constant.get("/owner/getAllMembersOfOwner", {
+      params: { q: ownerId },
     });
-    console.log("members:", response);
+    // Ensure you are returning the array inside response.data
     return response.data;
   } catch (error) {
     console.error("API Error in getAllMembers:", error.response || error);
-    // Re-throwing so the caller's catch block can trigger UI notifications
-    return error;
+    // CRITICAL: Return an empty array so .filter() doesn't crash the UI
+    return [];
   }
 }
 
+export async function addMember(member) {
+  try {
+    const response = await constant.post("/member/update", member);
+    console.log("Add member Response:", response);
+    return response;
+  } catch (error) {
+    console.error("API Error in addMember:", error.response || error);
+    return error.response;
+  }
+}
+
+export async function addPlan(plan) {
+  try {
+    const response = await constant.post("/member-ship/update", plan);
+    console.log("Add plan Response:", response);
+    return response;
+  } catch (error) {
+    console.error("API Error in addPlan:", error.response || error);
+    return error.response;
+  }
+}
+
+export async function getAllPlans() {
+  try {
+    const response = await constant.get("/member-ship/getAll");
+    console.log("Get all plans Response:", response);
+    return response.data;
+  } catch (error) {
+    console.error("API Error in Get all plans:", error.response || error);
+    return error.response;
+  }
+}
+
+export async function deletePlanById(id) {
+  try {
+    const response = await constant.delete("/member-ship/deleteById", {
+      params: {
+        q: id,
+      },
+    });
+    console.log("Delete plan Response:", response);
+    return response;
+  } catch (error) {
+    console.error("API Error in delete plans:", error.response || error);
+    return error.response;
+  }
+}
+
+export async function deleteMemberById(id) {
+  try {
+    const response = await constant.delete("/member/deleteById", {
+      params: {
+        q: id,
+      },
+    });
+    console.log("Delete member Response:", response);
+    return response;
+  } catch (error) {
+    console.error("API Error in delete member:", error.response || error);
+    return error.response;
+  }
+}
+
+export async function savePayment(payment) {
+  try {
+    const response = await constant.post("/pay/update", payment);
+    console.log(" Save Payment Response:", response);
+    return response;
+  } catch (error) {
+    console.error("API Error in delete member:", error.response || error);
+    return error.response;
+  }
+}
+
+export async function getAllPayments(ownerId, page = 0, size = 20, sortBy = 'paymentDate', direction = 'desc') {
+  try {
+    const response = await constant.get(
+      "/pay/getAllPaymentsOfMembersByOwnerId",
+      {
+        params: {
+          q: ownerId,
+          page: page,
+          size: size,
+          sort: `${sortBy},${direction}`,
+        },
+      },
+    );
+    console.log(" get all Payment Response:", response);
+    return response;
+  } catch (error) {
+    console.error("API Error in get all payments:", error.response || error);
+    return error.response;
+  }
+}

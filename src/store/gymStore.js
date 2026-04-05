@@ -1,383 +1,9 @@
 import { create } from "zustand";
+import { getAllMembers, getAllPayments, getAllPlans } from "../apis/backend_apis";
 
 export const useGymStore = create((set) => ({
   // DATA
-  members: [
-    {
-      "name": "Priya Nair",
-      "plan": "Platinum",
-      "status": "Active",
-      "due": 0,
-      "expiry": "2026-03-24",
-      "phone": "+919820012345",
-      "joined": "2010-05-12",
-      "email": "priya.nair@example.com",
-      "address": "Nair House, Street 10, Mumbai"
-    },
-    {
-      "name": "Vikram Malhotra",
-      "plan": "Gold",
-      "status": "Active",
-      "due": 2500,
-      "expiry": "2026-03-26",
-      "phone": "+919871122334",
-      "joined": "2012-11-30",
-      "email": "vikram.malhotra@example.com",
-      "address": "Malhotra House, Street 15, Mumbai"
-    },
-    {
-      "name": "Sanya Gupta",
-      "plan": "Silver",
-      "status": "Active",
-      "due": 0,
-      "expiry": "2026-03-22",
-      "phone": "+919930044556",
-      "joined": "2014-02-15",
-      "email": "sanya.gupta@example.com",
-      "address": "Gupta House, Street 11, Mumbai"
-    },
-    {
-      "name": "Arjun Reddy",
-      "plan": "Gold",
-      "status": "Active",
-      "due": 1200,
-      "expiry": "2026-03-25",
-      "phone": "+919717788990",
-      "joined": "2011-08-22",
-      "email": "arjun.reddy@example.com",
-      "address": "Reddy House, Street 11, Mumbai"
-    },
-    {
-      "name": "Meera Joshi",
-      "plan": "Gold",
-      "status": "Active",
-      "due": 0,
-      "expiry": "2026-03-23",
-      "phone": "+919650033221",
-      "joined": "2015-01-10",
-      "email": "meera.joshi@example.com",
-      "address": "Joshi House, Street 11, Mumbai"
-    },
-    {
-      "name": "Rohan Mehra",
-      "plan": "Platinum",
-      "status": "Active",
-      "due": 5000,
-      "expiry": "2026-03-27",
-      "phone": "+919167788112",
-      "joined": "2013-06-18",
-      "email": "rohan.mehra@example.com",
-      "address": "Mehra House, Street 11, Mumbai"
-    },
-    {
-      "name": "Ishaan Khattar",
-      "plan": "Silver",
-      "status": "Active",
-      "due": 0,
-      "expiry": "2026-03-24",
-      "phone": "+918828844332",
-      "joined": "2010-12-05",
-      "email": "ishaan.khattar@example.com",
-      "address": "Khattar House, Street 14, Mumbai"
-    },
-    {
-      "name": "Ananya Deshmukh",
-      "plan": "Gold",
-      "status": "Expired",
-      "due": 1800,
-      "expiry": "2026-03-21",
-      "phone": "+919594455667",
-      "joined": "2012-04-27",
-      "email": "ananya.deshmukh@example.com",
-      "address": "Deshmukh House, Street 15, Mumbai"
-    },
-    {
-      "name": "Karan Saxena",
-      "plan": "Platinum",
-      "status": "Active",
-      "due": 0,
-      "expiry": "2026-03-25",
-      "phone": "+917045566778",
-      "joined": "2014-10-14",
-      "email": "karan.saxena@example.com",
-      "address": "Saxena House, Street 12, Mumbai"
-    },
-    {
-      "name": "Sneha Kapoor",
-      "plan": "Platinum",
-      "status": "Active",
-      "due": 0,
-      "expiry": "2026-03-26",
-      "phone": "+919321100998",
-      "joined": "2011-03-09",
-      "email": "sneha.kapoor@example.com",
-      "address": "Kapoor House, Street 12, Mumbai"
-    },
-    {
-      "name": "Aditya Rao",
-      "plan": "Silver",
-      "status": "Active",
-      "due": 1500,
-      "expiry": "2026-03-23",
-      "phone": "+919423344556",
-      "joined": "2015-09-21",
-      "email": "aditya.rao@example.com",
-      "address": "Rao House, Street 10, Mumbai"
-    },
-    {
-      "name": "Tanya Bansal",
-      "plan": "Gold",
-      "status": "Active",
-      "due": 0,
-      "expiry": "2026-03-22",
-      "phone": "+919819922334",
-      "joined": "2013-07-04",
-      "email": "tanya.bansal@example.com",
-      "address": "Bansal House, Street 12, Mumbai"
-    },
-    {
-      "name": "Varun Gill",
-      "plan": "Platinum",
-      "status": "Active",
-      "due": 900,
-      "expiry": "2026-03-24",
-      "phone": "+919769988776",
-      "joined": "2010-01-28",
-      "email": "varun.gill@example.com",
-      "address": "Gill House, Street 10, Mumbai"
-    },
-    {
-      "name": "Riya Sen",
-      "plan": "Platinum",
-      "status": "Active",
-      "due": 0,
-      "expiry": "2026-03-27",
-      "phone": "+919987766554",
-      "joined": "2014-05-19",
-      "email": "riya.sen@example.com",
-      "address": "Sen House, Street 8, Mumbai"
-    },
-    {
-      "name": "Siddharth Jain",
-      "plan": "Silver",
-      "status": "Active",
-      "due": 1400,
-      "expiry": "2026-03-25",
-      "phone": "+919821122330",
-      "joined": "2012-08-11",
-      "email": "siddharth.jain@example.com",
-      "address": "Jain House, Street 14, Mumbai"
-    },
-    {
-      "name": "Rahul Sharma",
-      "plan": "Gold",
-      "status": "Active",
-      "due": 1400,
-      "expiry": "2026-03-23",
-      "phone": "+919876543210",
-      "joined": "2011-12-15",
-      "email": "rahul.sharma@example.com",
-      "address": "Sharma House, Street 12, Mumbai"
-    },
-    {
-      "name": "Amit Verma",
-      "plan": "Silver",
-      "status": "Active",
-      "due": 1400,
-      "expiry": "2026-03-24",
-      "phone": "+919876543211",
-      "joined": "2015-04-02",
-      "email": "amit.verma@example.com",
-      "address": "Verma House, Street 10, Mumbai"
-    },
-    {
-      "name": "Neha Gupta",
-      "plan": "Platinum",
-      "status": "Active",
-      "due": 1400,
-      "expiry": "2026-03-25",
-      "phone": "+919876543212",
-      "joined": "2013-10-20",
-      "email": "neha.gupta@example.com",
-      "address": "Gupta House, Street 10, Mumbai"
-    },
-    {
-      "name": "Karan Mehta",
-      "plan": "Gold",
-      "status": "Expired",
-      "due": 1400,
-      "expiry": "2026-03-21",
-      "phone": "+919876543213",
-      "joined": "2010-02-25",
-      "email": "karan.mehta@example.com",
-      "address": "Mehta House, Street 11, Mumbai"
-    },
-    {
-      "name": "Sunita Reddy",
-      "plan": "Gold",
-      "status": "Active",
-      "due": 0,
-      "expiry": "2027-03-22",
-      "phone": "+919845012345",
-      "joined": "2012-06-14",
-      "email": "sunita.reddy@example.com",
-      "address": "Reddy House, Street 12, Mumbai"
-    },
-    {
-      "name": "Kabir Thapar",
-      "plan": "Platinum",
-      "status": "Active",
-      "due": 3500,
-      "expiry": "2027-03-25",
-      "phone": "+919810054321",
-      "joined": "2010-11-02",
-      "email": "kabir.thapar@example.com",
-      "address": "Thapar House, Street 12, Mumbai"
-    },
-    {
-      "name": "Aavya Sharma",
-      "plan": "Silver",
-      "status": "Active",
-      "due": 0,
-      "expiry": "2027-03-20",
-      "phone": "+919920033445",
-      "joined": "2014-08-29",
-      "email": "aavya.sharma@example.com",
-      "address": "Sharma House, Street 12, Mumbai"
-    },
-    {
-      "name": "Rishi Kapoor",
-      "plan": "Platinum",
-      "status": "Active",
-      "due": 1100,
-      "expiry": "2027-03-24",
-      "phone": "+919760011223",
-      "joined": "2011-02-12",
-      "email": "rishi.kapoor@example.com",
-      "address": "Kapoor House, Street 12, Mumbai"
-    },
-    {
-      "name": "Ishita Bhalla",
-      "plan": "Gold",
-      "status": "Active",
-      "due": 0,
-      "expiry": "2027-03-21",
-      "phone": "+919650077889",
-      "joined": "2015-12-05",
-      "email": "ishita.bhalla@example.com",
-      "address": "Bhalla House, Street 13, Mumbai"
-    },
-    {
-      "name": "Manav Gohil",
-      "plan": "Platinum",
-      "status": "Active",
-      "due": 4200,
-      "expiry": "2027-03-26",
-      "phone": "+919160099887",
-      "joined": "2013-04-17",
-      "email": "manav.gohil@example.com",
-      "address": "Gohil House, Street 11, Mumbai"
-    },
-    {
-      "name": "Zoya Khan",
-      "plan": "Silver",
-      "status": "Active",
-      "due": 0,
-      "expiry": "2027-03-23",
-      "phone": "+918820066554",
-      "joined": "2026-02-25",
-      "email": "zoya.khan@example.com",
-      "address": "Khan House, Street 9, Mumbai"
-    },
-    {
-      "name": "Abhay Deol",
-      "plan": "Gold",
-      "status": "Active",
-      "due": 2100,
-      "expiry": "2027-03-22",
-      "phone": "+919590022331",
-      "joined": "2026-03-14",
-      "email": "abhay.deol@example.com",
-      "address": "Deol House, Street 10, Mumbai"
-    },
-    {
-      "name": "Kiara Advani",
-      "plan": "Platinum",
-      "status": "Active",
-      "due": 0,
-      "expiry": "2027-03-27",
-      "phone": "+919320044552",
-      "joined": "2026-03-11",
-      "email": "kiara.advani@example.com",
-      "address": "Advani House, Street 12, Mumbai"
-    },
-    {
-      "name": "Ranveer Singh",
-      "plan": "Platinum",
-      "status": "Active",
-      "due": 800,
-      "expiry": "2027-03-24",
-      "phone": "+919420077663",
-      "joined": "2026-03-08",
-      "email": "ranveer.singh@example.com",
-      "address": "Singh House, Street 13, Mumbai"
-    },
-    {
-      "name": "Arjun Reddy",
-      "plan": "Gold",
-      "status": "Active",
-      "due": 1200,
-      "joined": "2011-08-22",
-      "expiry": "2026-08-22",
-      "phone": "+919717788990",
-      "email": "arjun.reddy@example.com",
-      "address": "Reddy House, Street 11, Mumbai"
-    },
-    {
-      "name": "Sriya Sharma",
-      "plan": "Silver",
-      "status": "Expired",
-      "due": 0,
-      "joined": "2025-01-10",
-      "expiry": "2026-02-10",
-      "phone": "+919717788991",
-      "email": "sriya.sharma@example.com",
-      "address": "Sharma House, Street 12, Mumbai"
-    },
-    {
-      "name": "Kabir Singh",
-      "plan": "Silver",
-      "status": "Active",
-      "due": 500,
-      "joined": "2025-11-15",
-      "expiry": "2026-07-15",
-      "phone": "+919717788992",
-      "email": "kabir.singh@example.com",
-      "address": "Singh House, Street 11, Mumbai"
-    },
-    {
-      "name": "Rohan Varma",
-      "plan": "Silver",
-      "status": "Expired",
-      "due": 0,
-      "joined": "2025-12-12",
-      "expiry": "2026-03-01",
-      "phone": "+919717788993",
-      "email": "rohan.varma@example.com",
-      "address": "Varma House, Street 11, Mumbai"
-    },
-    {
-      "name": "Aditi Rao",
-      "plan": "Gold",
-      "status": "Active",
-      "due": 0,
-      "joined": "2025-12-20",
-      "expiry": "2027-05-20",
-      "phone": "+919717788994",
-      "email": "aditi.rao@example.com",
-      "address": "Rao House, Street 9, Mumbai"
-    }
-  ],
+ members: [],
   payments: [
     // --- MARCH 2026 ---
     {
@@ -736,6 +362,36 @@ export const useGymStore = create((set) => ({
     { name: "Platinum", duration: 6, price: 4500 },
     { name: "Diamond", duration: 12, price: 500 },
   ],
+
+  fetchMembers: async (ownerId) => {
+    try {
+      const data = await getAllMembers(ownerId);
+      // Use Array.isArray to be 100% safe before updating state
+      set({ members: Array.isArray(data) ? data : [] });
+    } catch (error) {
+      set({ members: [] }); // Reset to empty array on failure
+    }
+  },
+
+  fetchPlans: async () => {
+    try {
+      const data = await getAllPlans(); // Your API utility
+      set({ plans: data });
+    } catch (error) {
+      console.error("Failed to fetch:", error);
+      set({ plans: [] });
+    }
+  },
+
+  fetchPayments: async (ownerId) => {
+    try {
+      const data = await getAllPayments(ownerId); // Your API utility
+      set({ payments: data });
+    } catch (error) {
+      console.error("Failed to fetch:", error);
+      set({ payments: [] });
+    }
+  },
 
   // ACTIONS
   addMember: (member) =>

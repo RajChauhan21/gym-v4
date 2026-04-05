@@ -50,20 +50,24 @@ import {
 } from "@/components/ui/dialog";
 import { useGymStore } from "../../store/gymStore";
 import { toast } from "sonner";
+import { getAllPayments } from "../../apis/backend_apis";
+import { useProfile } from "../../contexts/ProfileContext";
 
 export default function PaymentsTable() {
+  const [currentPage, setCurrentPage] = useState(0); // backend uses 0-based
+  const [totalPages, setTotalPages] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
   const payments = useGymStore((state) => state.payments) ?? [];
   const addPayment = useGymStore((state) => state.addPayment);
+  const setPayments = useGymStore((state) => state.setPayments);
+  const [totalElements, setTotalElements] = useState(0);
   const plans = useGymStore((state) => state.plans);
   const [errors, setErrors] = useState({});
+  const members = useGymStore((state) => state.members);
+  const { profile } = useProfile();
 
-  // const totalRevenue = payments
-  //   .filter((p) => p.status === "Success")
-  //   .reduce((acc, curr) => acc + curr.amount, 0);
   const totalRevenue = Array.isArray(payments)
-    ? payments
-      .filter((p) => p.status === "Success")
-      .reduce((acc, curr) => acc + curr.amount, 0)
+    ? payments.reduce((acc, curr) => acc + curr.amount, 0)
     : 0;
   const failedCount = payments.filter((p) => p.status === "Failed").length;
 
@@ -74,15 +78,63 @@ export default function PaymentsTable() {
   const [dateTo, setDateTo] = useState("");
   const [method, setMethod] = useState("all");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [sortBy, setSortBy] = useState("paymentDate"); // Default column
+  const [sortDir, setSortDir] = useState("desc"); // Default direction
 
   useEffect(() => {
-    // Reset to Page 1 whenever filters change to prevent "Empty Page" bugs
-    setCurrentPage(1);
-  }, [searchTerm, filterPlan, filterStatus, dateFrom, dateTo]);
+    async function fetchPayments() {
+      if (!profile?.ownerId) return;
+
+      try {
+        const response = await getAllPayments(
+          profile.ownerId,
+          currentPage,
+          pageSize,
+          sortBy,
+          sortDir,
+        );
+        setPayments(response.data.content);
+        setTotalPages(response.data.page.totalPages);
+        setTotalElements(response.data.page.totalElements);
+        setPageSize(response.data.page.size);
+        if (
+          currentPage >= response.data.totalPages &&
+          response.data.totalPages > 0
+        ) {
+          setCurrentPage(0);
+        } else {
+          setCurrentPage(response.data.page.number);
+        }
+        console.log(response);
+        console.log({
+          page: response.data.number,
+          totalPages: response.data.totalPages,
+          size: response.data.size,
+          totalElements: response.data.totalElements,
+        });
+      } catch (error) {
+        console.log(error);
+      }
+    }
+
+    fetchPayments();
+  }, [currentPage, pageSize, sortBy, sortDir, profile?.ownerId]);
+
+  {
+    /* Calculate values with safe fallbacks */
+  }
+  const safeTotal = totalElements || 0;
+  const safeSize = pageSize || 10;
+  const safePage = currentPage || 0;
+
+  const displayStart = safeTotal === 0 ? 0 : safePage * safeSize + 1;
+  const displayEnd = Math.min((safePage + 1) * safeSize, safeTotal);
 
   const filteredPayments = payments.filter((p) => {
-    const matchesName = p.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesPlan = filterPlan === "all" || p.plan === filterPlan;
+    const matchesName = (p.memberName ?? "")
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+    const matchesPlan = filterPlan === "all" || p.membershipName === filterPlan;
     const matchesStatus = filterStatus === "all" || p.status === filterStatus;
     const matchesMethod = method === "all" || p.method === method;
     // Date Range Logic
@@ -100,20 +152,10 @@ export default function PaymentsTable() {
     );
   });
 
-  // 1. Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-
-  // 2. Calculation Logic
-  const totalPages = Math.ceil(filteredPayments.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentData = filteredPayments.slice(
-    startIndex,
-    startIndex + itemsPerPage,
-  );
+  const startIndex = (currentPage - 1) * pageSize;
 
   // To keep height fixed, calculate how many empty rows to fill
-  const emptyRows = itemsPerPage - currentData.length;
+  const emptyRows = pageSize - payments.length;
 
   const resetFilters = () => {
     setSearchTerm("");
@@ -128,12 +170,8 @@ export default function PaymentsTable() {
 
   const [loading, setLoading] = useState(true);
   const [openPayment, setOpenPayment] = useState(false);
-  const [sortConfig, setSortConfig] = useState({
-    key: null,
-    direction: "asc",
-  });
   const [newPayment, setNewPayment] = useState({
-    name: "",
+    name: undefined,
     plan: "",
     amount: "",
     method: "",
@@ -145,7 +183,7 @@ export default function PaymentsTable() {
     let newErrors = {};
     const textRegex = /^[a-zA-Z\s'.-]+$/;
 
-    if (!newPayment.name.trim()) {
+    if (newPayment.name != null) {
       newErrors.name = "member name required";
     } else if (!textRegex.test(newPayment.name)) {
       newErrors.name = "Member name should only contain letters";
@@ -186,7 +224,7 @@ export default function PaymentsTable() {
     setOpenPayment(false);
 
     setNewPayment({
-      name: "",
+      name: null,
       plan: "",
       amount: "",
       method: "",
@@ -194,13 +232,13 @@ export default function PaymentsTable() {
       status: "Success",
     });
 
-    setErrors({})
+    setErrors({});
     toast.success("Payement recorded successfully");
   };
 
   const resetForm = () => {
     setNewPayment({
-      name: "",
+      name: null,
       plan: "",
       amount: "",
       method: "",
@@ -210,34 +248,40 @@ export default function PaymentsTable() {
     setErrors({});
   };
 
-  const sortedPayments = React.useMemo(() => {
-    if (!sortConfig.key) return currentData;
+  // const sortedPayments = React.useMemo(() => {
+  //   if (!sortConfig.key) return currentData;
 
-    const sorted = [...currentData].sort((a, b) => {
-      let valueA = a[sortConfig.key];
-      let valueB = b[sortConfig.key];
+  //   const sorted = [...currentData].sort((a, b) => {
+  //     let valueA = a[sortConfig.key];
+  //     let valueB = b[sortConfig.key];
 
-      // handle numbers
-      if (typeof valueA === "number" && typeof valueB === "number") {
-        return sortConfig.direction === "asc"
-          ? valueA - valueB
-          : valueB - valueA;
-      }
+  //     // handle numbers
+  //     if (typeof valueA === "number" && typeof valueB === "number") {
+  //       return sortConfig.direction === "asc"
+  //         ? valueA - valueB
+  //         : valueB - valueA;
+  //     }
 
-      // handle strings
-      return sortConfig.direction === "asc"
-        ? String(valueA).localeCompare(String(valueB))
-        : String(valueB).localeCompare(String(valueA));
-    });
+  //     // handle strings
+  //     return sortConfig.direction === "asc"
+  //       ? String(valueA).localeCompare(String(valueB))
+  //       : String(valueB).localeCompare(String(valueA));
+  //   });
 
-    return sorted;
-  }, [currentData, sortConfig]);
+  //   return sorted;
+  // }, [currentData, sortConfig]);
 
-  const handleSort = (key) => {
-    setSortConfig((prev) => ({
-      key,
-      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
-    }));
+  const handleSort = (columnName) => {
+    if (sortBy === columnName) {
+      // If same column clicked, toggle direction
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      // If new column clicked, set it and default to asc
+      setSortBy(columnName);
+      setSortDir("asc");
+    }
+    // Reset to first page when sorting changes
+    setCurrentPage(0);
   };
 
   useEffect(() => {
@@ -252,10 +296,13 @@ export default function PaymentsTable() {
     <div className="p-3">
       <h2 className="text-xl font-semibold mb-4 dark:text-white">Payments</h2>
       <div className="flex items-center justify-between mb-4">
-        <Dialog open={openPayment} onOpenChange={(openPayment) => {
-          setOpenPayment(openPayment);
-          if (!openPayment) resetForm(); // ✅ Clears data & errors on close
-        }}>
+        <Dialog
+          open={openPayment}
+          onOpenChange={(openPayment) => {
+            setOpenPayment(openPayment);
+            if (!openPayment) resetForm(); // ✅ Clears data & errors on close
+          }}
+        >
           <DialogTrigger asChild>
             <Button className="rounded-md flex gap-2">+ Record Payment</Button>
           </DialogTrigger>
@@ -276,13 +323,23 @@ export default function PaymentsTable() {
               {/* Member Name */}
               <div>
                 <Label className="mb-1">Member</Label>
-                <Input
-                  placeholder="Enter member name"
+                <Select
                   value={newPayment.name}
-                  onChange={(e) =>
-                    setNewPayment({ ...newPayment, name: e.target.value })
+                  onValueChange={(value) =>
+                    setNewPayment({ ...newPayment, name: value })
                   }
-                />
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select member" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {members.map((member, i) => (
+                      <SelectItem key={i} value={member.id}>
+                        {member.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <div className="min-h-[20px]">
                   {errors?.name && (
                     <p className="text-red-500 text-sm">{errors.name}</p>
@@ -299,7 +356,7 @@ export default function PaymentsTable() {
                     setNewPayment({ ...newPayment, plan: value })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select plan" />
                   </SelectTrigger>
                   <SelectContent>
@@ -656,107 +713,112 @@ export default function PaymentsTable() {
       </Card>
 
       <div className="bg-card text-card-foreground rounded-xl shadow border dark:border-gray-800 p-3 md:p-8">
-        <div className="overflow-auto h-[450px]">
+        <div className="overflow-auto h-[408px]">
           {" "}
           {/* Fixed height to prevent jumping */}
           <Table>
-            <TableHeader className="sticky top-0 z-30 bg-card">
+            {/* <TableHeader className="sticky top-0 z-30 bg-card"> */}
+            <TableHeader className="sticky top-0 z-40 backdrop-blur-md">
               <TableRow>
                 <TableHead
-                  onClick={() => handleSort("name")}
-                  className="sticky left-0 top-0 z-30 bg-card min-w-[150px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] dark:text-gray-500 text-center cursor-pointer"
+                  onClick={() => handleSort("memberName")} // Matches SQL alias 'AS memberName'
+                  className="sticky left-0 top-0 z-30 min-w-[150px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] dark:text-gray-500 select-none  text-center"
                 >
                   <div className="inline-flex items-center justify-center gap-1">
                     <span>Name</span>
-                    <div className="flex flex-row -space-y-1">
-                      <ArrowUp className="size-3" />
-                      <ArrowDown className="size-3" />
+                    <div className="flex flex-row space-y-1  cursor-pointer">
+                      {/* Highlight ArrowUp if sorting by memberName and order is asc */}
+                      <ArrowUp
+                        className={`size-3 ${sortBy === "memberName" && sortDir === "asc" ? "text-primary fill-current" : "text-gray-300"}`}
+                      />
+                      {/* Highlight ArrowDown if sorting by memberName and order is desc */}
+                      <ArrowDown
+                        className={`size-3 ${sortBy === "memberName" && sortDir === "desc" ? "text-primary fill-current" : "text-gray-300"}`}
+                      />
                     </div>
                   </div>
                 </TableHead>
 
                 <TableHead
-                  onClick={() => handleSort("plan")}
-                  className="dark:text-gray-500 text-center cursor-pointer"
+                  onClick={() => handleSort("membershipName")}
+                  className="dark:text-gray-500 text-center"
                 >
                   <div className="inline-flex items-center justify-center gap-1">
                     <span>Plan</span>
-                    <div className="flex flex-row -space-y-1">
-                      <ArrowUp className="size-3" />
-                      <ArrowDown className="size-3" />
+                    <div className="flex flex-row -space-y-1 cursor-pointer">
+                      <ArrowUp
+                        className={`size-3 ${sortBy === "membershipName" && sortDir === "asc" ? "text-primary fill-current" : "text-gray-300"}`}
+                      />
+                      <ArrowDown
+                        className={`size-3 ${sortBy === "membershipName" && sortDir === "desc" ? "text-primary fill-current" : "text-gray-300"}`}
+                      />
                     </div>
                   </div>
                 </TableHead>
 
                 <TableHead
                   onClick={() => handleSort("amount")}
-                  className="dark:text-gray-500 text-center cursor-pointer"
+                  className="dark:text-gray-500 text-center"
                 >
                   <div className="inline-flex items-center justify-center gap-1">
                     <span>Amount</span>
-                    <div className="flex flex-row -space-y-1">
-                      <ArrowUp className="size-3" />
-                      <ArrowDown className="size-3" />
+                    <div className="flex flex-row -space-y-1  cursor-pointer">
+                      <ArrowUp
+                        className={`size-3 ${sortBy === "amount" && sortDir === "asc" ? "text-primary fill-current" : "text-gray-300"}`}
+                      />
+                      <ArrowDown
+                        className={`size-3 ${sortBy === "amount" && sortDir === "desc" ? "text-primary fill-current" : "text-gray-300"}`}
+                      />
                     </div>
                   </div>
                 </TableHead>
 
                 <TableHead
-                  onClick={() => handleSort("date")}
-                  className="dark:text-gray-500 text-center cursor-pointer"
+                  onClick={() => handleSort("paymentDate")}
+                  className="dark:text-gray-500 text-center"
                 >
                   <div className="inline-flex items-center justify-center gap-1">
                     <span>Date</span>
-                    <div className="flex flex-row -space-y-1">
-                      <ArrowUp className="size-3" />
-                      <ArrowDown className="size-3" />
+                    <div className="flex flex-row -space-y-1  cursor-pointer">
+                      <ArrowUp
+                        className={`size-3 ${sortBy === "paymentDate" && sortDir === "asc" ? "text-primary fill-current" : "text-gray-300"}`}
+                      />
+                      <ArrowDown
+                        className={`size-3 ${sortBy === "paymentDate" && sortDir === "desc" ? "text-primary fill-current" : "text-gray-300"}`}
+                      />
                     </div>
                   </div>
                 </TableHead>
-
-                {/* <TableHead className="dark:text-gray-500 text-center">
-                  Time
-                </TableHead> */}
                 <TableHead className="dark:text-gray-500 text-center">
                   Method
-                </TableHead>
-                <TableHead className="dark:text-gray-500 text-center">
-                  Status
                 </TableHead>
               </TableRow>
             </TableHeader>
 
             <TableBody>
-              {sortedPayments.map((payment, index) => (
+              {payments.map((payment, index) => (
                 <TableRow key={index} className="dark:bg-card dark:text-white">
                   <TableCell
                     className={cn(
                       "sticky left-0 z-10 font-bold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] bg-card min-w-[150px] text-center",
                     )}
                   >
-                    {payment.name}
+                    {payment.memberName}
                   </TableCell>
-                  <TableCell className="text-center">{payment.plan}</TableCell>
+                  <TableCell className="text-center">
+                    <span className="text-xs font-medium px-2 py-1 rounded bg-muted">
+                      {payment.membershipName || "N/A"}
+                    </span>
+                  </TableCell>
                   <TableCell className="text-center">
                     ₹{payment.amount}
                   </TableCell>
-                  <TableCell className="text-center">{payment.date}</TableCell>
+                  <TableCell className="text-center">
+                    {payment.paymentDate}
+                  </TableCell>
                   {/* <TableCell className="text-center">{payment.time}</TableCell> */}
                   <TableCell className="text-center">
                     {payment.method}
-                  </TableCell>
-
-                  <TableCell className="text-center">
-                    <Badge
-                      className={cn(
-                        "rounded-lg text-white",
-                        payment.status === "Success"
-                          ? "font-bold text-green-500 bg-dark"
-                          : "font-bold dark:bg-card text-red-500 bg-white",
-                      )}
-                    >
-                      {payment.status}
-                    </Badge>
                   </TableCell>
                 </TableRow>
               ))}
@@ -766,7 +828,6 @@ export default function PaymentsTable() {
                 Array.from({ length: emptyRows }).map((_, i) => (
                   <TableRow key={`empty-${i}`} className="border-transparent">
                     <TableCell className="sticky left-0 bg-card py-6 border-transparent" />
-                    <TableCell className="py-6 border-transparent" />
                     <TableCell className="py-6 border-transparent" />
                     <TableCell className="py-6 border-transparent" />
                     <TableCell className="py-6 border-transparent" />
@@ -781,9 +842,8 @@ export default function PaymentsTable() {
       {/* 3. Improved Pagination Controls (No overlap) */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
         <p className="text-sm text-muted-foreground order-2 sm:order-1">
-          Showing {startIndex + 1} to{" "}
-          {Math.min(startIndex + itemsPerPage, filteredPayments.length)} of{" "}
-          {filteredPayments.length} payments
+          Showing {totalElements > 0 ? displayStart : 0} to {displayEnd} of{" "}
+          {totalElements} payments
         </p>
 
         <div className="order-1 sm:order-2">
@@ -797,7 +857,7 @@ export default function PaymentsTable() {
                     if (currentPage > 1) setCurrentPage((v) => v - 1);
                   }}
                   className={
-                    currentPage === 1
+                    currentPage === 0
                       ? "pointer-events-none opacity-50"
                       : "cursor-pointer"
                   }
@@ -806,7 +866,7 @@ export default function PaymentsTable() {
 
               <PaginationItem>
                 <span className="flex h-9 items-center justify-center px-3 text-sm font-medium whitespace-nowrap">
-                  Page {currentPage} of {totalPages}
+                  Page {(currentPage || 0) + 1} of {totalPages || 0}
                 </span>
               </PaginationItem>
 
@@ -818,7 +878,7 @@ export default function PaymentsTable() {
                     if (currentPage < totalPages) setCurrentPage((v) => v + 1);
                   }}
                   className={
-                    currentPage === totalPages
+                    currentPage === totalPages - 1
                       ? "pointer-events-none opacity-50"
                       : "cursor-pointer"
                   }

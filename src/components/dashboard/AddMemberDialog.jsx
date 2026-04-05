@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,13 +23,63 @@ import { useGymStore } from "../../store/gymStore";
 import { toast } from "sonner";
 import { PhoneNumberInput } from "@/components/ui/phone-input";
 import { allowOnlyText, allowOnlyNumbers } from "../../lib/inputValidator";
+import { addMember } from "../../apis/backend_apis";
+import { email } from "zod";
+import { useProfile } from "../../contexts/ProfileContext";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { format, addMonths, parseISO } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-export default function AddMemberDialog({ open, setOpen, editingMember, setEditingMember }) {
+export default function AddMemberDialog({
+  open,
+  setOpen,
+  editingMember,
+  setEditingMember,
+}) {
   const plans = useGymStore((state) => state.plans);
   const [errors, setErrors] = useState({});
   // const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   // const { toast } = useToast()
+  const { profile } = useProfile();
+  const [form, setForm] = useState({
+    name: "",
+    phone: "",
+    countryCode: "+91",
+    plan: "",
+    amount: "",
+    address: "",
+    email: "",
+    joiningDate: null,
+    expiryDate: null,
+  });
+
+  const fetchMembers = useGymStore((state) => state.fetchMembers);
+
+  useEffect(() => {
+    if (form.joiningDate && form.plan) {
+      // Find the selected plan object to get its validity months
+      const selectedPlan = plans.find((p) => p.name === form.plan);
+
+      if (selectedPlan) {
+        const startDate = new Date(form.joiningDate);
+        const expiryDate = addMonths(startDate, selectedPlan.validity);
+
+        // Format to yyyy-MM-dd for Java LocalDate compatibility
+        setForm((prev) => ({
+          ...prev,
+          expiryDate: format(expiryDate, "yyyy-MM-dd"),
+        }));
+      }
+    }
+  }, [form.joiningDate, form.plan, plans]);
 
   useEffect(() => {
     if (editingMember) {
@@ -39,7 +90,11 @@ export default function AddMemberDialog({ open, setOpen, editingMember, setEditi
         email: editingMember.email || "craj4757@gmail.com",
         address: editingMember.address || "12",
         amount: editingMember.due || 0,
+        joiningDate: editingMember.joined || null,
+        expiryDate: editingMember.expiry || null,
       });
+      console.log("Editing member:", editingMember);
+      console.log("Editing form member:", form);
     } else {
       resetForm(); // Clear if adding new
     }
@@ -51,16 +106,6 @@ export default function AddMemberDialog({ open, setOpen, editingMember, setEditi
     return date.toISOString().split("T")[0];
   };
 
-  const [form, setForm] = useState({
-    name: "",
-    phone: "",
-    countryCode: "+91",
-    plan: "",
-    amount: "",
-    address: "",
-    email: "",
-  });
-
   const initialFormState = {
     name: "",
     phone: "",
@@ -69,6 +114,8 @@ export default function AddMemberDialog({ open, setOpen, editingMember, setEditi
     amount: "",
     address: "",
     email: "",
+    expiryDate: null,
+    joiningDate: null,
   };
 
   const handleClose = (isOpen) => {
@@ -113,13 +160,16 @@ export default function AddMemberDialog({ open, setOpen, editingMember, setEditi
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!form.email.trim()) {
       newErrors.email = "Email required";
-    }
-    else if (form.email && !emailRegex.test(form.email)) {
+    } else if (form.email && !emailRegex.test(form.email)) {
       newErrors.email = "Invalid email format";
     }
 
-    if (!form.amount && !editingMember) {
-      newErrors.amount = "Amount required";
+    if (!form.joiningDate) {
+      newErrors.joiningDate = "Joining date required";
+    }
+
+    if (!form.expiryDate) {
+      newErrors.expiryDate = "Expiry date required";
     }
 
     if (!form.plan == null) {
@@ -128,35 +178,51 @@ export default function AddMemberDialog({ open, setOpen, editingMember, setEditi
     return newErrors;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setLoading(true);
-    const validation = validate()
+    const validation = validate();
     if (Object.keys(validation).length > 0) {
-      setErrors(validation)
-      setLoading(false)
-      return
+      setErrors(validation);
+      setLoading(false);
+      return;
     }
     const selectedPlan = plans.find((p) => p.name === form.plan);
-    const duration = selectedPlan ? selectedPlan.duration : 0;
-
-    // Now pass the number to your calculation function
-    const expiry = calculateExpiry(duration);
-
-    const newMember = {
-      ...form,
-      expiry,
-      due: Number(form.amount),
-    };
-
-    console.log("Smart Member:", newMember);
-    // setOpen(false) // ✅ CLOSE MODAL
-
-    setTimeout(() => {
-      setLoading(false);
+    const duration = selectedPlan ? selectedPlan.validity : 0;
+    try {
+      const member = {
+        packageId: selectedPlan?.id ?? null, // Defaults to empty string if null
+        memberId: editingMember?.id ?? null, // Keep null if the DB needs it for updates
+        ownerId: profile.ownerId,
+        name: form.name || "",
+        email: form.email || "",
+        phone: form.phone || "",
+        address: form.address || "",
+        joined: form.joiningDate || null,
+        expiry: form.expiryDate || null,
+      };
+      const response = await addMember(member);
+      console.log(member);
+      console.log("add memeber,", response);
+      if (response.status === 202) {
+        toast.success(
+          editingMember
+            ? "Member updated successfully."
+            : "Member added successfully.",
+        );
+        fetchMembers(profile.ownerId);
+      } else if (response.status === 404) {
+        toast.error(
+          response.data.message ||
+            "Plan not found. Please select a valid plan.",
+        );
+      }
+    } catch (error) {
+      toast.error(error ? error : "Error saving member. Please try again.");
+    } finally {
       resetForm();
-      toast.success(editingMember ? "Member updated successfully." : "Member added successfully.");
       setOpen(false);
-    }, 1000);
+      setLoading(false);
+    }
   };
 
   const resetForm = () => {
@@ -179,7 +245,10 @@ export default function AddMemberDialog({ open, setOpen, editingMember, setEditi
       <DialogContent className="w-[90%] max-w-md max-h-[600px] rounded-2xl p-0 shadow-xl flex flex-col overflow-hidden">
         {/* Header: shrink-0 keeps it from squishing */}
         <DialogHeader className="p-6 border-b shrink-0">
-          <DialogTitle>  {editingMember ? "Update Member" : "Add New Member"}</DialogTitle>
+          <DialogTitle>
+            {" "}
+            {editingMember ? "Update Member" : "Add New Member"}
+          </DialogTitle>
           <DialogPrimitive.Close
             className="absolute right-4 top-4 opacity-70 hover:opacity-100 transition-opacity outline-none"
             onClick={resetForm} // Also clear form if they just close the modal
@@ -205,6 +274,77 @@ export default function AddMemberDialog({ open, setOpen, editingMember, setEditi
             <div className="min-h-[20px]">
               {errors?.name && (
                 <p className="text-red-500 text-sm">{errors.name}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label>Date of Joining</Label>
+            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-full justify-start text-left font-normal px-3", // Added padding
+                    !form.joiningDate && "text-muted-foreground",
+                  )}
+                  disabled={loading}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />{" "}
+                  {/* shrink-0 prevents icon squashing */}
+                  <span className="truncate">
+                    {" "}
+                    {/* truncate prevents text going out of the field */}
+                    {form.joiningDate
+                      ? format(parseISO(form.joiningDate), "PPP")
+                      : "Pick a date"}
+                  </span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={
+                    form.joiningDate ? parseISO(form.joiningDate) : undefined
+                  }
+                  onSelect={(date) => {
+                    setForm({
+                      ...form,
+                      joiningDate: date ? format(date, "yyyy-MM-dd") : "",
+                    });
+                    setIsCalendarOpen(false); // This closes the popover automatically
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            <div className="min-h-[20px]">
+              {errors?.joiningDate && (
+                <p className="text-red-500 text-sm">{errors.joiningDate}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Expiry Date (Read Only / Auto-populated) */}
+          <div className="space-y-1">
+            <Label>Date of Expiry</Label>
+            <div className="relative">
+              <Input
+                type="text"
+                readOnly
+                disabled={loading}
+                placeholder="Auto-calculated"
+                value={
+                  form.expiryDate
+                    ? format(parseISO(form.expiryDate), "PPP")
+                    : ""
+                }
+                className="bg-muted cursor-not-allowed"
+              />
+            </div>
+            <div className="min-h-[20px]">
+              {errors?.expiryDate && (
+                <p className="text-red-500 text-sm">{errors.expiryDate}</p>
               )}
             </div>
           </div>
@@ -273,7 +413,7 @@ export default function AddMemberDialog({ open, setOpen, editingMember, setEditi
               type="text"
               disabled={loading}
               placeholder="Enter address"
-              valuse={form.address}
+              value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
             />
             {/* Placeholder for error messages to prevent layout jumping */}
@@ -284,7 +424,7 @@ export default function AddMemberDialog({ open, setOpen, editingMember, setEditi
             </div>
           </div>
 
-          <div>
+          {/* <div>
             <Label className="mb-1 block">Amount</Label>
             <Input
               disabled={loading}
@@ -299,19 +439,25 @@ export default function AddMemberDialog({ open, setOpen, editingMember, setEditi
                 <p className="text-red-500 text-sm">{errors.amount}</p>
               )}
             </div>
-          </div>
+          </div> */}
         </div>
 
         {/* Footer: Stays at bottom of content or bottom of modal */}
         <div className="p-6 border-t shrink-0 bg-white dark:bg-zinc-950 mt-auto">
           <Button className="w-full" disabled={loading} onClick={handleSubmit}>
-            {loading
-              ? (editingMember ? "Updating..." : "Saving...")
-              : (editingMember ? "Update Member" : "Save Member")
-            }
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {editingMember ? "Updating..." : "Saving..."}
+              </>
+            ) : editingMember ? (
+              "Update Member"
+            ) : (
+              "Save Member"
+            )}
           </Button>
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
