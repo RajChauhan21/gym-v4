@@ -105,13 +105,14 @@ export default function PaymentsTable() {
         } else {
           setCurrentPage(response.data.page.number);
         }
-        console.log(response);
+        console.log(currentPage);
         console.log({
           page: response.data.number,
           totalPages: response.data.totalPages,
           size: response.data.size,
           totalElements: response.data.totalElements,
         });
+      
       } catch (error) {
         console.log(error);
       }
@@ -854,7 +855,7 @@ export default function PaymentsTable() {
                   href="#"
                   onClick={(e) => {
                     e.preventDefault();
-                    if (currentPage > 1) setCurrentPage((v) => v - 1);
+                    if (currentPage > 0) setCurrentPage((v) => v - 1);
                   }}
                   className={
                     currentPage === 0

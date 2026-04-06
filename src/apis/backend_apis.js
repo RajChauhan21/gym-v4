@@ -61,19 +61,32 @@ export async function saveGymDetails(gymData) {
   }
 }
 
-export async function getAllMembers(ownerId) {
+export async function getAllMembers(
+  ownerId,
+  page = 0,
+  size = 20,
+  sortBy = 'expiry',
+  direction = 'desc',
+  filters = {} // New argument for search parameters
+) {
   try {
     const response = await constant.get("/owner/getAllMembersOfOwner", {
-      params: { q: ownerId },
+      params: {
+        q: ownerId,
+        page: page,
+        size: size,
+        sort: `${sortBy},${direction}`,
+        ...filters // Spreads keys like name, email, dueAmount into the request
+      },
     });
-    // Ensure you are returning the array inside response.data
-    return response.data;
+    return response;
   } catch (error) {
     console.error("API Error in getAllMembers:", error.response || error);
-    // CRITICAL: Return an empty array so .filter() doesn't crash the UI
-    return [];
+    // Return the error response so the caller can handle the UI state
+    return error.response;
   }
 }
+
 
 export async function addMember(member) {
   try {

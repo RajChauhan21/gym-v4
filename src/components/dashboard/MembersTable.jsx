@@ -62,6 +62,20 @@ import { useProfile } from "../../contexts/ProfileContext";
 import { deleteMemberById, getAllMembers } from "../../apis/backend_apis";
 import { toast } from "sonner";
 export default function MembersTable() {
+  const [currentPage, setCurrentPage] = useState(0); // backend uses 0-based
+  const [totalPages, setTotalPages] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [sortBy, setSortBy] = useState("expiry"); // Default column
+  const [sortDir, setSortDir] = useState("desc"); // Default direction
+  const [totalElements, setTotalElements] = useState(0);
+  const [filters, setFilters] = useState({
+    name: "",
+    email: "",
+    dueAmount: "500",
+    joined: "",
+    expiry: ""
+  });
+
   const sendWhatsAppReminder = (member) => {
     const message = `Hello ${member.name}, your gym payment of ₹${member.dueAmount} is pending. Please pay before ${member.expiry}.`;
 
@@ -74,13 +88,32 @@ export default function MembersTable() {
   const [status, setStatus] = useState("all");
   const [expiryFrom, setexpiryFrom] = useState("");
   const [expiryTo, setexpiryTo] = useState("");
-
+  const { profile } = useProfile();
   useEffect(() => {
     const fetchAndPopulate = async (retries = 3) => {
+      const activeFilters = Object.fromEntries(
+        Object.entries(filters).map(([key, value]) => [key, value === "" ? null : value])
+      );
       try {
-        const data = await getAllMembers(profile.ownerId);
-        setMembers(Array.isArray(data) ? data : []);
-        console.log("Fetched members:", data);
+        const response = await getAllMembers(profile.ownerId, currentPage,
+          pageSize,
+          sortBy,
+          sortDir,
+          activeFilters
+        );
+        setMembers(Array.isArray(response.data.content) ? response.data.content : []);
+        setTotalPages(response.data.page.totalPages);
+        setTotalElements(response.data.page.totalElements);
+        setPageSize(response.data.page.size);
+        if (
+          currentPage >= response.data.totalPages &&
+          response.data.totalPages > 0
+        ) {
+          setCurrentPage(0);
+        } else {
+          setCurrentPage(response.data.page.number);
+        }
+        console.log("Fetched members:", response.data);
       } catch (err) {
         // If it's a rate limit (429) and we have retries left
         if (err.response?.status === 429 && retries > 0) {
@@ -96,14 +129,14 @@ export default function MembersTable() {
     fetchAndPopulate();
     fetchPlans();
     // Empty array [] ensures this runs exactly once on mount
-  }, []);
+  }, [currentPage, pageSize, sortBy, sortDir, profile?.ownerId]);
 
-  useEffect(() => {
-    // Reset to Page 1 whenever filters change to prevent "Empty Page" bugs
-    setCurrentPage(1);
-  }, [searchTerm, filterPlan, status, expiryFrom, expiryTo]);
+  // useEffect(() => {
+  //   // Reset to Page 1 whenever filters change to prevent "Empty Page" bugs
+  //   setCurrentPage(1);
+  // }, [searchTerm, filterPlan, status, expiryFrom, expiryTo]);
 
-  const { profile } = useProfile();
+
   const [open, setOpen] = useState(false);
   const members = useGymStore((state) => state.members);
   const plans = useGymStore((state) => state.plans);
@@ -149,7 +182,6 @@ export default function MembersTable() {
     return matchesName && matchesPlan && matchesDate;
   });
 
-  const [currentPage, setCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({
     key: null,
     direction: "asc",
@@ -157,13 +189,21 @@ export default function MembersTable() {
   const itemsPerPage = 10;
 
   // 2. Calculate Sliced Data
-  const totalPages = Math.ceil(filteredMembers.length / itemsPerPage);
+  // const totalPages = Math.ceil(filteredMembers.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentData = filteredMembers.slice(
     startIndex,
     startIndex + itemsPerPage,
   );
   const emptyRows = itemsPerPage - currentData.length;
+
+
+  const safeTotal = totalElements || 0;
+  const safeSize = pageSize || 10;
+  const safePage = currentPage || 0;
+
+  const displayStart = safeTotal === 0 ? 0 : safePage * safeSize + 1;
+  const displayEnd = Math.min((safePage + 1) * safeSize, safeTotal);
 
   const resetFilters = () => {
     setSearchTerm("");
@@ -252,11 +292,17 @@ export default function MembersTable() {
     return sorted;
   }, [currentData, sortConfig]);
 
-  const handleSort = (key) => {
-    setSortConfig((prev) => ({
-      key,
-      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
-    }));
+  const handleSort = (columnName) => {
+    if (sortBy === columnName) {
+      // If same column clicked, toggle direction
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      // If new column clicked, set it and default to asc
+      setSortBy(columnName);
+      setSortDir("asc");
+    }
+    // Reset to first page when sorting changes
+    setCurrentPage(0);
   };
 
   const handleDelete = async (member) => {
@@ -345,8 +391,8 @@ export default function MembersTable() {
               </Label>
               <Input
                 placeholder="Type a name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={filters.name}
+                onChange={(e) => setFilters({...filters, name: e.target.value})}
               />
             </div>
 
@@ -394,8 +440,8 @@ export default function MembersTable() {
                 </Label>
                 <Input
                   type="date"
-                  value={expiryFrom}
-                  onChange={(e) => setexpiryFrom(e.target.value)}
+                  value={filters.expiry}
+                  onChange={(e) => setFilters({...filters, expiry: e.target.value})}
                 />
               </div>
               <div className="space-y-2">
@@ -559,8 +605,8 @@ export default function MembersTable() {
             </TableHeader>
 
             <TableBody>
-              {Array.isArray(sortedMembers) && sortedMembers.length > 0 ? (
-                sortedMembers.map((member, index) => (
+              {Array.isArray(members) && members.length > 0 ? (
+                members.map((member, index) => (
                   <TableRow
                     key={index}
                     className="group hover:bg-muted/30 transition-colors"
@@ -669,9 +715,8 @@ export default function MembersTable() {
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-4">
         {/* Left Side: Info Text */}
         <p className="text-sm text-muted-foreground order-2 sm:order-1">
-          Showing {startIndex + 1} to{" "}
-          {Math.min(startIndex + itemsPerPage, filteredMembers.length)} of{" "}
-          {filteredMembers.length} members
+          Showing {totalElements > 0 ? displayStart : 0} to {displayEnd} of{" "}
+          {totalElements} members
         </p>
 
         {/* Right Side: Pagination Controls */}
@@ -687,10 +732,10 @@ export default function MembersTable() {
                   href="#"
                   onClick={(e) => {
                     e.preventDefault();
-                    if (currentPage > 1) setCurrentPage(currentPage - 1);
+                    if (currentPage > 0) setCurrentPage(currentPage - 1);
                   }}
                   className={
-                    currentPage === 1
+                    currentPage === 0
                       ? "pointer-events-none opacity-50"
                       : "cursor-pointer"
                   }
@@ -699,7 +744,7 @@ export default function MembersTable() {
               <PaginationItem>
                 {/* Using a span instead of PaginationLink to prevent "button-like" hover styles on text */}
                 <span className="flex h-9 items-center justify-center px-3 text-sm whitespace-nowrap">
-                  Page {currentPage} of {totalPages}
+                  Page {(currentPage || 0) + 1} of {totalPages || 0}
                 </span>
               </PaginationItem>
               <PaginationItem>
@@ -711,7 +756,7 @@ export default function MembersTable() {
                       setCurrentPage(currentPage + 1);
                   }}
                   className={
-                    currentPage === totalPages
+                    currentPage === totalPages - 1
                       ? "pointer-events-none opacity-50"
                       : "cursor-pointer"
                   }
