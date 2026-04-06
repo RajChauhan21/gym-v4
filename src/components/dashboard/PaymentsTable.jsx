@@ -130,31 +130,7 @@ export default function PaymentsTable() {
 
   const displayStart = safeTotal === 0 ? 0 : safePage * safeSize + 1;
   const displayEnd = Math.min((safePage + 1) * safeSize, safeTotal);
-
-  const filteredPayments = payments.filter((p) => {
-    const matchesName = (p.memberName ?? "")
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-    const matchesPlan = filterPlan === "all" || p.membershipName === filterPlan;
-    const matchesStatus = filterStatus === "all" || p.status === filterStatus;
-    const matchesMethod = method === "all" || p.method === method;
-    // Date Range Logic
-    const pDate = new Date(p.date);
-    const from = dateFrom ? new Date(dateFrom) : null;
-    const to = dateTo ? new Date(dateTo) : null;
-    const matchesDate = (!from || pDate >= from) && (!to || pDate <= to);
-
-    return (
-      matchesName &&
-      matchesPlan &&
-      matchesStatus &&
-      matchesDate &&
-      matchesMethod
-    );
-  });
-
-  const startIndex = (currentPage - 1) * pageSize;
-
+  
   // To keep height fixed, calculate how many empty rows to fill
   const emptyRows = pageSize - payments.length;
 

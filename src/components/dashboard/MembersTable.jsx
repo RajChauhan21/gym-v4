@@ -61,6 +61,7 @@ import { MemberDetailsModal } from "./MemberDetailsModal";
 import { useProfile } from "../../contexts/ProfileContext";
 import { deleteMemberById, getAllMembers } from "../../apis/backend_apis";
 import { toast } from "sonner";
+import { toDate } from "date-fns";
 export default function MembersTable() {
   const [currentPage, setCurrentPage] = useState(0); // backend uses 0-based
   const [totalPages, setTotalPages] = useState(0);
@@ -70,10 +71,9 @@ export default function MembersTable() {
   const [totalElements, setTotalElements] = useState(0);
   const [filters, setFilters] = useState({
     name: "",
-    email: "",
-    dueAmount: "500",
-    joined: "",
-    expiry: ""
+    dueAmount: "",
+    fromDate: "", // Matches @Param "joinedFrom"
+    toDate: "", // Matches @Param "joinedTo"
   });
 
   const sendWhatsAppReminder = (member) => {
@@ -88,20 +88,30 @@ export default function MembersTable() {
   const [status, setStatus] = useState("all");
   const [expiryFrom, setexpiryFrom] = useState("");
   const [expiryTo, setexpiryTo] = useState("");
+  const [dateType, setDateType] = useState("expiry"); // "expiry" or "joined"
   const { profile } = useProfile();
   useEffect(() => {
     const fetchAndPopulate = async (retries = 3) => {
-      const activeFilters = Object.fromEntries(
-        Object.entries(filters).map(([key, value]) => [key, value === "" ? null : value])
-      );
+      const apiFilters = {
+        name: filters.name || null,
+        dueAmount: filters.dueAmount || null,
+        joinedFrom: dateType === "joined" ? filters.fromDate : null,
+        joinedTo: dateType === "joined" ? filters.toDate : null,
+        expiryFrom: dateType === "expiry" ? filters.fromDate : null,
+        expiryTo: dateType === "expiry" ? filters.toDate : null,
+      };
       try {
-        const response = await getAllMembers(profile.ownerId, currentPage,
+        const response = await getAllMembers(
+          profile.ownerId,
+          currentPage,
           pageSize,
           sortBy,
           sortDir,
-          activeFilters
+          apiFilters,
         );
-        setMembers(Array.isArray(response.data.content) ? response.data.content : []);
+        setMembers(
+          Array.isArray(response.data.content) ? response.data.content : [],
+        );
         setTotalPages(response.data.page.totalPages);
         setTotalElements(response.data.page.totalElements);
         setPageSize(response.data.page.size);
@@ -129,13 +139,20 @@ export default function MembersTable() {
     fetchAndPopulate();
     fetchPlans();
     // Empty array [] ensures this runs exactly once on mount
-  }, [currentPage, pageSize, sortBy, sortDir, profile?.ownerId]);
+  }, [
+    currentPage,
+    pageSize,
+    sortBy,
+    sortDir,
+    profile?.ownerId,
+    filters,
+    dateType,
+  ]);
 
   // useEffect(() => {
   //   // Reset to Page 1 whenever filters change to prevent "Empty Page" bugs
   //   setCurrentPage(1);
   // }, [searchTerm, filterPlan, status, expiryFrom, expiryTo]);
-
 
   const [open, setOpen] = useState(false);
   const members = useGymStore((state) => state.members);
@@ -147,7 +164,6 @@ export default function MembersTable() {
   const pendingPayments = members.filter((m) => m.dueAmount > 0).length;
   const totalDue = members.reduce((acc, curr) => acc + curr.dueAmount, 0);
 
-  const [dateType, setDateType] = useState("expiry"); // "expiry" or "joined"
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
   const [viewingMember, setViewingMember] = useState(null);
@@ -195,8 +211,6 @@ export default function MembersTable() {
     startIndex,
     startIndex + itemsPerPage,
   );
-  const emptyRows = itemsPerPage - currentData.length;
-
 
   const safeTotal = totalElements || 0;
   const safeSize = pageSize || 10;
@@ -208,6 +222,7 @@ export default function MembersTable() {
   const resetFilters = () => {
     setSearchTerm("");
     setFilterPlan("all");
+    setFilters({});
     setStatus("all");
     setexpiryFrom(null);
     setexpiryTo(null);
@@ -392,7 +407,9 @@ export default function MembersTable() {
               <Input
                 placeholder="Type a name..."
                 value={filters.name}
-                onChange={(e) => setFilters({...filters, name: e.target.value})}
+                onChange={(e) =>
+                  setFilters({ ...filters, name: e.target.value })
+                }
               />
             </div>
 
@@ -401,7 +418,11 @@ export default function MembersTable() {
               <Label className="text-xs font-bold uppercase text-muted-foreground">
                 Plan
               </Label>
-              <Select onValueChange={setFilterPlan} value={filterPlan}>
+              <Select
+                onValueChange={setFilterPlan}
+                value={filterPlan}
+                className="w-full"
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="All Plans" />
                 </SelectTrigger>
@@ -440,8 +461,14 @@ export default function MembersTable() {
                 </Label>
                 <Input
                   type="date"
-                  value={filters.expiry}
-                  onChange={(e) => setFilters({...filters, expiry: e.target.value})}
+                  value={
+                    dateType == "expiry"
+                      ? filters.expiryFrom
+                      : filters.joinedFrom
+                  }
+                  onChange={(e) =>
+                    setFilters({ ...filters, expiryFrom: e.target.value })
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -450,7 +477,9 @@ export default function MembersTable() {
                 </Label>
                 <Input
                   type="date"
-                  value={expiryTo}
+                  value={
+                    dateType == "expiry" ? filters.expiryTo : filters.joinedTo
+                  }
                   onChange={(e) => setexpiryTo(e.target.value)}
                 />
               </div>
@@ -473,40 +502,60 @@ export default function MembersTable() {
 
       {/* Pc Filter logic */}
       <Card className="hidden md:block p-4 bg-card border shadow-sm mb-2 mt-2">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 items-end">
-          {/* Search by Name */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 items-end">
+          {/* 1. Member Name */}
           <div className="space-y-1.5">
             <Label className="text-xs font-bold uppercase text-muted-foreground">
               Member Name
             </Label>
             <Input
               placeholder="Search name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={filters.name}
+              onChange={(e) => setFilters({ ...filters, name: e.target.value })}
             />
           </div>
 
-          {/* Plan Filter */}
+          {/* 2. Plan Filter */}
           <div className="space-y-1.5">
             <Label className="text-xs font-bold uppercase text-muted-foreground">
               Plan
             </Label>
-            <Select value={filterPlan} onValueChange={setFilterPlan}>
+            <Select
+              value={filters.plan || "all"}
+              onValueChange={(val) =>
+                setFilters({ ...filters, plan: val === "all" ? "" : val })
+              }
+            >
               <SelectTrigger>
                 <SelectValue placeholder="All Plans" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Plans</SelectItem>
-                {plans.map((plan, idx) => (
-                  <SelectItem key={idx} value={plan.name}>
-                    {plan.name}
+                {plans.map((p, idx) => (
+                  <SelectItem key={idx} value={p.name}>
+                    {p.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          {/* 3. Date Type Selector (NEW) */}
+          {/* 3. Due Amount */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold uppercase text-muted-foreground">
+              Due Amount
+            </Label>
+            <Input
+              type="number"
+              placeholder="Amount..."
+              value={filters.dueAmount}
+              onChange={(e) =>
+                setFilters({ ...filters, dueAmount: e.target.value })
+              }
+            />
+          </div>
+
+          {/* 4. Date Type Selector */}
           <div className="space-y-1.5">
             <Label className="text-xs font-bold uppercase text-muted-foreground">
               Filter Date By
@@ -522,32 +571,41 @@ export default function MembersTable() {
             </Select>
           </div>
 
-          {/* Date From */}
+          {/* 5. Date From */}
           <div className="space-y-1.5">
             <Label className="text-xs font-bold uppercase text-muted-foreground">
               From Date
             </Label>
             <Input
               type="date"
-              value={expiryFrom}
-              onChange={(e) => setexpiryFrom(e.target.value)}
+              value={filters.fromDate}
+              onChange={(e) => {
+                (e) => setFilters({ ...filters, fromDate: e.target.value });
+              }}
             />
           </div>
 
-          {/* Date To */}
+          {/* 6. Date To */}
           <div className="space-y-1.5">
             <Label className="text-xs font-bold uppercase text-muted-foreground">
               To Date
             </Label>
             <Input
               type="date"
-              value={expiryTo}
-              onChange={(e) => setexpiryTo(e.target.value)}
+              value={filters.toDate}
+              onChange={(e) => {
+                (e) => setFilters({ ...filters, toDate: e.target.value });
+              }}
             />
           </div>
 
-          <Button onClick={resetFilters} className="w-full rounded-full">
-            Clear Filters
+          {/* 7. Actions */}
+          <Button
+            onClick={resetFilters}
+            variant="outline"
+            className="w-full rounded-md"
+          >
+            Clear
           </Button>
         </div>
       </Card>
@@ -624,7 +682,7 @@ export default function MembersTable() {
                     </TableCell>
                     <TableCell className="text-center">
                       <span className="text-xs font-medium px-2 py-1 rounded bg-muted">
-                        {member.plan}
+                        {member.plan || "N/A"}
                       </span>
                     </TableCell>
                     <TableCell className="text-center text-muted-foreground whitespace-nowrap">

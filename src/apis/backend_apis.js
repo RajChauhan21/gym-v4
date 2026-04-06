@@ -64,11 +64,18 @@ export async function saveGymDetails(gymData) {
 export async function getAllMembers(
   ownerId,
   page = 0,
-  size = 20,
-  sortBy = 'expiry',
-  direction = 'desc',
-  filters = {} // New argument for search parameters
+  size = 10, // Matching your typical page size
+  sortBy = "expiry",
+  direction = "desc",
+  filters = {},
 ) {
+  // Clean filters: Remove keys with empty strings or null values
+  const cleanFilters = Object.fromEntries(
+    Object.entries(filters).filter(
+      ([_, value]) => value !== "" && value !== null && value !== undefined,
+    ),
+  );
+
   try {
     const response = await constant.get("/owner/getAllMembersOfOwner", {
       params: {
@@ -76,17 +83,15 @@ export async function getAllMembers(
         page: page,
         size: size,
         sort: `${sortBy},${direction}`,
-        ...filters // Spreads keys like name, email, dueAmount into the request
+        ...cleanFilters, // Spreads name, dueAmount, joinedFrom, etc.
       },
     });
     return response;
   } catch (error) {
     console.error("API Error in getAllMembers:", error.response || error);
-    // Return the error response so the caller can handle the UI state
     return error.response;
   }
 }
-
 
 export async function addMember(member) {
   try {
@@ -162,7 +167,13 @@ export async function savePayment(payment) {
   }
 }
 
-export async function getAllPayments(ownerId, page = 0, size = 20, sortBy = 'paymentDate', direction = 'desc') {
+export async function getAllPayments(
+  ownerId,
+  page = 0,
+  size = 20,
+  sortBy = "paymentDate",
+  direction = "desc",
+) {
   try {
     const response = await constant.get(
       "/pay/getAllPaymentsOfMembersByOwnerId",
