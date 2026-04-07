@@ -128,10 +128,10 @@ export async function getAllPlans() {
 
 export async function getAllDuesOfMembers(ownerId) {
   try {
-    const response = await constant.get("/owner/getDuesOfMembers",{
-      params:{
-        q:ownerId
-      }
+    const response = await constant.get("/owner/getDuesOfMembers", {
+      params: {
+        q: ownerId,
+      },
     });
     console.log("Get dues Response:", response);
     return response.data;
@@ -143,10 +143,10 @@ export async function getAllDuesOfMembers(ownerId) {
 
 export async function getAllMembersCount(ownerId) {
   try {
-    const response = await constant.get("/owner/getAllMembersCount",{
-      params:{
-        q:ownerId
-      }
+    const response = await constant.get("/owner/getAllMembersCount", {
+      params: {
+        q: ownerId,
+      },
     });
     console.log("Get member count Response:", response);
     return response.data;
@@ -203,8 +203,14 @@ export async function getAllPayments(
   size = 20,
   sortBy = "paymentDate",
   direction = "desc",
+  filters = {},
 ) {
   try {
+    const cleanFilters = Object.fromEntries(
+      Object.entries(filters).filter(
+        ([_, value]) => value !== "" && value !== null && value !== undefined,
+      ),
+    );
     const response = await constant.get(
       "/pay/getAllPaymentsOfMembersByOwnerId",
       {
@@ -213,6 +219,7 @@ export async function getAllPayments(
           page: page,
           size: size,
           sort: `${sortBy},${direction}`,
+          ...cleanFilters
         },
       },
     );

@@ -209,7 +209,7 @@ export default function MembersTable() {
   const displayEnd = Math.min((safePage + 1) * safeSize, safeTotal);
 
   const resetFilters = () => {
-    setFilterPlan("all");
+    setFilterPlan("");
     setFilters({
       name: "",
       dueAmount: "",
