@@ -126,6 +126,36 @@ export async function getAllPlans() {
   }
 }
 
+export async function getAllDuesOfMembers(ownerId) {
+  try {
+    const response = await constant.get("/owner/getDuesOfMembers",{
+      params:{
+        q:ownerId
+      }
+    });
+    console.log("Get dues Response:", response);
+    return response.data;
+  } catch (error) {
+    console.error("API Error in dues:", error.response || error);
+    return error.response;
+  }
+}
+
+export async function getAllMembersCount(ownerId) {
+  try {
+    const response = await constant.get("/owner/getAllMembersCount",{
+      params:{
+        q:ownerId
+      }
+    });
+    console.log("Get member count Response:", response);
+    return response.data;
+  } catch (error) {
+    console.error("API Error in member count:", error.response || error);
+    return error.response;
+  }
+}
+
 export async function deletePlanById(id) {
   try {
     const response = await constant.delete("/member-ship/deleteById", {

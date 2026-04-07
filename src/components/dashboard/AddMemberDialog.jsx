@@ -209,7 +209,7 @@ export default function AddMemberDialog({
             ? "Member updated successfully."
             : "Member added successfully.",
         );
-        fetchMembers(profile.ownerId);
+       await fetchMembers(profile.ownerId);
       } else if (response.status === 404) {
         toast.error(
           response.data.message ||

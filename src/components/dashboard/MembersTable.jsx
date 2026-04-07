@@ -22,6 +22,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { format, parseISO } from "date-fns";
 import Loader from "@/components/ui/Loader";
 import { Badge } from "@/components/ui/badge";
 import React from "react";
@@ -54,16 +55,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { useGymStore } from "../../store/gymStore";
 import { MemberDetailsModal } from "./MemberDetailsModal";
 import { useProfile } from "../../contexts/ProfileContext";
-import { deleteMemberById, getAllMembers } from "../../apis/backend_apis";
+import { deleteMemberById, getAllDuesOfMembers, getAllMembers, getAllMembersCount } from "../../apis/backend_apis";
 import { toast } from "sonner";
-import { toDate } from "date-fns";
 export default function MembersTable() {
   const [currentPage, setCurrentPage] = useState(0); // backend uses 0-based
+  const [dateToOpen, setDateToOpen] = useState(false);
+  const [dateFromOpen, setDateFromOpen] = useState(false);
   const [totalPages, setTotalPages] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [sortBy, setSortBy] = useState("expiry"); // Default column
@@ -74,6 +83,7 @@ export default function MembersTable() {
     dueAmount: "",
     fromDate: "", // Matches @Param "joinedFrom"
     toDate: "", // Matches @Param "joinedTo"
+    plan: "",
   });
 
   const sendWhatsAppReminder = (member) => {
@@ -83,13 +93,34 @@ export default function MembersTable() {
 
     window.open(url, "_blank");
   };
-  const [searchTerm, setSearchTerm] = useState("");
   const [filterPlan, setFilterPlan] = useState("all");
-  const [status, setStatus] = useState("all");
-  const [expiryFrom, setexpiryFrom] = useState("");
-  const [expiryTo, setexpiryTo] = useState("");
   const [dateType, setDateType] = useState("expiry"); // "expiry" or "joined"
   const { profile } = useProfile();
+  const [totalDues, setTotalDues] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+
+  const fetchTotalDues = async () => {
+    try {
+      const response = await getAllDuesOfMembers(profile.ownerId);
+      setTotalDues(response);
+    } catch (error) {
+      console.error("failed to get dues", error)
+    }
+  }
+
+  const getAllCount = async () => {
+    try {
+      const response = await getAllMembersCount(profile.ownerId);
+      setTotalCount(response);
+    } catch (error) {
+      console.error("failed to get count", error)
+    }
+  }
+
+  useEffect(()=>{
+    getAllCount();
+  },[])
+
   useEffect(() => {
     const fetchAndPopulate = async (retries = 3) => {
       const apiFilters = {
@@ -99,6 +130,7 @@ export default function MembersTable() {
         joinedTo: dateType === "joined" ? filters.toDate : null,
         expiryFrom: dateType === "expiry" ? filters.fromDate : null,
         expiryTo: dateType === "expiry" ? filters.toDate : null,
+        plan: filters.plan
       };
       try {
         const response = await getAllMembers(
@@ -138,6 +170,7 @@ export default function MembersTable() {
     };
     fetchAndPopulate();
     fetchPlans();
+    fetchTotalDues();
     // Empty array [] ensures this runs exactly once on mount
   }, [
     currentPage,
@@ -160,57 +193,13 @@ export default function MembersTable() {
   const setMembers = useGymStore((state) => state.setMembers);
   // setMembers(membersObject);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const totalMembers = members.length;
+  const totalMembers = totalCount;
   const pendingPayments = members.filter((m) => m.dueAmount > 0).length;
-  const totalDue = members.reduce((acc, curr) => acc + curr.dueAmount, 0);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
   const [viewingMember, setViewingMember] = useState(null);
   const fetchPlans = useGymStore((state) => state.fetchPlans);
-
-  const filteredMembers = members.filter((m) => {
-    // 1. Normalize Inputs (Safety First)
-    // "||" acts as the bypass. If term is empty, match becomes TRUE for everyone.
-    const term = searchTerm?.toLowerCase().trim() || "";
-    const matchesName = !term || m.name.toLowerCase().includes(term);
-
-    // 2. Exact Matches (Dropdowns)
-    // If filter is "all", we return TRUE (ignoring this specific check)
-    const matchesPlan = filterPlan === "all" || m.plan === filterPlan;
-
-    // Generic Date logic
-    const start = expiryFrom ? new Date(expiryFrom) : null;
-    const end = expiryTo ? new Date(expiryTo) : null;
-    if (start) start.setHours(0, 0, 0, 0);
-    if (end) end.setHours(23, 59, 59, 999);
-
-    // Pick the target field based on dateType
-    const targetDateString = dateType === "expiry" ? m.expiry : m.joined;
-    const compareDate = new Date(targetDateString);
-    compareDate.setHours(0, 0, 0, 0);
-
-    const matchesDate =
-      (!start || compareDate >= start) && (!end || compareDate <= end);
-
-    // 4. The "AND" Gate
-    // All active filters must match. Inactive filters are TRUE, so they don't block.
-    return matchesName && matchesPlan && matchesDate;
-  });
-
-  const [sortConfig, setSortConfig] = useState({
-    key: null,
-    direction: "asc",
-  });
-  const itemsPerPage = 10;
-
-  // 2. Calculate Sliced Data
-  // const totalPages = Math.ceil(filteredMembers.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentData = filteredMembers.slice(
-    startIndex,
-    startIndex + itemsPerPage,
-  );
 
   const safeTotal = totalElements || 0;
   const safeSize = pageSize || 10;
@@ -220,15 +209,16 @@ export default function MembersTable() {
   const displayEnd = Math.min((safePage + 1) * safeSize, safeTotal);
 
   const resetFilters = () => {
-    setSearchTerm("");
     setFilterPlan("all");
-    setFilters({});
-    setStatus("all");
-    setexpiryFrom(null);
-    setexpiryTo(null);
-    setCurrentPage(1);
+    setFilters({
+      name: "",
+      dueAmount: "",
+      fromDate: "",
+      toDate: "",
+      plan: "",
+    });
     setIsFilterOpen(false);
-    fetchAndPopulate();
+    setCurrentPage(0);
   };
 
   function getExpiryText(expiryDate) {
@@ -276,36 +266,8 @@ export default function MembersTable() {
     return "text-blue-500";
   }
 
-  const activeFilterCount = [
-    searchTerm !== "",
-    filterPlan !== "all",
-    status !== "all",
-  ].filter(Boolean).length;
-
   const [loading, setLoading] = useState(true);
 
-  const sortedMembers = React.useMemo(() => {
-    if (!sortConfig.key) return currentData;
-
-    const sorted = [...currentData].sort((a, b) => {
-      let valueA = a[sortConfig.key];
-      let valueB = b[sortConfig.key];
-
-      // handle numbers
-      if (typeof valueA === "number" && typeof valueB === "number") {
-        return sortConfig.direction === "asc"
-          ? valueA - valueB
-          : valueB - valueA;
-      }
-
-      // handle strings
-      return sortConfig.direction === "asc"
-        ? String(valueA).localeCompare(String(valueB))
-        : String(valueB).localeCompare(String(valueA));
-    });
-
-    return sorted;
-  }, [currentData, sortConfig]);
 
   const handleSort = (columnName) => {
     if (sortBy === columnName) {
@@ -373,7 +335,7 @@ export default function MembersTable() {
             Total Due Amount
           </p>
           <p className="text-2xl font-bold text-red-500">
-            ₹{totalDue.toLocaleString()}
+            ₹{(Number(totalDues) || 0).toLocaleString('en-IN')}
           </p>
         </div>
       </div>
@@ -429,7 +391,7 @@ export default function MembersTable() {
                 <SelectContent>
                   <SelectItem value="all">All Plans</SelectItem>
                   {plans.map((plan, idx) => (
-                    <SelectItem key={idx} value={plan.name}>
+                    <SelectItem key={idx} value={plan.name}> {/* Match the plan name */}
                       {plan.name}
                     </SelectItem>
                   ))}
@@ -454,45 +416,82 @@ export default function MembersTable() {
             </div>
 
             {/* 4. Date Range */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase text-muted-foreground">
-                  From
-                </Label>
-                <Input
-                  type="date"
-                  value={
-                    dateType == "expiry"
-                      ? filters.expiryFrom
-                      : filters.joinedFrom
-                  }
-                  onChange={(e) =>
-                    setFilters({ ...filters, expiryFrom: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase text-muted-foreground">
-                  To
-                </Label>
-                <Input
-                  type="date"
-                  value={
-                    dateType == "expiry" ? filters.expiryTo : filters.joinedTo
-                  }
-                  onChange={(e) => setexpiryTo(e.target.value)}
-                />
-              </div>
+            {/* <div className="grid grid-cols-2 gap-4"> */}
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase text-muted-foreground">From</Label>
+              <Popover> {/* Changed Dialog to Popover */}
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal px-3",
+                      !filters.fromDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                    <span className="truncate">
+                      {filters.fromDate ? format(parseISO(filters.fromDate), "PPP") : "Pick a date"}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={filters.fromDate ? parseISO(filters.fromDate) : undefined}
+                    onSelect={(date) => {
+                      setFilters((prev) => ({
+                        ...prev,
+                        fromDate: date ? format(date, "yyyy-MM-dd") : "",
+                      }));
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase text-muted-foreground">To</Label>
+              <Popover> {/* Changed Dialog to Popover */}
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal px-3",
+                      !filters.toDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                    <span className="truncate">
+                      {filters.toDate ? format(parseISO(filters.toDate), "PPP") : "Pick a date"}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={filters.toDate ? parseISO(filters.toDate) : undefined}
+                    onSelect={(date) => {
+                      setFilters((prev) => ({
+                        ...prev,
+                        toDate: date ? format(date, "yyyy-MM-dd") : "",
+                      }));
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            {/* </div> */}
           </div>
 
           <DialogFooter>
-            <Button
+            {/* <Button
               onClick={() => setIsFilterOpen(false)}
               className="w-full rounded-full"
             >
               Apply Filters
-            </Button>
+            </Button> */}
             <Button onClick={resetFilters} className="w-full rounded-full">
               Clear Filters
             </Button>
@@ -516,7 +515,7 @@ export default function MembersTable() {
           </div>
 
           {/* 2. Plan Filter */}
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 min-w-0">
             <Label className="text-xs font-bold uppercase text-muted-foreground">
               Plan
             </Label>
@@ -526,10 +525,14 @@ export default function MembersTable() {
                 setFilters({ ...filters, plan: val === "all" ? "" : val })
               }
             >
-              <SelectTrigger>
-                <SelectValue placeholder="All Plans" />
+              <SelectTrigger className="w-full max-w-[180px] overflow-hidden">
+                <SelectValue placeholder="All Plans">
+                  <span className="truncate block text-left">
+                    {filters.plan || "All Plans"}
+                  </span>
+                </SelectValue>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-w-[250px]">
                 <SelectItem value="all">All Plans</SelectItem>
                 {plans.map((p, idx) => (
                   <SelectItem key={idx} value={p.name}>
@@ -572,31 +575,92 @@ export default function MembersTable() {
           </div>
 
           {/* 5. Date From */}
+
           <div className="space-y-1.5">
-            <Label className="text-xs font-bold uppercase text-muted-foreground">
-              From Date
-            </Label>
-            <Input
-              type="date"
-              value={filters.fromDate}
-              onChange={(e) => {
-                (e) => setFilters({ ...filters, fromDate: e.target.value });
-              }}
-            />
+            <Label>Date from</Label>
+            <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-full justify-start text-left font-normal px-3", // Added padding
+                    !filters.fromDate && "text-muted-foreground",
+                  )}
+                  disabled={loading}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />{" "}
+                  {/* shrink-0 prevents icon squashing */}
+                  <span className="truncate">
+                    {" "}
+                    {/* truncate prevents text going out of the field */}
+                    {filters.fromDate
+                      ? format(parseISO(filters.fromDate), "PPP")
+                      : "Pick a date"}
+                  </span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={
+                    filters.fromDate ? parseISO(filters.fromDate) : undefined
+                  }
+                  defaultMonth={filters.fromDate ? parseISO(filters.fromDate) : new Date()}
+                  onSelect={(date) => {
+                    setFilters((prev) => ({
+                      ...prev,
+                      fromDate: date ? format(date, "yyyy-MM-dd") : "",
+                    }));
+                    setDateToOpen(false);
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* 6. Date To */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-bold uppercase text-muted-foreground">
-              To Date
-            </Label>
-            <Input
-              type="date"
-              value={filters.toDate}
-              onChange={(e) => {
-                (e) => setFilters({ ...filters, toDate: e.target.value });
-              }}
-            />
+            <Label>Date to</Label>
+            <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-full justify-start text-left font-normal px-3", // Added padding
+                    !filters.toDate && "text-muted-foreground",
+                  )}
+                  disabled={loading}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />{" "}
+                  {/* shrink-0 prevents icon squashing */}
+                  <span className="truncate">
+                    {" "}
+                    {/* truncate prevents text going out of the field */}
+                    {filters.toDate
+                      ? format(parseISO(filters.toDate), "PPP")
+                      : "Pick a date"}
+                  </span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={
+                    filters.toDate ? parseISO(filters.toDate) : undefined
+                  }
+                  defaultMonth={filters.toDate ? parseISO(filters.toDate) : new Date()}
+                  onSelect={(date) => {
+                    setFilters((prev) => ({
+                      ...prev,
+                      toDate: date ? format(date, "yyyy-MM-dd") : "",
+                    }));
+                    setDateToOpen(false);
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* 7. Actions */}

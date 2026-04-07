@@ -367,7 +367,7 @@ export const useGymStore = create((set) => ({
     try {
       const data = await getAllMembers(ownerId);
       // Use Array.isArray to be 100% safe before updating state
-      set({ members: Array.isArray(data) ? data : [] });
+      set({ members: Array.isArray(data.data.content) ? data.data.content : [] });
     } catch (error) {
       set({ members: [] }); // Reset to empty array on failure
     }

@@ -70,7 +70,8 @@ export default function PaymentsTable() {
     ? payments.reduce((acc, curr) => acc + curr.amount, 0)
     : 0;
   const failedCount = payments.filter((p) => p.status === "Failed").length;
-
+  const [dateToOpen, setDateToOpen] = useState(false);
+  const [dateFromOpen, setDateFromOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPlan, setFilterPlan] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -80,6 +81,14 @@ export default function PaymentsTable() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [sortBy, setSortBy] = useState("paymentDate"); // Default column
   const [sortDir, setSortDir] = useState("desc"); // Default direction
+  const [filters, setFilters] = useState({
+    name: "",
+    amount: "",
+    plan: "",
+    method: "",
+    from: "",
+    to: "",
+  });
 
   useEffect(() => {
     async function fetchPayments() {
@@ -112,7 +121,7 @@ export default function PaymentsTable() {
           size: response.data.size,
           totalElements: response.data.totalElements,
         });
-      
+
       } catch (error) {
         console.log(error);
       }
@@ -130,7 +139,7 @@ export default function PaymentsTable() {
 
   const displayStart = safeTotal === 0 ? 0 : safePage * safeSize + 1;
   const displayEnd = Math.min((safePage + 1) * safeSize, safeTotal);
-  
+
   // To keep height fixed, calculate how many empty rows to fill
   const emptyRows = pageSize - payments.length;
 
@@ -225,28 +234,6 @@ export default function PaymentsTable() {
     setErrors({});
   };
 
-  // const sortedPayments = React.useMemo(() => {
-  //   if (!sortConfig.key) return currentData;
-
-  //   const sorted = [...currentData].sort((a, b) => {
-  //     let valueA = a[sortConfig.key];
-  //     let valueB = b[sortConfig.key];
-
-  //     // handle numbers
-  //     if (typeof valueA === "number" && typeof valueB === "number") {
-  //       return sortConfig.direction === "asc"
-  //         ? valueA - valueB
-  //         : valueB - valueA;
-  //     }
-
-  //     // handle strings
-  //     return sortConfig.direction === "asc"
-  //       ? String(valueA).localeCompare(String(valueB))
-  //       : String(valueB).localeCompare(String(valueA));
-  //   });
-
-  //   return sorted;
-  // }, [currentData, sortConfig]);
 
   const handleSort = (columnName) => {
     if (sortBy === columnName) {
@@ -590,102 +577,162 @@ export default function PaymentsTable() {
         </DialogContent>
       </Dialog>
 
-      {/* --- FILTER SECTION --- */}
-      <Card className="hidden md:block p-4 bg-card border shadow-sm mb-2">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 items-end">
-          {/* Search by Name */}
+      {/* --- PC FILTER SECTION --- */}
+      <Card className="hidden md:block p-4 bg-card border shadow-sm mb-2 mt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 items-end">
+          {/* 1. Member Name */}
           <div className="space-y-1.5">
             <Label className="text-xs font-bold uppercase text-muted-foreground">
               Member Name
             </Label>
             <Input
               placeholder="Search name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={filters.name}
+              onChange={(e) => setFilters({ ...filters, name: e.target.value })}
             />
           </div>
 
-          {/* Plan Filter */}
-          <div className="space-y-1.5">
+          {/* 2. Plan Filter */}
+          <div className="space-y-1.5 min-w-0">
             <Label className="text-xs font-bold uppercase text-muted-foreground">
               Plan
             </Label>
-            <Select onValueChange={setFilterPlan} value={filterPlan}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Plans" />
+            <Select
+              value={filters.plan || "all"}
+              onValueChange={(val) =>
+                setFilters({ ...filters, plan: val === "all" ? "" : val })
+              }
+            >
+              <SelectTrigger className="w-full max-w-[180px] overflow-hidden">
+                <SelectValue placeholder="All Plans">
+                  <span className="truncate block text-left">
+                    {filters.plan || "All Plans"}
+                  </span>
+                </SelectValue>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-w-[250px]">
                 <SelectItem value="all">All Plans</SelectItem>
-                {plans.map((plan, idx) => (
-                  <SelectItem key={idx} value={plan.name}>
-                    {plan.name}
+                {plans.map((p, idx) => (
+                  <SelectItem key={idx} value={p.name}>
+                    {p.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Status Filter */}
+          {/* 3. Due Amount */}
           <div className="space-y-1.5">
             <Label className="text-xs font-bold uppercase text-muted-foreground">
-              Status
-            </Label>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="Success">Success</SelectItem>
-                <SelectItem value="Failed">Failed</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-bold uppercase text-muted-foreground">
-              Method
-            </Label>
-            <Select value={method} onValueChange={setMethod}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Methods" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Methods</SelectItem>
-                <SelectItem value="Cash">Cash</SelectItem>
-                <SelectItem value="UPI">UPI</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Date From */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-bold uppercase text-muted-foreground">
-              From Date
+              Due Amount
             </Label>
             <Input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
+              type="number"
+              placeholder="Amount..."
+              value={filters.dueAmount}
+              onChange={(e) =>
+                setFilters({ ...filters, dueAmount: e.target.value })
+              }
             />
           </div>
 
-          {/* Date To */}
+          {/* 5. Date From */}
+
           <div className="space-y-1.5">
-            <Label className="text-xs font-bold uppercase text-muted-foreground">
-              To Date
-            </Label>
-            <Input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-            />
+            <Label>Date from</Label>
+            <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-full justify-start text-left font-normal px-3", // Added padding
+                    !filters.fromDate && "text-muted-foreground",
+                  )}
+                  disabled={loading}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />{" "}
+                  {/* shrink-0 prevents icon squashing */}
+                  <span className="truncate">
+                    {" "}
+                    {/* truncate prevents text going out of the field */}
+                    {filters.fromDate
+                      ? format(parseISO(filters.fromDate), "PPP")
+                      : "Pick a date"}
+                  </span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={
+                    filters.fromDate ? parseISO(filters.fromDate) : undefined
+                  }
+                  defaultMonth={filters.fromDate ? parseISO(filters.fromDate) : new Date()}
+                  onSelect={(date) => {
+                    setFilters((prev) => ({
+                      ...prev,
+                      fromDate: date ? format(date, "yyyy-MM-dd") : "",
+                    }));
+                    setDateToOpen(false);
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
+
+          {/* 6. Date To */}
           <div className="space-y-1.5">
-            <Button onClick={resetFilters} className="w-full rounded-full">
-              Clear Filters
-            </Button>
+            <Label>Date to</Label>
+            <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-full justify-start text-left font-normal px-3", // Added padding
+                    !filters.toDate && "text-muted-foreground",
+                  )}
+                  disabled={loading}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />{" "}
+                  {/* shrink-0 prevents icon squashing */}
+                  <span className="truncate">
+                    {" "}
+                    {/* truncate prevents text going out of the field */}
+                    {filters.toDate
+                      ? format(parseISO(filters.toDate), "PPP")
+                      : "Pick a date"}
+                  </span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={
+                    filters.toDate ? parseISO(filters.toDate) : undefined
+                  }
+                  defaultMonth={filters.toDate ? parseISO(filters.toDate) : new Date()}
+                  onSelect={(date) => {
+                    setFilters((prev) => ({
+                      ...prev,
+                      toDate: date ? format(date, "yyyy-MM-dd") : "",
+                    }));
+                    setDateToOpen(false);
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
+
+          {/* 7. Actions */}
+          <Button
+            onClick={resetFilters}
+            variant="outline"
+            className="w-full rounded-md"
+          >
+            Clear
+          </Button>
         </div>
       </Card>
 
