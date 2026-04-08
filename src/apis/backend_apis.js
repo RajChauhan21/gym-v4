@@ -156,6 +156,22 @@ export async function getAllMembersCount(ownerId) {
   }
 }
 
+export async function searchMembers(ownerId,query) {
+  try {
+    const response = await constant.get("/member/searchMembers", {
+      params: {
+        o: ownerId,
+        q: query,
+      },
+    });
+    console.log("Get search member Response:", response);
+    return response;
+  } catch (error) {
+    console.error("API Error in search member:", error.response || error);
+    return error.response;
+  }
+}
+
 export async function getTotalPaymentAmount() {
   try {
     const response = await constant.get("/pay/getTotalAmount");

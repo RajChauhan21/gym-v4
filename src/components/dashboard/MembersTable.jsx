@@ -288,7 +288,7 @@ export default function MembersTable() {
       if (response.status === 202) {
         toast.success(response.data || "Member deleted");
         const data = await getAllMembers(profile.ownerId);
-        setMembers(Array.isArray(data) ? data : []);
+        setMembers(Array.isArray(data.data.content) ? data.data.content : []);
       }
     } catch (error) {
       toast.error(error.response?.data || "Failed to delete member");

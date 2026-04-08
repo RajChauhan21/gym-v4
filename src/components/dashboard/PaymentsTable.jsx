@@ -57,11 +57,24 @@ import {
 } from "@/components/ui/dialog";
 import { useGymStore } from "../../store/gymStore";
 import { toast } from "sonner";
-import { getAllPayments, getTotalPaymentAmount } from "../../apis/backend_apis";
+import {
+  getAllPayments,
+  getTotalPaymentAmount,
+  searchMembers,
+} from "../../apis/backend_apis";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { useProfile } from "../../contexts/ProfileContext";
 
 export default function PaymentsTable() {
   const [currentPage, setCurrentPage] = useState(0); // backend uses 0-based
+  const [memberOpen, setMemberOpen] = useState(false);
   const [totalPages, setTotalPages] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const payments = useGymStore((state) => state.payments) ?? [];
@@ -70,7 +83,6 @@ export default function PaymentsTable() {
   const [totalElements, setTotalElements] = useState(0);
   const plans = useGymStore((state) => state.plans);
   const [errors, setErrors] = useState({});
-  const members = useGymStore((state) => state.members);
   const { profile } = useProfile();
   const [totalRevenue, setTotalRevenue] = useState(0);
   const failedCount = payments.filter((p) => p.status === "Failed").length;
@@ -85,6 +97,8 @@ export default function PaymentsTable() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [sortBy, setSortBy] = useState("paymentDate"); // Default column
   const [sortDir, setSortDir] = useState("desc"); // Default direction
+  const [members, setMembers] = useState([]);
+  const [query, setQuery] = useState("");
   const [filters, setFilters] = useState({
     name: "",
     amount: "",
@@ -94,14 +108,33 @@ export default function PaymentsTable() {
     to: "",
   });
 
-  const getTotalAmount = async () =>{
+  const getTotalAmount = async () => {
     try {
       const response = await getTotalPaymentAmount();
       setTotalRevenue(response);
     } catch (error) {
-      console.error('unable to fetch total amount', error);
+      console.error("unable to fetch total amount", error);
     }
-  }
+  };
+
+  const searchAllMembers = async () => {
+    try {
+      const response = await searchMembers(profile.ownerId, query);
+      setMembers(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error("unable to fetch members", error);
+    }
+  };
+
+  useEffect(() => {
+    if (!query) return;
+
+    const delay = setTimeout(() => {
+      searchAllMembers(query);
+    }, 300);
+
+    return () => clearTimeout(delay);
+  }, [query]);
 
   useEffect(() => {
     async function fetchPayments() {
@@ -193,7 +226,7 @@ export default function PaymentsTable() {
     let newErrors = {};
     const textRegex = /^[a-zA-Z\s'.-]+$/;
 
-    if (newPayment.name != null) {
+    if (newPayment.name === null) {
       newErrors.name = "member name required";
     } else if (!textRegex.test(newPayment.name)) {
       newErrors.name = "Member name should only contain letters";
@@ -226,8 +259,8 @@ export default function PaymentsTable() {
     }
     const payment = {
       ...newPayment,
-      time: new Date().toLocaleTimeString(),
-      amount: Number(newPayment.amount),
+      date: new Date().toLocaleTimeString(),
+      amountPaid: Number(newPayment.amount),
     };
 
     addPayment(payment);
@@ -310,23 +343,56 @@ export default function PaymentsTable() {
               {/* Member Name */}
               <div>
                 <Label className="mb-1">Member</Label>
-                <Select
-                  value={newPayment.name}
-                  onValueChange={(value) =>
-                    setNewPayment({ ...newPayment, name: value })
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select member" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {members.map((member, i) => (
-                      <SelectItem key={i} value={member.id}>
-                        {member.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+
+                <Popover open={memberOpen} onOpenChange={setMemberOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full justify-between"
+                    >
+                      {newPayment.name ? newPayment.name : "Search member..."}
+                    </Button>
+                  </PopoverTrigger>
+
+                  <PopoverContent className="w-full p-0">
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        placeholder="Search member..."
+                        onValueChange={(value) => {
+                          console.log(value);
+                          setQuery(value);
+                        }}
+                      />
+
+                      <CommandList>
+                        <CommandEmpty>No member found.</CommandEmpty>
+
+                        <CommandGroup>
+                          {members.map((member) => (
+                            <CommandItem
+                              key={member.memberId}
+                              value={newPayment.name}
+                              onSelect={() => {
+                                console.log(member);
+                                setNewPayment((prev) => ({
+                                  ...prev,
+                                  name: member.fullName,
+                                  plan: member.planName || "",
+                                }));
+
+                                setMemberOpen(false);
+                              }}
+                            >
+                              {member.fullName}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+
                 <div className="min-h-[20px]">
                   {errors?.name && (
                     <p className="text-red-500 text-sm">{errors.name}</p>
@@ -538,8 +604,6 @@ export default function PaymentsTable() {
               </Select>
             </div>
 
-
-
             {/* 4. Date Range */}
             {/* <div className="grid grid-cols-2 gap-4"> */}
             <div className="space-y-2">
@@ -568,7 +632,9 @@ export default function PaymentsTable() {
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    defaultMonth={filters.from ? parseISO(filters.from) : new Date()}
+                    defaultMonth={
+                      filters.from ? parseISO(filters.from) : new Date()
+                    }
                     selected={filters.from ? parseISO(filters.from) : undefined}
                     onSelect={(date) => {
                       setFilters((prev) => ({
@@ -608,7 +674,9 @@ export default function PaymentsTable() {
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    defaultMonth={filters.to ? parseISO(filters.to) : new Date()}
+                    defaultMonth={
+                      filters.to ? parseISO(filters.to) : new Date()
+                    }
                     selected={filters.to ? parseISO(filters.to) : undefined}
                     onSelect={(date) => {
                       setFilters((prev) => ({
