@@ -57,7 +57,7 @@ import {
 } from "@/components/ui/dialog";
 import { useGymStore } from "../../store/gymStore";
 import { toast } from "sonner";
-import { getAllPayments } from "../../apis/backend_apis";
+import { getAllPayments, getTotalPaymentAmount } from "../../apis/backend_apis";
 import { useProfile } from "../../contexts/ProfileContext";
 
 export default function PaymentsTable() {
@@ -72,10 +72,7 @@ export default function PaymentsTable() {
   const [errors, setErrors] = useState({});
   const members = useGymStore((state) => state.members);
   const { profile } = useProfile();
-
-  const totalRevenue = Array.isArray(payments)
-    ? payments.reduce((acc, curr) => acc + curr.amount, 0)
-    : 0;
+  const [totalRevenue, setTotalRevenue] = useState(0);
   const failedCount = payments.filter((p) => p.status === "Failed").length;
   const [dateToOpen, setDateToOpen] = useState(false);
   const [dateFromOpen, setDateFromOpen] = useState(false);
@@ -96,6 +93,15 @@ export default function PaymentsTable() {
     from: "",
     to: "",
   });
+
+  const getTotalAmount = async () =>{
+    try {
+      const response = await getTotalPaymentAmount();
+      setTotalRevenue(response);
+    } catch (error) {
+      console.error('unable to fetch total amount', error);
+    }
+  }
 
   useEffect(() => {
     async function fetchPayments() {
@@ -137,6 +143,7 @@ export default function PaymentsTable() {
     }
 
     fetchPayments();
+    getTotalAmount();
   }, [currentPage, pageSize, sortBy, sortDir, profile?.ownerId, filters]);
 
   {
@@ -509,11 +516,13 @@ export default function PaymentsTable() {
                 Plan
               </Label>
               <Select
-                onValueChange={setFilterPlan}
-                value={filterPlan}
+                value={filters.plan || "all"}
+                onValueChange={(val) =>
+                  setFilters({ ...filters, plan: val === "all" ? "" : val })
+                }
                 className="w-full"
               >
-                <SelectTrigger  className="w-full">
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="All Plans" />
                 </SelectTrigger>
                 <SelectContent>
@@ -529,25 +538,7 @@ export default function PaymentsTable() {
               </Select>
             </div>
 
-            {/* Date type selector */}
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase text-muted-foreground">
-                Method
-              </Label>
-              <Select
-                value={filters.method || ""}
-                onValueChange={(val) => setFilters({ ...filters, method: val })}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="All Methods" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Methods</SelectItem>
-                  <SelectItem value="UPI">UPI</SelectItem>
-                  <SelectItem value="CASH">CASH</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
 
             {/* 4. Date Range */}
             {/* <div className="grid grid-cols-2 gap-4"> */}
@@ -577,6 +568,7 @@ export default function PaymentsTable() {
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
+                    defaultMonth={filters.from ? parseISO(filters.from) : new Date()}
                     selected={filters.from ? parseISO(filters.from) : undefined}
                     onSelect={(date) => {
                       setFilters((prev) => ({
@@ -616,6 +608,7 @@ export default function PaymentsTable() {
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
+                    defaultMonth={filters.to ? parseISO(filters.to) : new Date()}
                     selected={filters.to ? parseISO(filters.to) : undefined}
                     onSelect={(date) => {
                       setFilters((prev) => ({
@@ -629,6 +622,26 @@ export default function PaymentsTable() {
               </Popover>
             </div>
             {/* </div> */}
+
+            {/* Date type selector */}
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase text-muted-foreground">
+                Method
+              </Label>
+              <Select
+                value={filters.method || ""}
+                onValueChange={(val) => setFilters({ ...filters, method: val })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All Methods" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Methods</SelectItem>
+                  <SelectItem value="UPI">UPI</SelectItem>
+                  <SelectItem value="CASH">CASH</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <DialogFooter>
@@ -832,7 +845,7 @@ export default function PaymentsTable() {
               <TableRow>
                 <TableHead
                   onClick={() => handleSort("memberName")} // Matches SQL alias 'AS memberName'
-                  className="sticky left-0 top-0 z-30 min-w-[150px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] dark:text-gray-500 select-none text-center"
+                  className="sticky left-0 top-0 z-30 min-w-[150px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] bg-card dark:text-gray-500 select-none text-center"
                 >
                   <div className="inline-flex items-center justify-center gap-1">
                     <span>Name</span>

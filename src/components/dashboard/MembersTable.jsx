@@ -117,9 +117,9 @@ export default function MembersTable() {
     }
   }
 
-  useEffect(()=>{
+  useEffect(() => {
     getAllCount();
-  },[])
+  }, [])
 
   useEffect(() => {
     const fetchAndPopulate = async (retries = 3) => {
@@ -375,30 +375,6 @@ export default function MembersTable() {
               />
             </div>
 
-            {/* 2. Plan Select */}
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase text-muted-foreground">
-                Plan
-              </Label>
-              <Select
-                onValueChange={setFilterPlan}
-                value={filterPlan}
-                className="w-full"
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Plans" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Plans</SelectItem>
-                  {plans.map((plan, idx) => (
-                    <SelectItem key={idx} value={plan.name}> {/* Match the plan name */}
-                      {plan.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Date type selector */}
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase text-muted-foreground">
@@ -437,6 +413,7 @@ export default function MembersTable() {
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
+                    defaultMonth={filters.fromDate ? parseISO(filters.fromDate) : new Date()}
                     selected={filters.fromDate ? parseISO(filters.fromDate) : undefined}
                     onSelect={(date) => {
                       setFilters((prev) => ({
@@ -470,6 +447,7 @@ export default function MembersTable() {
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
+                    defaultMonth={filters.toDate ? parseISO(filters.toDate) : new Date()}
                     selected={filters.toDate ? parseISO(filters.toDate) : undefined}
                     onSelect={(date) => {
                       setFilters((prev) => ({
@@ -483,6 +461,32 @@ export default function MembersTable() {
               </Popover>
             </div>
             {/* </div> */}
+
+            {/* 2. Plan Select */}
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase text-muted-foreground">
+                Plan
+              </Label>
+              <Select
+                value={filters.plan || "all"}
+                onValueChange={(val) =>
+                  setFilters({ ...filters, plan: val === "all" ? "" : val })
+                }
+                className="w-full"
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All Plans" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Plans</SelectItem>
+                  {plans.map((plan, idx) => (
+                    <SelectItem key={idx} value={plan.name}> {/* Match the plan name */}
+                      {plan.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <DialogFooter>

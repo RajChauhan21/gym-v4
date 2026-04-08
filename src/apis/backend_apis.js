@@ -156,6 +156,17 @@ export async function getAllMembersCount(ownerId) {
   }
 }
 
+export async function getTotalPaymentAmount() {
+  try {
+    const response = await constant.get("/pay/getTotalAmount");
+    console.log("Get total amount Response:", response);
+    return response.data;
+  } catch (error) {
+    console.error("API Error in total amount:", error.response || error);
+    return error.response;
+  }
+}
+
 export async function deletePlanById(id) {
   try {
     const response = await constant.delete("/member-ship/deleteById", {
