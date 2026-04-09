@@ -156,6 +156,21 @@ export async function getAllMembersCount(ownerId) {
   }
 }
 
+export async function getRevenue(ownerId) {
+  try {
+    const response = await constant.get("/pay/getRevenue", {
+      params: {
+        q: ownerId,
+      },
+    });
+    console.log("Get revenue Response:", response);
+    return response.data;
+  } catch (error) {
+    console.error("API Error in revenue:", error.response || error);
+    return error.response;
+  }
+}
+
 export async function searchMembers(ownerId,query) {
   try {
     const response = await constant.get("/member/searchMembers", {
@@ -209,6 +224,21 @@ export async function deleteMemberById(id) {
     return response;
   } catch (error) {
     console.error("API Error in delete member:", error.response || error);
+    return error.response;
+  }
+}
+
+export async function deletePaymentById(id) {
+  try {
+    const response = await constant.delete("/pay/deleteById", {
+      params: {
+        q: id,
+      },
+    });
+    console.log("Delete payment Response:", response);
+    return response;
+  } catch (error) {
+    console.error("API Error in delete payment:", error.response || error);
     return error.response;
   }
 }

@@ -10,15 +10,26 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { TrendingUpIcon, TrendingDownIcon } from "lucide-react";
-import {login, getAllOwners, saveGym, loginByGoogle} from "../apis/backend_apis";
+import { useProfile } from '../contexts/ProfileContext';
+import { login, getAllOwners, saveGym, loginByGoogle } from "../apis/backend_apis";
+import { useEffect, useState } from "react";
+import { getRevenue } from "../apis/backend_apis";
 
 export function SectionCards({ members, payments }) {
+
+  interface RevenueResponse {
+    totalRevenue: number;
+    currentMonthRevenue: number;
+  }
+
   function normalizeDate(date) {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
     return d;
   }
   const today = normalizeDate(new Date());
+  const { profile } = useProfile();
+  const [thisMonthRevenue, sethisMonthRevenue] = useState<number>(0);
 
   const startOfThisMonth = normalizeDate(
     new Date(today.getFullYear(), today.getMonth(), 1),
@@ -30,20 +41,35 @@ export function SectionCards({ members, payments }) {
     new Date(today.getFullYear(), today.getMonth(), 0),
   );
 
+  const getRevenues = async (): Promise<void> => {
+    try {
+      if (!profile?.ownerId) return;
+      const response: RevenueResponse = await getRevenue(profile.ownerId);
+      sethisMonthRevenue(response.currentMonthRevenue);
+    } catch (error) {
+      console.error("unable to fetch revenue", (error as Error).message);
+    }
+  };
+
+  useEffect(() => {
+    getRevenues();
+    // Dependency array: runs when component mounts 
+    // or when ownerId changes (if it's not available immediately)
+  }, [profile?.ownerId]); 
+
   // ---------- REVENUE ----------
-  const thisMonthRevenue = payments
-    .filter(
-      (p) =>
-        p.status === "Success" && normalizeDate(p.date) >= startOfThisMonth,
-    )
-    .reduce((sum, p) => sum + p.amount, 0);
+  // const thisMonthRevenue = payments
+  //   .filter(
+  //     (p) =>
+  //       normalizeDate(p.paymentDate) >= startOfThisMonth,
+  //   )
+  //   .reduce((sum, p) => sum + p.amount, 0);
 
   const lastMonthRevenue = payments
     .filter(
       (p) =>
-        p.status === "Success" &&
-        normalizeDate(p.date) >= startOfLastMonth &&
-        normalizeDate(p.date) <= endOfLastMonth,
+        normalizeDate(p.paymentDate) >= startOfLastMonth &&
+        normalizeDate(p.paymentDate) <= endOfLastMonth,
     )
     .reduce((sum, p) => sum + p.amount, 0);
 
@@ -114,7 +140,7 @@ export function SectionCards({ members, payments }) {
     <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
       {/* Revenue */}
       <Card>
-        <CardHeader onClick={getAllOwners}>
+        <CardHeader>
           <CardDescription>Total Revenue (This Month)</CardDescription>
           <CardTitle className="text-3xl font-semibold">
             ₹{thisMonthRevenue}

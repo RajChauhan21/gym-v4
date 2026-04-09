@@ -117,60 +117,63 @@ export default function MembersTable() {
     }
   }
 
+  const fetchAndPopulate = async (retries = 3) => {
+    const apiFilters = {
+      name: filters.name || null,
+      dueAmount: filters.dueAmount || null,
+      joinedFrom: dateType === "joined" ? filters.fromDate : null,
+      joinedTo: dateType === "joined" ? filters.toDate : null,
+      expiryFrom: dateType === "expiry" ? filters.fromDate : null,
+      expiryTo: dateType === "expiry" ? filters.toDate : null,
+      plan: filters.plan
+    };
+    try {
+      const response = await getAllMembers(
+        profile.ownerId,
+        currentPage,
+        pageSize,
+        sortBy,
+        sortDir,
+        apiFilters,
+      );
+      setMembers(
+        Array.isArray(response.data.content) ? response.data.content : [],
+      );
+      setTotalPages(response.data.page.totalPages);
+      setTotalElements(response.data.page.totalElements);
+      setPageSize(response.data.page.size);
+      if (
+        currentPage >= response.data.totalPages &&
+        response.data.totalPages > 0
+      ) {
+        setCurrentPage(0);
+      } else {
+        setCurrentPage(response.data.page.number);
+      }
+      getAllCount();
+      fetchTotalDues();
+      console.log("Fetched members:", response.data);
+    } catch (err) {
+      // If it's a rate limit (429) and we have retries left
+      if (err.response?.status === 429 && retries > 0) {
+        toast.error(
+          `Rate limited. Retrying in 2 seconds... (${retries} left)`,
+        );
+        setTimeout(() => fetchAndPopulate(retries - 1), 2000);
+      } else {
+        setMembers([]); // Give up and set empty to stop the crash
+      }
+    }
+  };
+
   useEffect(() => {
     getAllCount();
   }, [])
 
   useEffect(() => {
-    const fetchAndPopulate = async (retries = 3) => {
-      const apiFilters = {
-        name: filters.name || null,
-        dueAmount: filters.dueAmount || null,
-        joinedFrom: dateType === "joined" ? filters.fromDate : null,
-        joinedTo: dateType === "joined" ? filters.toDate : null,
-        expiryFrom: dateType === "expiry" ? filters.fromDate : null,
-        expiryTo: dateType === "expiry" ? filters.toDate : null,
-        plan: filters.plan
-      };
-      try {
-        const response = await getAllMembers(
-          profile.ownerId,
-          currentPage,
-          pageSize,
-          sortBy,
-          sortDir,
-          apiFilters,
-        );
-        setMembers(
-          Array.isArray(response.data.content) ? response.data.content : [],
-        );
-        setTotalPages(response.data.page.totalPages);
-        setTotalElements(response.data.page.totalElements);
-        setPageSize(response.data.page.size);
-        if (
-          currentPage >= response.data.totalPages &&
-          response.data.totalPages > 0
-        ) {
-          setCurrentPage(0);
-        } else {
-          setCurrentPage(response.data.page.number);
-        }
-        console.log("Fetched members:", response.data);
-      } catch (err) {
-        // If it's a rate limit (429) and we have retries left
-        if (err.response?.status === 429 && retries > 0) {
-          toast.error(
-            `Rate limited. Retrying in 2 seconds... (${retries} left)`,
-          );
-          setTimeout(() => fetchAndPopulate(retries - 1), 2000);
-        } else {
-          setMembers([]); // Give up and set empty to stop the crash
-        }
-      }
-    };
+
     fetchAndPopulate();
     fetchPlans();
-    fetchTotalDues();
     // Empty array [] ensures this runs exactly once on mount
   }, [
     currentPage,
@@ -287,8 +290,7 @@ export default function MembersTable() {
       const response = await deleteMemberById(member.id);
       if (response.status === 202) {
         toast.success(response.data || "Member deleted");
-        const data = await getAllMembers(profile.ownerId);
-        setMembers(Array.isArray(data.data.content) ? data.data.content : []);
+        fetchAndPopulate();
       }
     } catch (error) {
       toast.error(error.response?.data || "Failed to delete member");

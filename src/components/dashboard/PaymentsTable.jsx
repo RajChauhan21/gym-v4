@@ -6,7 +6,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Wallet, CalendarDays } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -38,7 +38,11 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
+import {
+  X, MoreVertical, Pencil,
+  Trash2,
+  MessageCircle,
+} from "lucide-react";
 import {
   Select,
   SelectTrigger,
@@ -58,8 +62,11 @@ import {
 import { useGymStore } from "../../store/gymStore";
 import { toast } from "sonner";
 import {
+  deletePaymentById,
   getAllPayments,
+  getRevenue,
   getTotalPaymentAmount,
+  savePayment,
   searchMembers,
 } from "../../apis/backend_apis";
 import {
@@ -70,6 +77,13 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { useProfile } from "../../contexts/ProfileContext";
 
 export default function PaymentsTable() {
@@ -85,20 +99,18 @@ export default function PaymentsTable() {
   const [errors, setErrors] = useState({});
   const { profile } = useProfile();
   const [totalRevenue, setTotalRevenue] = useState(0);
+  const [thisMonthRevenue, sethisMonthRevenue] = useState(0);
   const failedCount = payments.filter((p) => p.status === "Failed").length;
   const [dateToOpen, setDateToOpen] = useState(false);
   const [dateFromOpen, setDateFromOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterPlan, setFilterPlan] = useState("all");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [method, setMethod] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [sortBy, setSortBy] = useState("paymentDate"); // Default column
   const [sortDir, setSortDir] = useState("desc"); // Default direction
   const [members, setMembers] = useState([]);
   const [query, setQuery] = useState("");
+  const fetchPlans = useGymStore((state) => state.fetchPlans);
+  const [selectedPayment, setSelectedPayment] = useState(null); //for editing
+  const [totalRecords, setTotalReccords] = useState(0);
   const [filters, setFilters] = useState({
     name: "",
     amount: "",
@@ -108,14 +120,33 @@ export default function PaymentsTable() {
     to: "",
   });
 
-  const getTotalAmount = async () => {
+  // ---------- REVENUE ----------
+
+  const getRevenues = async () => {
     try {
-      const response = await getTotalPaymentAmount();
-      setTotalRevenue(response);
+      const response = await getRevenue(profile.ownerId);
+      setTotalRevenue(response.totalRevenue);
+      sethisMonthRevenue(response.currentMonthRevenue);
+      setTotalReccords(response.totalRecords);
     } catch (error) {
-      console.error("unable to fetch total amount", error);
+      console.error("unable to fetch revenue", error);
     }
-  };
+  }
+
+  const deletePayment = async (payment) => {
+    try {
+      const response = await deletePaymentById(payment.paymentId);
+      if (response.status === 202) {
+        toast.success("Payment deleted successfully");
+        fetchPayments();
+      }
+      else {
+        toast.error('Failed to delete payment');
+      }
+    } catch (error) {
+      console.error("Failed to delete payment, error");
+    }
+  }
 
   const searchAllMembers = async () => {
     try {
@@ -125,6 +156,44 @@ export default function PaymentsTable() {
       console.error("unable to fetch members", error);
     }
   };
+  async function fetchPayments() {
+    if (!profile?.ownerId) return;
+    if (filters.method === "all") {
+      filters.method = "";
+    }
+    try {
+      const response = await getAllPayments(
+        profile.ownerId,
+        currentPage,
+        pageSize,
+        sortBy,
+        sortDir,
+        filters,
+      );
+      setPayments(response.data.content);
+      setTotalPages(response.data.page.totalPages);
+      setTotalElements(response.data.page.totalElements);
+      setPageSize(response.data.page.size);
+      if (
+        currentPage >= response.data.totalPages &&
+        response.data.totalPages > 0
+      ) {
+        setCurrentPage(0);
+      } else {
+        setCurrentPage(response.data.page.number);
+      }
+      console.log(currentPage);
+      console.log({
+        page: response.data.number,
+        totalPages: response.data.totalPages,
+        size: response.data.size,
+        totalElements: response.data.totalElements,
+      });
+      getRevenues();
+    } catch (error) {
+      console.log(error);
+    }
+  }
 
   useEffect(() => {
     if (!query) return;
@@ -137,46 +206,10 @@ export default function PaymentsTable() {
   }, [query]);
 
   useEffect(() => {
-    async function fetchPayments() {
-      if (!profile?.ownerId) return;
-      if (filters.method === "all") {
-        filters.method = "";
-      }
-      try {
-        const response = await getAllPayments(
-          profile.ownerId,
-          currentPage,
-          pageSize,
-          sortBy,
-          sortDir,
-          filters,
-        );
-        setPayments(response.data.content);
-        setTotalPages(response.data.page.totalPages);
-        setTotalElements(response.data.page.totalElements);
-        setPageSize(response.data.page.size);
-        if (
-          currentPage >= response.data.totalPages &&
-          response.data.totalPages > 0
-        ) {
-          setCurrentPage(0);
-        } else {
-          setCurrentPage(response.data.page.number);
-        }
-        console.log(currentPage);
-        console.log({
-          page: response.data.number,
-          totalPages: response.data.totalPages,
-          size: response.data.size,
-          totalElements: response.data.totalElements,
-        });
-      } catch (error) {
-        console.log(error);
-      }
-    }
 
+
+    fetchPlans();
     fetchPayments();
-    getTotalAmount();
   }, [currentPage, pageSize, sortBy, sortDir, profile?.ownerId, filters]);
 
   {
@@ -193,14 +226,7 @@ export default function PaymentsTable() {
   const emptyRows = pageSize - payments.length;
 
   const resetFilters = () => {
-    setSearchTerm("");
-    setFilterPlan("all");
-    setFilterStatus("all");
-    setDateFrom(null);
-    setDateTo(null);
-    setCurrentPage(0);
-    setIsFilterOpen(false);
-    setMethod("all");
+
     setFilters({
       name: "",
       amount: "",
@@ -209,7 +235,25 @@ export default function PaymentsTable() {
       from: "",
       to: "",
     });
+    setIsFilterOpen(false);
+    setCurrentPage(0);
   };
+
+  useEffect(() => {
+    if (selectedPayment) {
+      setNewPayment({
+        name: selectedPayment ? selectedPayment.memberName : undefined,
+        plan: selectedPayment ? selectedPayment.memberShipName : "",
+        amount: selectedPayment ? selectedPayment.amount : "",
+        method: selectedPayment ? selectedPayment.method : "",
+        date: selectedPayment ? selectedPayment.paymentDate : "",
+      });
+      console.log("Editing payment:", selectedPayment);
+      console.log("Editing payment member:", newPayment.name);
+    } else {
+      resetForm(); // Clear if adding new
+    }
+  }, [selectedPayment]);
 
   const [loading, setLoading] = useState(true);
   const [openPayment, setOpenPayment] = useState(false);
@@ -219,7 +263,6 @@ export default function PaymentsTable() {
     amount: "",
     method: "",
     date: "",
-    status: "Success",
   });
 
   const validate = () => {
@@ -232,13 +275,10 @@ export default function PaymentsTable() {
       newErrors.name = "Member name should only contain letters";
     }
 
-    if (!newPayment.amount.trim()) {
+    if (newPayment.amount === null || newPayment.amount === "") {
       newErrors.amount = "Amount required";
     }
 
-    if (!newPayment.plan.trim()) {
-      newErrors.plan = "Plan required";
-    }
 
     if (!newPayment.method.trim()) {
       newErrors.method = "Method required";
@@ -250,20 +290,38 @@ export default function PaymentsTable() {
     return newErrors;
   };
 
-  const handleAddPayment = () => {
+  const handleAddPayment = async () => {
     const validation = validate();
     if (Object.keys(validation).length > 0) {
       setErrors(validation);
       setLoading(false);
       return;
     }
-    const payment = {
-      ...newPayment,
-      date: new Date().toLocaleTimeString(),
-      amountPaid: Number(newPayment.amount),
-    };
 
-    addPayment(payment);
+    try {
+      const paymentObject = {
+        paymentId: selectedPayment ? selectedPayment.paymentId : null,
+        amountPaid: Number(newPayment.amount),
+        date: newPayment.date,
+        method: newPayment.method,
+        memberId: selectedPayment ? selectedPayment.memberId : members.find((m) => m.fullName === newPayment.name)?.memberId,
+      }
+      const response = await savePayment(paymentObject);
+      if (response.status === 202) {
+        toast.success("Payement recorded successfully");
+        fetchPayments();
+      }
+      else {
+        toast.error("Failed to record payment");
+      }
+    } catch (error) {
+      toast.error("Failed to record payment");
+      console.error("Error saving payment", error);
+    }
+
+    selectedPayment ? setSelectedPayment(null) : null; // Clear selected payment after edit or add
+
+    // addPayment(payment);
     setOpenPayment(false);
 
     setNewPayment({
@@ -276,7 +334,7 @@ export default function PaymentsTable() {
     });
 
     setErrors({});
-    toast.success("Payement recorded successfully");
+
   };
 
   const resetForm = () => {
@@ -329,7 +387,7 @@ export default function PaymentsTable() {
 
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Add Payment</DialogTitle>
+              <DialogTitle>{selectedPayment ? "Edit Payment" : "Add Payment"}</DialogTitle>
               <DialogPrimitive.Close
                 className="absolute right-4 top-4 opacity-70 hover:opacity-100 transition-opacity outline-none"
                 onClick={resetForm} // Also clear form if they just close the modal
@@ -372,9 +430,8 @@ export default function PaymentsTable() {
                           {members.map((member) => (
                             <CommandItem
                               key={member.memberId}
-                              value={newPayment.name}
+                              value={member.fullName}
                               onSelect={() => {
-                                console.log(member);
                                 setNewPayment((prev) => ({
                                   ...prev,
                                   name: member.fullName,
@@ -396,33 +453,6 @@ export default function PaymentsTable() {
                 <div className="min-h-[20px]">
                   {errors?.name && (
                     <p className="text-red-500 text-sm">{errors.name}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Plan */}
-              <div>
-                <Label className="mb-1">Plan</Label>
-                <Select
-                  value={newPayment.plan}
-                  onValueChange={(value) =>
-                    setNewPayment({ ...newPayment, plan: value })
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select plan" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {plans.map((plan, i) => (
-                      <SelectItem key={i} value={plan.name}>
-                        {plan.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="min-h-[20px]">
-                  {errors?.plan && (
-                    <p className="text-red-500 text-sm">{errors.plan}</p>
                   )}
                 </div>
               </div>
@@ -458,7 +488,7 @@ export default function PaymentsTable() {
                     <SelectValue placeholder="Select method" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Cash">Cash</SelectItem>
+                    <SelectItem value="CASH">Cash</SelectItem>
                     <SelectItem value="UPI">UPI</SelectItem>
                     <SelectItem value="Card">Card</SelectItem>
                     <SelectItem value="Bank">Bank Transfer</SelectItem>
@@ -489,7 +519,7 @@ export default function PaymentsTable() {
               </div>
 
               <Button className="w-full" onClick={handleAddPayment}>
-                Save Payment
+                {selectedPayment ? "Update" : "Add"} Payment
               </Button>
             </div>
           </DialogContent>
@@ -500,7 +530,7 @@ export default function PaymentsTable() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
         <Card className="p-4 flex items-center gap-4 bg-green-500/5 border-green-500/20">
           <div className="p-2 bg-green-500 rounded-lg text-white">
-            <TrendingUp className="size-5" />
+            <Wallet className="size-5" />
           </div>
           <div>
             <p className="text-[10px] uppercase font-bold text-muted-foreground">
@@ -512,22 +542,24 @@ export default function PaymentsTable() {
           </div>
         </Card>
 
-        <Card className="p-4 flex items-center gap-4 bg-red-500/5 border-red-500/20">
-          <div className="p-2 bg-red-500 rounded-lg text-white">
-            <AlertCircle className="size-5" />
+        <Card className="p-4 flex items-center gap-4 bg-green-500/5 border-green-500/20">
+          <div className="p-2 bg-blue-500 rounded-lg text-white">
+            <CalendarDays className="size-5" />
           </div>
+
           <div>
             <p className="text-[10px] uppercase font-bold text-muted-foreground">
-              Failed Attempts
+              Revenue This Month
             </p>
-            <p className="text-xl font-bold text-center text-red-600">
-              {failedCount}
+
+            <p className="text-xl font-bold text-center text-black-600">
+              ₹{thisMonthRevenue}
             </p>
           </div>
         </Card>
 
         <Card className="p-4 flex items-center gap-4 bg-blue-500/5 border-blue-500/20">
-          <div className="p-2 bg-blue-500 rounded-lg text-white">
+          <div className="p-2 bg-red-500 rounded-lg text-white">
             <CheckCircle2 className="size-5" />
           </div>
           <div>
@@ -535,7 +567,7 @@ export default function PaymentsTable() {
               Transactions
             </p>
             <p className="text-xl font-bold dark:text-white text-center">
-              {payments.length}
+              {totalRecords}
             </p>
           </div>
         </Card>
@@ -983,36 +1015,90 @@ export default function PaymentsTable() {
                 <TableHead className="dark:text-gray-500 text-center">
                   Method
                 </TableHead>
+                <TableHead className="dark:text-gray-500 text-center">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
 
             <TableBody>
-              {payments.map((payment, index) => (
-                <TableRow key={index} className="dark:bg-card dark:text-white">
-                  <TableCell
-                    className={cn(
-                      "sticky left-0 z-10 font-bold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] bg-card min-w-[150px] text-center",
-                    )}
-                  >
-                    {payment.memberName}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <span className="text-xs font-medium px-2 py-1 rounded bg-muted">
-                      {payment.membershipName || "N/A"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    ₹{payment.amount}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {payment.paymentDate}
-                  </TableCell>
-                  {/* <TableCell className="text-center">{payment.time}</TableCell> */}
-                  <TableCell className="text-center">
-                    {payment.method}
+              {Array.isArray(payments) && payments.length > 0 ? (
+                payments.map((payment, index) => (
+                  <TableRow key={index} className="dark:bg-card dark:text-white">
+                    <TableCell
+                      className={cn(
+                        "sticky left-0 z-10 font-bold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] bg-card min-w-[150px] text-center",
+                      )}
+                    >
+                      {payment.memberName}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className="text-xs font-medium px-2 py-1 rounded bg-muted">
+                        {payment.membershipName || "N/A"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      ₹{payment.amount}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {payment.paymentDate}
+                    </TableCell>
+                    {/* <TableCell className="text-center">{payment.time}</TableCell> */}
+                    <TableCell className="text-center">
+                      {payment.method}
+                    </TableCell>
+                    {/* ACTION DROPDOWN */}
+                    <TableCell className="text-center">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-full"
+                          >
+                            <MoreVertical className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          className="w-40 rounded-xl"
+                        >
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedPayment(payment); // Set the payment to edit
+                              setOpenPayment(true); // Open the modal
+                            }}
+                            className="gap-2 cursor-pointer"
+                          >
+                            <Pencil className="size-4 text-blue-500" />
+                            <span>Update</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => deletePayment(payment)}
+                            className="gap-2 cursor-pointer text-white-600"
+                          >
+                            <Trash2 className="size-4 text-red-500" />
+                            <span>Delete</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                /* EMPTY STATE MESSAGE */
+                <TableRow>
+                  <TableCell colSpan={8} className="h-32 text-center">
+                    <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                      <p className="text-lg font-medium">No payments found</p>
+                      <p className="text-sm">
+                        Try adding a new payment or check your connection.
+                      </p>
+                    </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
 
               {/* Placeholder Rows to maintain fixed height */}
               {emptyRows > 0 &&

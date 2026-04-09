@@ -222,6 +222,7 @@ export default function AddMemberDialog({
       resetForm();
       setOpen(false);
       setLoading(false);
+      editingMember ? setEditingMember(null) : null; // Clear editing state after update
     }
   };
 
