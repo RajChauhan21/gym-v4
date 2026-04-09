@@ -171,6 +171,67 @@ export async function getRevenue(ownerId) {
   }
 }
 
+export async function getActiveMembers(ownerId) {
+  try {
+    const response = await constant.get("/member/getActiveMembers", {
+      params: {
+        o: ownerId,
+      },
+    });
+    console.log("Get active member Response:", response);
+    return response.data;
+  } catch (error) {
+    console.error("API Error in active member:", error.response || error);
+    return error.response;
+  }
+}
+
+export async function getMembersJoinedCurrentMonth(ownerId) {
+  try {
+    const response = await constant.get("/member/getMembersJoined", {
+      params: {
+        o: ownerId,
+      },
+    });
+    console.log("Get members joined this month Response:", response);
+    return response.data;
+  } catch (error) {
+    console.error("API Error in members joined this month:", error.response || error);
+    return error.response;
+  }
+}
+
+export async function getMembersExpiringSoon(ownerId) {
+  try {
+    const response = await constant.get("/member/getMembersExpiringSoon", {
+      params: {
+        o: ownerId,
+      },
+    });
+    console.log("Get members expiring soon Response:", response);
+    return response.data;
+  } catch (error) {
+    console.error("API Error in members expiring soon:", error.response || error);
+    return error.response;
+  }
+}
+//getAllStatsOfMember
+
+export async function getStatsOfMember(ownerId) {
+  try {
+    const response = await constant.get("/member/getAllStatsOfMember", {
+      params: {
+        o: ownerId,
+      },
+    });
+    console.log("Get all stats of member Response:", response);
+    return response;
+  } catch (error) {
+    console.error("API Error in all stats of member:", error.response || error);
+    return error.response;
+  }
+}
+
 export async function searchMembers(ownerId,query) {
   try {
     const response = await constant.get("/member/searchMembers", {

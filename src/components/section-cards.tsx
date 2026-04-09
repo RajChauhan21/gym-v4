@@ -10,16 +10,40 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { TrendingUpIcon, TrendingDownIcon } from "lucide-react";
-import { useProfile } from '../contexts/ProfileContext';
-import { login, getAllOwners, saveGym, loginByGoogle } from "../apis/backend_apis";
+import { useProfile } from "../contexts/ProfileContext";
+import {
+  login,
+  getAllOwners,
+  saveGym,
+  loginByGoogle,
+} from "../apis/backend_apis";
 import { useEffect, useState } from "react";
-import { getRevenue } from "../apis/backend_apis";
+import {
+  getRevenue,
+  getActiveMembers,
+  getMembersJoinedCurrentMonth,
+  getMembersExpiringSoon,
+  getStatsOfMember,
+} from "../apis/backend_apis";
+
+import { constant } from "../apis/constant";
 
 export function SectionCards({ members, payments }) {
-
   interface RevenueResponse {
     totalRevenue: number;
     currentMonthRevenue: number;
+    activeMembers: number;
+  }
+
+  interface RevenueStats {
+    totalRevenue: number;
+    lastMonthRevenue: number;
+    currentMonthRevenue: number;
+    activeMemberCount: number;
+    activeMembersThreeMonthsAgo: number;
+    newMembersThisMonth: number;
+    newMembersLastMonth: number;
+    expiringSoonCount: number;
   }
 
   function normalizeDate(date) {
@@ -30,7 +54,12 @@ export function SectionCards({ members, payments }) {
   const today = normalizeDate(new Date());
   const { profile } = useProfile();
   const [thisMonthRevenue, sethisMonthRevenue] = useState<number>(0);
-
+  const [activeMembersCount, setActiveMembersCount] = useState<number>(0);
+  const [newMembersCurrentMonth, setNewMembersCurrentMonth] =
+    useState<number>(0);
+  const [expiringMembersin7Days, setExpiringMembersin7Days] =
+    useState<number>(0);
+  const [stats, setStats] = useState<RevenueStats | null>(null);
   const startOfThisMonth = normalizeDate(
     new Date(today.getFullYear(), today.getMonth(), 1),
   );
@@ -40,6 +69,18 @@ export function SectionCards({ members, payments }) {
   const endOfLastMonth = normalizeDate(
     new Date(today.getFullYear(), today.getMonth(), 0),
   );
+
+  const getRevenueStats = async () => {
+    try {
+      // Replace with your actual endpoint
+      const response = await getStatsOfMember(profile.ownerId);
+      // Populate result into the interface-typed state
+      setStats(response.data);
+    } catch (error) {
+      console.error("Unable to fetch revenue stats", (error as Error).message);
+    } finally {
+    }
+  };
 
   const getRevenues = async (): Promise<void> => {
     try {
@@ -51,11 +92,45 @@ export function SectionCards({ members, payments }) {
     }
   };
 
+  const getActiveMembersCount = async (): Promise<void> => {
+    try {
+      if (!profile?.ownerId) return;
+      const response = await getActiveMembers(profile.ownerId);
+      setActiveMembersCount(response);
+    } catch (error) {
+      console.error("unable to fetch count", (error as Error).message);
+    }
+  };
+
+  const getMembersJoinedCurrentMonthCount = async (): Promise<void> => {
+    try {
+      if (!profile?.ownerId) return;
+      const response = await getMembersJoinedCurrentMonth(profile.ownerId);
+      setNewMembersCurrentMonth(response);
+    } catch (error) {
+      console.error("unable to fetch count", (error as Error).message);
+    }
+  };
+
+  const getMembersExpiringSoonCount = async (): Promise<void> => {
+    try {
+      if (!profile?.ownerId) return;
+      const response = await getMembersExpiringSoon(profile.ownerId);
+      setExpiringMembersin7Days(response);
+    } catch (error) {
+      console.error("unable to fetch count", (error as Error).message);
+    }
+  };
+
   useEffect(() => {
+    getRevenueStats();
     getRevenues();
-    // Dependency array: runs when component mounts 
+    getActiveMembersCount();
+    getMembersJoinedCurrentMonthCount();
+    getMembersExpiringSoonCount();
+    // Dependency array: runs when component mounts
     // or when ownerId changes (if it's not available immediately)
-  }, [profile?.ownerId]); 
+  }, [profile?.ownerId]);
 
   // ---------- REVENUE ----------
   // const thisMonthRevenue = payments
@@ -65,21 +140,21 @@ export function SectionCards({ members, payments }) {
   //   )
   //   .reduce((sum, p) => sum + p.amount, 0);
 
-  const lastMonthRevenue = payments
-    .filter(
-      (p) =>
-        normalizeDate(p.paymentDate) >= startOfLastMonth &&
-        normalizeDate(p.paymentDate) <= endOfLastMonth,
-    )
-    .reduce((sum, p) => sum + p.amount, 0);
+  // const lastMonthRevenue = payments
+  //   .filter(
+  //     (p) =>
+  //       normalizeDate(p.paymentDate) >= startOfLastMonth &&
+  //       normalizeDate(p.paymentDate) <= endOfLastMonth,
+  //   )
+  //   .reduce((sum, p) => sum + p.amount, 0);
 
   const revenueGrowth =
-    lastMonthRevenue === 0
+    stats?.lastMonthRevenue === 0
       ? 100
       : (
-        ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) *
-        100
-      ).toFixed(1);
+          ((stats?.currentMonthRevenue - stats?.lastMonthRevenue) / stats?.lastMonthRevenue) *
+          100
+        ).toFixed(1);
 
   // ---------- NEW MEMBERS ----------
   const newMembersThisMonth = members.filter(
@@ -93,14 +168,14 @@ export function SectionCards({ members, payments }) {
   ).length;
 
   const memberGrowth =
-    newMembersLastMonth === 0
+    stats?.newMembersLastMonth === 0
       ? 100
       : (
-        ((newMembersThisMonth - newMembersLastMonth) / newMembersLastMonth) *
-        100
-      ).toFixed(1);
+          ((stats?.newMembersThisMonth - stats?.newMembersLastMonth) / stats?.newMembersLastMonth) *
+          100
+        ).toFixed(1);
 
-  const difference = newMembersThisMonth - newMembersLastMonth;
+  const difference = stats?.newMembersThisMonth - stats?.newMembersLastMonth;
 
   // ---------- ACTIVE MEMBERS ----------
   const activeMembers = members.filter(
@@ -128,13 +203,13 @@ export function SectionCards({ members, payments }) {
   }).length;
 
   const activeGrowth =
-    activeMembers3MonthsAgo === 0
+    stats?.activeMembersThreeMonthsAgo === 0
       ? 100
       : (
-        ((activeMembers - activeMembers3MonthsAgo) /
-          activeMembers3MonthsAgo) *
-        100
-      ).toFixed(1);
+          ((activeMembers - stats?.activeMembersThreeMonthsAgo) /
+            stats?.activeMembersThreeMonthsAgo) *
+          100
+        ).toFixed(1);
 
   return (
     <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
@@ -165,10 +240,10 @@ export function SectionCards({ members, payments }) {
           <CardDescription>New Members (This Month)</CardDescription>
 
           <CardTitle className="text-3xl font-semibold">
-            {newMembersThisMonth}
+            {stats?.newMembersThisMonth}
           </CardTitle>
 
-          <CardAction >
+          <CardAction>
             {/* <Badge variant="outline" className="mb-1">
               {memberGrowth >= 0 ? <TrendingUpIcon /> : <TrendingDownIcon />}
               {memberGrowth}%
@@ -191,7 +266,7 @@ export function SectionCards({ members, payments }) {
           <CardDescription>Active Members</CardDescription>
 
           <CardTitle className="text-3xl font-semibold">
-            {activeMembers}
+            {stats?.activeMemberCount}
           </CardTitle>
 
           <CardAction>
@@ -213,7 +288,7 @@ export function SectionCards({ members, payments }) {
           <CardDescription>Expiring in 7 Days</CardDescription>
 
           <CardTitle className="text-3xl font-semibold">
-            {expiringSoon}
+            {stats?.expiringSoonCount}
           </CardTitle>
         </CardHeader>
 
