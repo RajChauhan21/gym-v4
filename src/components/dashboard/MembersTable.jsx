@@ -617,7 +617,7 @@ export default function MembersTable() {
                       ...prev,
                       fromDate: date ? format(date, "yyyy-MM-dd") : "",
                     }));
-                    setDateToOpen(false);
+                    setDateFromOpen(false);
                   }}
                   initialFocus
                 />

@@ -54,11 +54,6 @@ export function SectionCards({ members, payments }) {
   const today = normalizeDate(new Date());
   const { profile } = useProfile();
   const [thisMonthRevenue, sethisMonthRevenue] = useState<number>(0);
-  const [activeMembersCount, setActiveMembersCount] = useState<number>(0);
-  const [newMembersCurrentMonth, setNewMembersCurrentMonth] =
-    useState<number>(0);
-  const [expiringMembersin7Days, setExpiringMembersin7Days] =
-    useState<number>(0);
   const [stats, setStats] = useState<RevenueStats | null>(null);
   const startOfThisMonth = normalizeDate(
     new Date(today.getFullYear(), today.getMonth(), 1),
@@ -76,6 +71,7 @@ export function SectionCards({ members, payments }) {
       const response = await getStatsOfMember(profile.ownerId);
       // Populate result into the interface-typed state
       setStats(response.data);
+      console.log(stats.currentMonthRevenue);
     } catch (error) {
       console.error("Unable to fetch revenue stats", (error as Error).message);
     } finally {
@@ -124,12 +120,6 @@ export function SectionCards({ members, payments }) {
 
   useEffect(() => {
     getRevenueStats();
-    getRevenues();
-    getActiveMembersCount();
-    getMembersJoinedCurrentMonthCount();
-    getMembersExpiringSoonCount();
-    // Dependency array: runs when component mounts
-    // or when ownerId changes (if it's not available immediately)
   }, [profile?.ownerId]);
 
   // ---------- REVENUE ----------
@@ -218,7 +208,7 @@ export function SectionCards({ members, payments }) {
         <CardHeader>
           <CardDescription>Total Revenue (This Month)</CardDescription>
           <CardTitle className="text-3xl font-semibold">
-            ₹{thisMonthRevenue}
+            ₹{stats?.currentMonthRevenue?.toLocaleString()}
           </CardTitle>
 
           <CardAction>

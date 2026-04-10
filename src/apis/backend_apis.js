@@ -171,6 +171,22 @@ export async function getRevenue(ownerId) {
   }
 }
 
+export async function getRevenueOverview(ownerId,days) {
+  try {
+    const response = await constant.get("/pay/getRevenueChartDetails", {
+      params: {
+        q:ownerId,
+        d:days
+      },
+    });
+    console.log("Get revenue chart Response:", response);
+    return response;
+  } catch (error) {
+    console.error("API Error in revenue chart:", error.response || error);
+    return error.response;
+  }
+}
+
 export async function getActiveMembers(ownerId) {
   try {
     const response = await constant.get("/member/getActiveMembers", {
