@@ -66,7 +66,12 @@ export function MemberDetailsModal({ member, open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="md:max-w-md w-[92%]  rounded-2xl p-0 overflow-hidden border-none shadow-2xl bg-card">
+      <DialogContent
+        className="md:max-w-md w-[92%]  rounded-2xl p-0 overflow-hidden border-none shadow-2xl bg-card"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         {/* Profile Header */}
         <div className="bg-primary/5 p-6 border-b">
           <div className="flex items-center gap-4">

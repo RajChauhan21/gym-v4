@@ -14,6 +14,7 @@ import {
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,7 +31,7 @@ import AddMemberDialog from "./AddMemberDialog";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Pagination,
   PaginationContent,
@@ -67,7 +68,12 @@ import { Search, SlidersHorizontal, X } from "lucide-react";
 import { useGymStore } from "../../store/gymStore";
 import { MemberDetailsModal } from "./MemberDetailsModal";
 import { useProfile } from "../../contexts/ProfileContext";
-import { deleteMemberById, getAllDuesOfMembers, getAllMembers, getAllMembersCount } from "../../apis/backend_apis";
+import {
+  deleteMemberById,
+  getAllDuesOfMembers,
+  getAllMembers,
+  getAllMembersCount,
+} from "../../apis/backend_apis";
 import { toast } from "sonner";
 export default function MembersTable() {
   const [currentPage, setCurrentPage] = useState(0); // backend uses 0-based
@@ -104,20 +110,21 @@ export default function MembersTable() {
       const response = await getAllDuesOfMembers(profile.ownerId);
       setTotalDues(response);
     } catch (error) {
-      console.error("failed to get dues", error)
+      console.error("failed to get dues", error);
     }
-  }
+  };
 
   const getAllCount = async () => {
     try {
       const response = await getAllMembersCount(profile.ownerId);
       setTotalCount(response);
     } catch (error) {
-      console.error("failed to get count", error)
+      console.error("failed to get count", error);
     }
-  }
+  };
 
   const fetchAndPopulate = async (retries = 3) => {
+    setLoading(true);
     const apiFilters = {
       name: filters.name || null,
       dueAmount: filters.dueAmount || null,
@@ -125,7 +132,7 @@ export default function MembersTable() {
       joinedTo: dateType === "joined" ? filters.toDate : null,
       expiryFrom: dateType === "expiry" ? filters.fromDate : null,
       expiryTo: dateType === "expiry" ? filters.toDate : null,
-      plan: filters.plan
+      plan: filters.plan,
     };
     try {
       const response = await getAllMembers(
@@ -156,22 +163,21 @@ export default function MembersTable() {
     } catch (err) {
       // If it's a rate limit (429) and we have retries left
       if (err.response?.status === 429 && retries > 0) {
-        toast.error(
-          `Rate limited. Retrying in 2 seconds... (${retries} left)`,
-        );
+        toast.error(`Rate limited. Retrying in 2 seconds... (${retries} left)`);
         setTimeout(() => fetchAndPopulate(retries - 1), 2000);
       } else {
         setMembers([]); // Give up and set empty to stop the crash
       }
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     getAllCount();
-  }, [])
+  }, []);
 
   useEffect(() => {
-
     fetchAndPopulate();
     fetchPlans();
     // Empty array [] ensures this runs exactly once on mount
@@ -194,6 +200,9 @@ export default function MembersTable() {
   const members = useGymStore((state) => state.members);
   const plans = useGymStore((state) => state.plans);
   const setMembers = useGymStore((state) => state.setMembers);
+  const [totalMemberLoading, setTotalMemberLoading] = useState(false);
+  const [pendingDuesLoading, setPendingDuesLoading] = useState(false);
+  const [totalDueAmountLoading, setTotalDueAmountLoading] = useState(false);
   // setMembers(membersObject);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const totalMembers = totalCount;
@@ -204,12 +213,16 @@ export default function MembersTable() {
   const [viewingMember, setViewingMember] = useState(null);
   const fetchPlans = useGymStore((state) => state.fetchPlans);
 
-  const safeTotal = totalElements || 0;
-  const safeSize = pageSize || 10;
-  const safePage = currentPage || 0;
+  // const displayStart = safeTotal === 0 ? 0 : safePage * safeSize + 1;
+  // const displayEnd = Math.min((safePage + 1) * safeSize, safeTotal);
 
-  const displayStart = safeTotal === 0 ? 0 : safePage * safeSize + 1;
-  const displayEnd = Math.min((safePage + 1) * safeSize, safeTotal);
+  const safeTotalPages = totalPages === 0 ? 1 : totalPages;
+  const displayStart = totalElements === 0 ? 0 : currentPage * pageSize + 1;
+
+  const displayEnd =
+    totalElements === 0
+      ? 0
+      : Math.min((currentPage + 1) * pageSize, totalElements);
 
   const resetFilters = () => {
     setFilterPlan("");
@@ -254,23 +267,20 @@ export default function MembersTable() {
     return "Active";
   }
 
-  function getExpiryColor(expiryDate) {
+  function getExpiryBg(expiryDate) {
     const today = new Date();
     const expiry = new Date(expiryDate);
-
     today.setHours(0, 0, 0, 0);
     expiry.setHours(0, 0, 0, 0);
 
     const diffDays = (expiry - today) / (1000 * 60 * 60 * 24);
 
-    if (diffDays < 0) return "text-red-500";
-    if (diffDays === 0) return "text-orange-500 font-semibold";
-    if (diffDays <= 7) return "text-yellow-500";
-    return "text-blue-500";
+    // Constant backgrounds: Red for expired/today, Blue for future
+    if (diffDays <= 0) return "bg-red-500";
+    return "bg-blue-500";
   }
 
   const [loading, setLoading] = useState(true);
-
 
   const handleSort = (columnName) => {
     if (sortBy === columnName) {
@@ -301,9 +311,9 @@ export default function MembersTable() {
     setTimeout(() => setLoading(false), 1200);
   }, []);
 
-  if (loading) {
-    return <Loader text="Loading Members...." />;
-  }
+  // if (loading) {
+  //   return <Loader text="Loading Members...." />;
+  // }
 
   return (
     <div className="p-3">
@@ -322,14 +332,16 @@ export default function MembersTable() {
           <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">
             Total Members
           </p>
-          <p className="text-2xl font-bold dark:text-white">{totalMembers}</p>
+          <p className="text-2xl font-bold dark:text-white">
+            {loading ? <Skeleton className="h-6 w-16 bg-slate-200 dark:bg-slate-800 rounded" /> : totalMembers}
+          </p>
         </div>
         <div className="p-4 rounded-2xl bg-card border shadow-sm">
           <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">
             Pending Dues
           </p>
           <p className="text-2xl font-bold text-orange-500">
-            {pendingPayments}
+            {loading ? <Skeleton className="h-6 w-16 bg-slate-200 dark:bg-slate-800 rounded" /> : pendingPayments}
           </p>
         </div>
         <div className="p-4 rounded-2xl bg-card border shadow-sm col-span-2 md:col-span-1">
@@ -337,7 +349,11 @@ export default function MembersTable() {
             Total Due Amount
           </p>
           <p className="text-2xl font-bold text-red-500">
-            ₹{(Number(totalDues) || 0).toLocaleString('en-IN')}
+            {loading ? (
+              <Skeleton className="h-6 w-16 bg-slate-200 dark:bg-slate-800 rounded" />
+            ) : (
+              <span>₹{(Number(totalDues) || 0).toLocaleString("en-IN")}</span>
+            )}
           </p>
         </div>
       </div>
@@ -396,27 +412,37 @@ export default function MembersTable() {
             {/* 4. Date Range */}
             {/* <div className="grid grid-cols-2 gap-4"> */}
             <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase text-muted-foreground">From</Label>
-              <Popover> {/* Changed Dialog to Popover */}
+              <Label className="text-xs font-bold uppercase text-muted-foreground">
+                From
+              </Label>
+              <Popover>
+                {" "}
+                {/* Changed Dialog to Popover */}
                 <PopoverTrigger asChild>
                   <Button
                     variant={"outline"}
                     className={cn(
                       "w-full justify-start text-left font-normal px-3",
-                      !filters.fromDate && "text-muted-foreground"
+                      !filters.fromDate && "text-muted-foreground",
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
                     <span className="truncate">
-                      {filters.fromDate ? format(parseISO(filters.fromDate), "PPP") : "Pick a date"}
+                      {filters.fromDate
+                        ? format(parseISO(filters.fromDate), "PPP")
+                        : "Pick a date"}
                     </span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    defaultMonth={filters.fromDate ? parseISO(filters.fromDate) : new Date()}
-                    selected={filters.fromDate ? parseISO(filters.fromDate) : undefined}
+                    defaultMonth={
+                      filters.fromDate ? parseISO(filters.fromDate) : new Date()
+                    }
+                    selected={
+                      filters.fromDate ? parseISO(filters.fromDate) : undefined
+                    }
                     onSelect={(date) => {
                       setFilters((prev) => ({
                         ...prev,
@@ -430,27 +456,37 @@ export default function MembersTable() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase text-muted-foreground">To</Label>
-              <Popover> {/* Changed Dialog to Popover */}
+              <Label className="text-xs font-bold uppercase text-muted-foreground">
+                To
+              </Label>
+              <Popover>
+                {" "}
+                {/* Changed Dialog to Popover */}
                 <PopoverTrigger asChild>
                   <Button
                     variant={"outline"}
                     className={cn(
                       "w-full justify-start text-left font-normal px-3",
-                      !filters.toDate && "text-muted-foreground"
+                      !filters.toDate && "text-muted-foreground",
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
                     <span className="truncate">
-                      {filters.toDate ? format(parseISO(filters.toDate), "PPP") : "Pick a date"}
+                      {filters.toDate
+                        ? format(parseISO(filters.toDate), "PPP")
+                        : "Pick a date"}
                     </span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    defaultMonth={filters.toDate ? parseISO(filters.toDate) : new Date()}
-                    selected={filters.toDate ? parseISO(filters.toDate) : undefined}
+                    defaultMonth={
+                      filters.toDate ? parseISO(filters.toDate) : new Date()
+                    }
+                    selected={
+                      filters.toDate ? parseISO(filters.toDate) : undefined
+                    }
                     onSelect={(date) => {
                       setFilters((prev) => ({
                         ...prev,
@@ -482,7 +518,9 @@ export default function MembersTable() {
                 <SelectContent>
                   <SelectItem value="all">All Plans</SelectItem>
                   {plans.map((plan, idx) => (
-                    <SelectItem key={idx} value={plan.name}> {/* Match the plan name */}
+                    <SelectItem key={idx} value={plan.name}>
+                      {" "}
+                      {/* Match the plan name */}
                       {plan.name}
                     </SelectItem>
                   ))}
@@ -492,12 +530,6 @@ export default function MembersTable() {
           </div>
 
           <DialogFooter>
-            {/* <Button
-              onClick={() => setIsFilterOpen(false)}
-              className="w-full rounded-full"
-            >
-              Apply Filters
-            </Button> */}
             <Button onClick={resetFilters} className="w-full rounded-full">
               Clear Filters
             </Button>
@@ -583,7 +615,7 @@ export default function MembersTable() {
           {/* 5. Date From */}
 
           <div className="space-y-1.5">
-            <Label>Date from</Label>
+            <Label className="text-xs font-bold uppercase text-muted-foreground">Date From</Label>
             <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -611,7 +643,9 @@ export default function MembersTable() {
                   selected={
                     filters.fromDate ? parseISO(filters.fromDate) : undefined
                   }
-                  defaultMonth={filters.fromDate ? parseISO(filters.fromDate) : new Date()}
+                  defaultMonth={
+                    filters.fromDate ? parseISO(filters.fromDate) : new Date()
+                  }
                   onSelect={(date) => {
                     setFilters((prev) => ({
                       ...prev,
@@ -627,7 +661,7 @@ export default function MembersTable() {
 
           {/* 6. Date To */}
           <div className="space-y-1.5">
-            <Label>Date to</Label>
+            <Label className="text-xs font-bold uppercase text-muted-foreground">Date To</Label>
             <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -655,7 +689,9 @@ export default function MembersTable() {
                   selected={
                     filters.toDate ? parseISO(filters.toDate) : undefined
                   }
-                  defaultMonth={filters.toDate ? parseISO(filters.toDate) : new Date()}
+                  defaultMonth={
+                    filters.toDate ? parseISO(filters.toDate) : new Date()
+                  }
                   onSelect={(date) => {
                     setFilters((prev) => ({
                       ...prev,
@@ -681,14 +717,14 @@ export default function MembersTable() {
       </Card>
 
       <div className="bg-card text-card-foreground rounded-xl shadow border dark:border-gray-800 p-3 md:p-8">
-        <div className="overflow-auto h-[450px]">
+        <div className="overflow-auto h-[450px] no-scrollbar">
           <Table>
             <TableHeader className="sticky top-0 z-40 bg-card backdrop-blur-md">
               <TableRow className="hover:bg-transparent">
                 {/* STICKY NAME HEADER */}
                 <TableHead
                   onClick={() => handleSort("name")}
-                  className="sticky left-0 top-0 z-50 bg-card min-w-[150px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] cursor-pointer dark:text-gray-500 text-left pl-6"
+                  className="sticky left-0 top-0 z-40 bg-card min-w-[150px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] cursor-pointer dark:text-gray-500 text-left pl-4"
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-sm tracking-wider">Name</span>
@@ -733,7 +769,23 @@ export default function MembersTable() {
             </TableHeader>
 
             <TableBody>
-              {Array.isArray(members) && members.length > 0 ? (
+              {loading ? (
+                /* LOADING STATE: Skeleton Rows */
+                Array.from({ length: 10 }).map((_, i) => (
+                  <TableRow key={i}>
+                    {/* Skeleton for Sticky Name */}
+                    <TableCell className="sticky left-0 bg-card pl-6">
+                      <Skeleton className="h-4 bg-slate-200 dark:bg-slate-800 rounded" />
+                    </TableCell>
+                    {/* Skeletons for other 7 columns */}
+                    {Array.from({ length: 7 }).map((_, j) => (
+                      <TableCell key={j}>
+                        <Skeleton className="mx-auto h-4 bg-slate-200 dark:bg-slate-800 rounded" />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : Array.isArray(members) && members.length > 0 ? (
                 members.map((member, index) => (
                   <TableRow
                     key={index}
@@ -751,9 +803,11 @@ export default function MembersTable() {
                       {member.phone}
                     </TableCell>
                     <TableCell className="text-center">
-                      <span className="text-xs font-medium px-2 py-1 rounded bg-muted">
-                        {member.plan || "N/A"}
-                      </span>
+                      <div className="inline-flex w-18 h-6 items-center justify-center rounded-md bg-black dark:bg-white px-2 shadow-sm">
+                        <span className="block w-full text-center truncate text-xs font-medium text-white dark:text-black">
+                          {member.plan || "N/A"}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-center text-muted-foreground whitespace-nowrap">
                       {member.joined}
@@ -765,9 +819,16 @@ export default function MembersTable() {
                       ₹{member.dueAmount}
                     </TableCell>
                     <TableCell className="text-center">
-                      <span className={getExpiryColor(member.expiry)}>
+                      {/* <span className={getExpiryColor(member.expiry)}>
                         {getExpiryText(member.expiry)}
-                      </span>
+                      </span> */}
+                      <div
+                        className={`inline-flex w-24 h-6 items-center justify-center rounded-md px-2 shadow-sm ${getExpiryBg(member.expiry)}`}
+                      >
+                        <span className="block w-full text-center truncate text-[10px] font-bold text-white dark:text-black uppercase">
+                          {getExpiryText(member.expiry)}
+                        </span>
+                      </div>
                     </TableCell>
 
                     {/* ACTION DROPDOWN */}
@@ -843,7 +904,7 @@ export default function MembersTable() {
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-4">
         {/* Left Side: Info Text */}
         <p className="text-sm text-muted-foreground order-2 sm:order-1">
-          Showing {totalElements > 0 ? displayStart : 0} to {displayEnd} of{" "}
+          Showing {totalElements === 0 ? 0 : displayStart} to {displayEnd} of{" "}
           {totalElements} members
         </p>
 
@@ -860,7 +921,7 @@ export default function MembersTable() {
                   href="#"
                   onClick={(e) => {
                     e.preventDefault();
-                    if (currentPage > 0) setCurrentPage(currentPage - 1);
+                    if (currentPage > 0) setCurrentPage((v) => v - 1);
                   }}
                   className={
                     currentPage === 0
@@ -872,7 +933,9 @@ export default function MembersTable() {
               <PaginationItem>
                 {/* Using a span instead of PaginationLink to prevent "button-like" hover styles on text */}
                 <span className="flex h-9 items-center justify-center px-3 text-sm whitespace-nowrap">
-                  Page {(currentPage || 0) + 1} of {totalPages || 0}
+                  {/* Page {(currentPage || 0) + 1} of {totalPages || 0} */}
+                  Page {totalElements === 0 ? 0 : currentPage + 1} of{" "}
+                  {safeTotalPages}
                 </span>
               </PaginationItem>
               <PaginationItem>
@@ -880,11 +943,11 @@ export default function MembersTable() {
                   href="#"
                   onClick={(e) => {
                     e.preventDefault();
-                    if (currentPage < totalPages)
-                      setCurrentPage(currentPage + 1);
+                    if (currentPage < totalPages - 1)
+                      setCurrentPage((v) => v + 1);
                   }}
                   className={
-                    currentPage === totalPages - 1
+                    currentPage >= totalPages - 1 || totalElements === 0
                       ? "pointer-events-none opacity-50"
                       : "cursor-pointer"
                   }

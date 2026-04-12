@@ -19,19 +19,23 @@ export function DeleteModal({ onConfirm, itemName }) {
           <Trash2 className="w-4 h-4" />
         </button>
       </AlertDialogTrigger>
-      
-      <AlertDialogContent>
+
+      <AlertDialogContent
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <AlertDialogHeader>
           <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
           <AlertDialogDescription>
-            This will permanently delete <strong>{itemName}</strong>. 
-            This action cannot be undone and will remove all associated data.
+            This will permanently delete <strong>{itemName}</strong>. This
+            action cannot be undone and will remove all associated data.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        
+
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction 
+          <AlertDialogAction
             onClick={onConfirm}
             className="bg-red-600 hover:bg-red-700"
           >

@@ -11,7 +11,12 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
-export default function EditPaymentModal({ open, setOpen, payments, setPayments }) {
+export default function EditPaymentModal({
+  open,
+  setOpen,
+  payments,
+  setPayments,
+}) {
   const [form, setForm] = useState(payments);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -74,7 +79,12 @@ export default function EditPaymentModal({ open, setOpen, payments, setPayments 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {/* Removed fixed height h-[520px] to kill the gap */}
-      <DialogContent className="w-[95%] max-w-md max-h-[90vh] flex flex-col rounded-2xl p-0 overflow-hidden">
+      <DialogContent
+        className="w-[95%] max-w-md max-h-[90vh] flex flex-col rounded-2xl p-0 overflow-hidden"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader className="p-6 pb-2">
           <DialogTitle>Update Payment Details</DialogTitle>
         </DialogHeader>
@@ -90,8 +100,11 @@ export default function EditPaymentModal({ open, setOpen, payments, setPayments 
               className={errors.upiId ? "border-red-500" : ""}
             />
             <div className="h-3">
-              {errors.upiId && <p className="text-red-500 text-[11px] font-medium">{errors.upiId}</p>
-              }
+              {errors.upiId && (
+                <p className="text-red-500 text-[11px] font-medium">
+                  {errors.upiId}
+                </p>
+              )}
             </div>
           </div>
 
@@ -101,11 +114,17 @@ export default function EditPaymentModal({ open, setOpen, payments, setPayments 
               id="acc"
               placeholder="Enter 9-18 digits"
               value={form.bankAccount}
-              onChange={(e) => setForm({ ...form, bankAccount: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, bankAccount: e.target.value })
+              }
               className={errors.bankAccount ? "border-red-500" : ""}
             />
             <div className="h-3">
-              {errors.bankAccount && <p className="text-red-500 text-[11px] font-medium">{errors.bankAccount}</p>}
+              {errors.bankAccount && (
+                <p className="text-red-500 text-[11px] font-medium">
+                  {errors.bankAccount}
+                </p>
+              )}
             </div>
           </div>
 
@@ -116,10 +135,16 @@ export default function EditPaymentModal({ open, setOpen, payments, setPayments 
               placeholder="SBIN0001234"
               className={`uppercase ${errors.ifscCode ? "border-red-500" : ""}`}
               value={form.ifscCode}
-              onChange={(e) => setForm({ ...form, ifscCode: e.target.value.toUpperCase() })}
+              onChange={(e) =>
+                setForm({ ...form, ifscCode: e.target.value.toUpperCase() })
+              }
             />
             <div className="h-3">
-              {errors.ifscCode && <p className="text-red-500 text-[11px] font-medium">{errors.ifscCode}</p>}
+              {errors.ifscCode && (
+                <p className="text-red-500 text-[11px] font-medium">
+                  {errors.ifscCode}
+                </p>
+              )}
             </div>
           </div>
 
@@ -133,7 +158,11 @@ export default function EditPaymentModal({ open, setOpen, payments, setPayments 
               className={errors.holderName ? "border-red-500" : ""}
             />
             <div className="h-3">
-              {errors.holderName && <p className="text-red-500 text-[11px] font-medium">{errors.holderName}</p>}
+              {errors.holderName && (
+                <p className="text-red-500 text-[11px] font-medium">
+                  {errors.holderName}
+                </p>
+              )}
             </div>
           </div>
         </div>

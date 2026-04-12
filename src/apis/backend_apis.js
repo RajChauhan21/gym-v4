@@ -248,6 +248,36 @@ export async function getStatsOfMember(ownerId) {
   }
 }
 
+export async function getLatestMemberExpiry(ownerId) {
+  try {
+    const response = await constant.get("/member/getLatestMemberExpiry", {
+      params: {
+        o: ownerId,
+      },
+    });
+    console.log("Get latest member expiry Response:", response);
+    return response;
+  } catch (error) {
+    console.error("API Error latest member expiry:", error.response || error);
+    return error.response;
+  }
+}
+
+export async function getRecentPaymentByMember(ownerId) {
+  try {
+    const response = await constant.get("/pay/getRecentPayments", {
+      params: {
+        q: ownerId,
+      },
+    });
+    console.log("Get recent payment Response:", response);
+    return response;
+  } catch (error) {
+    console.error("API Error in  recent payment:", error.response || error);
+    return error.response;
+  }
+}
+
 export async function searchMembers(ownerId,query) {
   try {
     const response = await constant.get("/member/searchMembers", {

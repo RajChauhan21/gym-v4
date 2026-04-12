@@ -65,7 +65,6 @@ export function AppSidebar() {
 
   const { logout } = useAuth();
 
-
   return (
     <Sidebar variant="inset" collapsible="icon" className="md:w-60 w-[240px]">
       <SidebarHeader className="h-13 border-b flex justify-center px-4">
@@ -103,6 +102,11 @@ export function AppSidebar() {
                     asChild
                     isActive={location.pathname === item.url}
                     tooltip={item.title}
+                    className="
+    data-[active=true]:bg-black data-[active=true]:text-white 
+    dark:data-[active=true]:bg-white dark:data-[active=true]:text-black
+    transition-colors
+  "
                   >
                     <Link to={item.url} onClick={() => setOpenMobile(false)}>
                       <item.icon />
@@ -127,14 +131,26 @@ export function AppSidebar() {
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
                   <Avatar className="h-8 w-8 rounded-lg">
-                    <AvatarImage src={profile.ownerLogo} alt="Rahul" referrerPolicy={profile.ownerLogo?.includes("google") ? "no-referrer" : "strict-origin-when-cross-origin"} />
+                    <AvatarImage
+                      src={profile.ownerLogo}
+                      alt="Rahul"
+                      referrerPolicy={
+                        profile.ownerLogo?.includes("google")
+                          ? "no-referrer"
+                          : "strict-origin-when-cross-origin"
+                      }
+                    />
                     <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">
                       {getInitials(profile.owner)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
-                    <span className="truncate font-semibold">{profile.owner}</span>
-                    <span className="truncate text-xs opacity-60">Admin Area</span>
+                    <span className="truncate font-semibold">
+                      {profile.owner}
+                    </span>
+                    <span className="truncate text-xs opacity-60">
+                      Admin Area
+                    </span>
                   </div>
                   <ChevronsUpDown className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
                 </SidebarMenuButton>
@@ -148,13 +164,16 @@ export function AppSidebar() {
                   align="end"
                   sideOffset={8} // Slightly more gap to clear the sidebar edge
                 >
-
                   {/* Edit Profile Link */}
-                  <DropdownMenuItem asChild className="cursor-pointer" onSelect={() => handleMobileClose()}>
+                  <DropdownMenuItem
+                    asChild
+                    className="cursor-pointer"
+                    onSelect={() => handleMobileClose()}
+                  >
                     <Link
                       to="/settings"
                       className="flex items-center gap-2 w-full"
-                    // onClick={handleMobileClose}
+                      // onClick={handleMobileClose}
                     >
                       <UserPen className="size-4" />
                       <span>Edit Profile</span>
@@ -164,11 +183,14 @@ export function AppSidebar() {
                   <DropdownMenuSeparator />
 
                   {/* Logout Button */}
-                  <DropdownMenuItem onSelect={(e) => {
-                    e.preventDefault(); // Prevents the menu from closing before logic runs if needed
-                    logout();
-                    handleMobileClose();
-                  }} className="text-red-500 cursor-pointer focus:bg-red-50 dark:focus:bg-red-950">
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault(); // Prevents the menu from closing before logic runs if needed
+                      logout();
+                      handleMobileClose();
+                    }}
+                    className="text-red-500 cursor-pointer focus:bg-red-50 dark:focus:bg-red-950"
+                  >
                     <LogOut className="size-4" />
                     <span>Log out</span>
                   </DropdownMenuItem>

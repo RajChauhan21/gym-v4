@@ -136,6 +136,8 @@ export default function AddMemberDialog({
       newErrors.name = "member name required";
     } else if (!textRegex.test(form.name)) {
       newErrors.name = "Member name should only contain letters";
+    } else if (form.name.trim().length > 10) {
+      newErrors.name = "Maximum 10 letters allowed";
     }
 
     // Address: Allows letters, numbers, spaces, and common separators (/, #, -)
@@ -209,7 +211,7 @@ export default function AddMemberDialog({
             ? "Member updated successfully."
             : "Member added successfully.",
         );
-       await fetchMembers(profile.ownerId);
+        await fetchMembers(profile.ownerId);
       } else if (response.status === 404) {
         toast.error(
           response.data.message ||
@@ -243,7 +245,12 @@ export default function AddMemberDialog({
       </DialogTrigger>
 
       {/* Fixed height changed to max-height + overflow-hidden */}
-      <DialogContent className="w-[90%] max-w-md max-h-[600px] rounded-2xl p-0 shadow-xl flex flex-col overflow-hidden">
+      <DialogContent
+        className="w-[90%] max-w-md max-h-[600px] rounded-2xl p-0 shadow-xl flex flex-col overflow-hidden no-scrollbar"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         {/* Header: shrink-0 keeps it from squishing */}
         <DialogHeader className="p-6 border-b shrink-0">
           <DialogTitle>
@@ -260,7 +267,7 @@ export default function AddMemberDialog({
         </DialogHeader>
 
         {/* Body: Scrollable only when content exceeds max-height */}
-        <div className="overflow-y-auto p-6 space-y-4">
+        <div className="overflow-y-auto p-6 space-y-4 no-scrollbar">
           <div>
             <Label className="mb-1 block">Name</Label>
             <Input

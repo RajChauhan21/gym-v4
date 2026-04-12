@@ -45,8 +45,11 @@ export default function AddPlanModal({
 
   const validate = () => {
     const newErrors = {};
-    if (!form.name || !/^[A-Za-z\s]+$/.test(form.name))
+    if (!form.name || !/^[A-Za-z\s]+$/.test(form.name)) {
       newErrors.name = "Only letters allowed";
+    } else if (form.name.trim().length > 10) {
+      newErrors.name = "Maximum 10 letters allowed";
+    }
     if (!form.validity || isNaN(form.validity))
       newErrors.validity = "Enter a valid number";
     if (!form.price || isNaN(form.price))
@@ -119,7 +122,12 @@ export default function AddPlanModal({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="w-[90%] max-w-md rounded-2xl p-0 shadow-xl flex flex-col h-[480px]">
+      <DialogContent
+        className="w-[90%] max-w-md rounded-2xl p-0 shadow-xl flex flex-col h-[480px]"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader className="p-6 border-b">
           <DialogTitle>{editPlan ? "Edit Plan" : "Add New Plan"}</DialogTitle>
           <DialogPrimitive.Close

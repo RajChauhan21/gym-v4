@@ -6,7 +6,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowUpDown, ArrowUp, ArrowDown, Wallet, CalendarDays } from "lucide-react";
+import {
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Wallet,
+  CalendarDays,
+} from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -38,11 +44,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import {
-  X, MoreVertical, Pencil,
-  Trash2,
-  MessageCircle,
-} from "lucide-react";
+import { X, MoreVertical, Pencil, Trash2, MessageCircle } from "lucide-react";
 import {
   Select,
   SelectTrigger,
@@ -69,6 +71,8 @@ import {
   savePayment,
   searchMembers,
 } from "../../apis/backend_apis";
+import { Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Command,
   CommandEmpty,
@@ -89,6 +93,8 @@ import { useProfile } from "../../contexts/ProfileContext";
 export default function PaymentsTable() {
   const [currentPage, setCurrentPage] = useState(0); // backend uses 0-based
   const [memberOpen, setMemberOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loadingPayment, setLoadingPayment] = useState(false);
   const [totalPages, setTotalPages] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const payments = useGymStore((state) => state.payments) ?? [];
@@ -131,7 +137,7 @@ export default function PaymentsTable() {
     } catch (error) {
       console.error("unable to fetch revenue", error);
     }
-  }
+  };
 
   const deletePayment = async (payment) => {
     try {
@@ -139,14 +145,13 @@ export default function PaymentsTable() {
       if (response.status === 202) {
         toast.success("Payment deleted successfully");
         fetchPayments();
-      }
-      else {
-        toast.error('Failed to delete payment');
+      } else {
+        toast.error("Failed to delete payment");
       }
     } catch (error) {
       console.error("Failed to delete payment, error");
     }
-  }
+  };
 
   const searchAllMembers = async () => {
     try {
@@ -157,7 +162,11 @@ export default function PaymentsTable() {
     }
   };
   async function fetchPayments() {
-    if (!profile?.ownerId) return;
+    setLoading(true);
+    if (!profile?.ownerId) {
+      setLoading(false);
+      return;
+    }
     if (filters.method === "all") {
       filters.method = "";
     }
@@ -171,8 +180,8 @@ export default function PaymentsTable() {
         filters,
       );
       setPayments(response.data.content);
-      setTotalPages(response.data.page.totalPages);
-      setTotalElements(response.data.page.totalElements);
+      setTotalPages(response?.data?.page?.totalPages ?? 0);
+      setTotalElements(response?.data?.page?.totalElements ?? 0);
       setPageSize(response.data.page.size);
       if (
         currentPage >= response.data.totalPages &&
@@ -180,7 +189,7 @@ export default function PaymentsTable() {
       ) {
         setCurrentPage(0);
       } else {
-        setCurrentPage(response.data.page.number);
+        setCurrentPage(response?.data?.page?.number ?? 0);
       }
       console.log(currentPage);
       console.log({
@@ -192,6 +201,8 @@ export default function PaymentsTable() {
       getRevenues();
     } catch (error) {
       console.log(error);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -206,8 +217,6 @@ export default function PaymentsTable() {
   }, [query]);
 
   useEffect(() => {
-
-
     fetchPlans();
     fetchPayments();
   }, [currentPage, pageSize, sortBy, sortDir, profile?.ownerId, filters]);
@@ -215,18 +224,21 @@ export default function PaymentsTable() {
   {
     /* Calculate values with safe fallbacks */
   }
-  const safeTotal = totalElements || 0;
-  const safeSize = pageSize || 10;
-  const safePage = currentPage || 0;
+  // const displayStart = safeTotal === 0 ? 0 : safePage * safeSize + 1;
+  // const displayEnd = Math.min((safePage + 1) * safeSize, safeTotal);
 
-  const displayStart = safeTotal === 0 ? 0 : safePage * safeSize + 1;
-  const displayEnd = Math.min((safePage + 1) * safeSize, safeTotal);
+  const safeTotalPages = totalPages === 0 ? 1 : totalPages;
+  const displayStart = totalElements === 0 ? 0 : currentPage * pageSize + 1;
+
+  const displayEnd =
+    totalElements === 0
+      ? 0
+      : Math.min((currentPage + 1) * pageSize, totalElements);
 
   // To keep height fixed, calculate how many empty rows to fill
   const emptyRows = pageSize - payments.length;
 
   const resetFilters = () => {
-
     setFilters({
       name: "",
       amount: "",
@@ -255,7 +267,6 @@ export default function PaymentsTable() {
     }
   }, [selectedPayment]);
 
-  const [loading, setLoading] = useState(true);
   const [openPayment, setOpenPayment] = useState(false);
   const [newPayment, setNewPayment] = useState({
     name: undefined,
@@ -279,7 +290,6 @@ export default function PaymentsTable() {
       newErrors.amount = "Amount required";
     }
 
-
     if (!newPayment.method.trim()) {
       newErrors.method = "Method required";
     }
@@ -291,10 +301,11 @@ export default function PaymentsTable() {
   };
 
   const handleAddPayment = async () => {
+    setLoadingPayment(true);
     const validation = validate();
     if (Object.keys(validation).length > 0) {
       setErrors(validation);
-      setLoading(false);
+      setLoadingPayment(false);
       return;
     }
 
@@ -304,19 +315,22 @@ export default function PaymentsTable() {
         amountPaid: Number(newPayment.amount),
         date: newPayment.date,
         method: newPayment.method,
-        memberId: selectedPayment ? selectedPayment.memberId : members.find((m) => m.fullName === newPayment.name)?.memberId,
-      }
+        memberId: selectedPayment
+          ? selectedPayment.memberId
+          : members.find((m) => m.fullName === newPayment.name)?.memberId,
+      };
       const response = await savePayment(paymentObject);
       if (response.status === 202) {
         toast.success("Payement recorded successfully");
         fetchPayments();
-      }
-      else {
+      } else {
         toast.error("Failed to record payment");
       }
     } catch (error) {
       toast.error("Failed to record payment");
       console.error("Error saving payment", error);
+    } finally {
+      setLoadingPayment(false);
     }
 
     selectedPayment ? setSelectedPayment(null) : null; // Clear selected payment after edit or add
@@ -334,7 +348,6 @@ export default function PaymentsTable() {
     });
 
     setErrors({});
-
   };
 
   const resetForm = () => {
@@ -366,14 +379,15 @@ export default function PaymentsTable() {
     setTimeout(() => setLoading(false), 1200);
   }, []);
 
-  if (loading) {
-    return <Loader text="Loading Payments...." />;
-  }
+  // if (loading) {
+  //   return <Loader text="Loading Payments...." />;
+  // }
 
   return (
     <div className="p-3">
       <h2 className="text-xl font-semibold mb-4 dark:text-white">Payments</h2>
       <div className="flex items-center justify-between mb-4">
+        {/* Add payment dialog */}
         <Dialog
           open={openPayment}
           onOpenChange={(openPayment) => {
@@ -385,9 +399,16 @@ export default function PaymentsTable() {
             <Button className="rounded-md flex gap-2">+ Record Payment</Button>
           </DialogTrigger>
 
-          <DialogContent className="max-w-md">
+          <DialogContent
+            className="max-w-md"
+            onPointerDownOutside={(e) => e.preventDefault()}
+            onInteractOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => e.preventDefault()}
+          >
             <DialogHeader>
-              <DialogTitle>{selectedPayment ? "Edit Payment" : "Add Payment"}</DialogTitle>
+              <DialogTitle>
+                {selectedPayment ? "Edit Payment" : "Add Payment"}
+              </DialogTitle>
               <DialogPrimitive.Close
                 className="absolute right-4 top-4 opacity-70 hover:opacity-100 transition-opacity outline-none"
                 onClick={resetForm} // Also clear form if they just close the modal
@@ -517,9 +538,26 @@ export default function PaymentsTable() {
                   )}
                 </div>
               </div>
-
+              {/* 
               <Button className="w-full" onClick={handleAddPayment}>
                 {selectedPayment ? "Update" : "Add"} Payment
+              </Button> */}
+
+              <Button
+                className="w-full"
+                disabled={loadingPayment}
+                onClick={handleAddPayment}
+              >
+                {loadingPayment ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {selectedPayment ? "Updating..." : "Saving..."}
+                  </>
+                ) : selectedPayment ? (
+                  "Update Payment"
+                ) : (
+                  "Save Payment"
+                )}
               </Button>
             </div>
           </DialogContent>
@@ -528,7 +566,7 @@ export default function PaymentsTable() {
 
       {/* --- QUICK STATS CARDS --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
-        <Card className="p-4 flex items-center gap-4 bg-green-500/5 border-green-500/20">
+        <Card className="p-4 flex shadow-sm items-center gap-4 bg-green-500/5 border-green-500/20">
           <div className="p-2 bg-green-500 rounded-lg text-white">
             <Wallet className="size-5" />
           </div>
@@ -536,13 +574,17 @@ export default function PaymentsTable() {
             <p className="text-[10px] uppercase font-bold text-muted-foreground">
               Total Collected
             </p>
-            <p className="text-xl font-bold text-center dark:text-white">
-              ₹{totalRevenue}
+            <p className="text-xl font-bold text-center dark:text-white flex justify-center items-center h-7">
+              {loading ? (
+                <Skeleton className="h-5 w-20 bg-slate-200 dark:bg-slate-800 rounded" />
+              ) : (
+                `₹${(Number(totalRevenue) || 0).toLocaleString("en-IN")}`
+              )}
             </p>
           </div>
         </Card>
 
-        <Card className="p-4 flex items-center gap-4 bg-green-500/5 border-green-500/20">
+        <Card className="p-4 flex shadow-sm items-center gap-4 bg-blue-500/5 border-blue-500/20">
           <div className="p-2 bg-blue-500 rounded-lg text-white">
             <CalendarDays className="size-5" />
           </div>
@@ -552,13 +594,19 @@ export default function PaymentsTable() {
               Revenue This Month
             </p>
 
-            <p className="text-xl font-bold text-center text-black-600">
-              ₹{thisMonthRevenue}
-            </p>
+            <div className="text-xl font-bold text-center text-black dark:text-white flex justify-center items-center h-7">
+              {loading ? (
+                <Skeleton className="h-5 w-24 bg-slate-200 dark:bg-slate-800 rounded" />
+              ) : (
+                <span>
+                  ₹{(Number(thisMonthRevenue) || 0).toLocaleString("en-IN")}
+                </span>
+              )}
+            </div>
           </div>
         </Card>
 
-        <Card className="p-4 flex items-center gap-4 bg-blue-500/5 border-blue-500/20">
+        <Card className="p-4 flex shadow-sm items-center gap-4 bg-red-500/5 border-red-500/20">
           <div className="p-2 bg-red-500 rounded-lg text-white">
             <CheckCircle2 className="size-5" />
           </div>
@@ -566,9 +614,13 @@ export default function PaymentsTable() {
             <p className="text-[10px] uppercase font-bold text-muted-foreground">
               Transactions
             </p>
-            <p className="text-xl font-bold dark:text-white text-center">
-              {totalRecords}
-            </p>
+            <div className="text-xl font-bold text-center text-black dark:text-white flex justify-center items-center h-7">
+              {loading ? (
+                <Skeleton className="h-5 w-12 bg-slate-200 dark:bg-slate-800 rounded" />
+              ) : (
+                totalRecords || 0
+              )}
+            </div>
           </div>
         </Card>
       </div>
@@ -840,7 +892,7 @@ export default function PaymentsTable() {
           {/* 5. Date From */}
 
           <div className="space-y-1.5">
-            <Label>Date from</Label>
+            <Label className="text-xs font-bold uppercase text-muted-foreground">Date From</Label>
             <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -884,7 +936,7 @@ export default function PaymentsTable() {
 
           {/* 6. Date To */}
           <div className="space-y-1.5">
-            <Label>Date to</Label>
+            <Label className="text-xs font-bold uppercase text-muted-foreground">Date To</Label>
             <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -936,7 +988,7 @@ export default function PaymentsTable() {
       </Card>
 
       <div className="bg-card text-card-foreground rounded-xl shadow border dark:border-gray-800 p-3 md:p-8">
-        <div className="overflow-auto h-[408px]">
+        <div className="overflow-auto h-[408px] no-scrollbar">
           {" "}
           {/* Fixed height to prevent jumping */}
           <Table>
@@ -1022,9 +1074,28 @@ export default function PaymentsTable() {
             </TableHeader>
 
             <TableBody>
-              {Array.isArray(payments) && payments.length > 0 ? (
+              {loading ? (
+                /* LOADING STATE: Skeleton Rows */
+                Array.from({ length: 10 }).map((_, i) => (
+                  <TableRow key={i}>
+                    {/* Skeleton for Sticky Name */}
+                    <TableCell className="sticky left-0 bg-card pl-6">
+                      <Skeleton className="h-4 bg-slate-200 dark:bg-slate-800 rounded" />
+                    </TableCell>
+                    {/* Skeletons for other 7 columns */}
+                    {Array.from({ length: 7 }).map((_, j) => (
+                      <TableCell key={j}>
+                        <Skeleton className="mx-auto h-4 bg-slate-200 dark:bg-slate-800 rounded" />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : Array.isArray(payments) && payments.length > 0 ? (
                 payments.map((payment, index) => (
-                  <TableRow key={index} className="dark:bg-card dark:text-white">
+                  <TableRow
+                    key={index}
+                    className="dark:bg-card dark:text-white"
+                  >
                     <TableCell
                       className={cn(
                         "sticky left-0 z-10 font-bold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] bg-card min-w-[150px] text-center",
@@ -1033,9 +1104,11 @@ export default function PaymentsTable() {
                       {payment.memberName}
                     </TableCell>
                     <TableCell className="text-center">
-                      <span className="text-xs font-medium px-2 py-1 rounded bg-muted">
-                        {payment.membershipName || "N/A"}
-                      </span>
+                      <div className="inline-flex w-18 h-6 items-center justify-center rounded-md bg-black dark:bg-white px-2 shadow-sm">
+                        <span className="block w-full text-center truncate text-xs font-medium text-white dark:text-black">
+                          {payment.membershipName || "N/A"}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-center">
                       ₹{payment.amount}
@@ -1119,7 +1192,7 @@ export default function PaymentsTable() {
       {/* 3. Improved Pagination Controls (No overlap) */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
         <p className="text-sm text-muted-foreground order-2 sm:order-1">
-          Showing {totalElements > 0 ? displayStart : 0} to {displayEnd} of{" "}
+          Showing {totalElements === 0 ? 0 : displayStart} to {displayEnd} of{" "}
           {totalElements} payments
         </p>
 
@@ -1143,7 +1216,9 @@ export default function PaymentsTable() {
 
               <PaginationItem>
                 <span className="flex h-9 items-center justify-center px-3 text-sm font-medium whitespace-nowrap">
-                  Page {(currentPage || 0) + 1} of {totalPages || 0}
+                  {/* Page {(currentPage || 0) + 1} of {totalPages || 0} */}
+                  Page {totalElements === 0 ? 0 : currentPage + 1} of{" "}
+                  {safeTotalPages}
                 </span>
               </PaginationItem>
 
@@ -1152,10 +1227,11 @@ export default function PaymentsTable() {
                   href="#"
                   onClick={(e) => {
                     e.preventDefault();
-                    if (currentPage < totalPages) setCurrentPage((v) => v + 1);
+                    if (currentPage < totalPages - 1)
+                      setCurrentPage((v) => v + 1);
                   }}
                   className={
-                    currentPage === totalPages - 1
+                    currentPage >= totalPages - 1 || totalElements === 0
                       ? "pointer-events-none opacity-50"
                       : "cursor-pointer"
                   }

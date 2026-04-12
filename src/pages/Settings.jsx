@@ -88,7 +88,7 @@ export default function Settings() {
     <div className="max-w-4xl mx-auto space-y-6">
       {/* PROFILE */}
 
-      <Card className="rounded-2xl shadow-sm border dark:border-zinc-800 bg-card overflow-hidden">
+      <Card className="rounded-2xl shadow-lg border dark:border-zinc-800 bg-card overflow-hidden">
         <div className="flex flex-col md:flex-row min-h-[300px]">
           {/* Left Side: Brand Identity (The Sidebar) */}
           <div className="md:w-72 bg-muted/30 p-8 flex flex-col items-center justify-center text-center border-b md:border-b-0 md:border-r dark:border-zinc-800">
@@ -97,7 +97,7 @@ export default function Settings() {
               <img
                 src={profile.gymLogo || "https://via.placeholder.com"}
                 alt="Logo"
-                className="w-24 h-24 rounded-2xl object-cover border-4 border-background shadow-sm transition-transform group-hover:scale-105"
+                className="w-24 h-24 rounded-2xl object-cover border-4 border-background shadow-lg-lg transition-transform group-hover:scale-105"
               />
               <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-2xl transition cursor-pointer">
                 <span className="text-white text-[10px] font-bold uppercase tracking-tighter">
@@ -221,43 +221,7 @@ export default function Settings() {
           </div>
         </div>
       </Card>
-
-      {/* PAYMENTS */}
-      {/* <Card className="rounded-2xl shadow">
-        <CardHeader className="flex flex-row justify-between items-center">
-          <CardTitle>Payment Settings</CardTitle>
-          <Button onClick={() => setPayOpen(true)}>Update</Button>
-          <EditPaymentModal
-            open={payOpen}
-            setOpen={setPayOpen}
-            payments={payments}
-            setPayments={setPayments}
-          />
-        </CardHeader>
-
-        <CardContent className="space-y-4">
-          <div>
-            <Label className="mb-3">UPI ID</Label>
-            <Input placeholder="example@upi" />
-          </div>
-
-          <div>
-            <Label className="mb-3">Bank Account</Label>
-            <Input placeholder="Account Number" />
-          </div>
-
-          <div>
-            <Label className="mb-3">IFSC Code</Label>
-            <Input placeholder="IFSC Code" />
-          </div>
-
-          <div>
-            <Label className="mb-3">Account Holder Name</Label>
-            <Input placeholder="IFSC Code" />
-          </div>
-        </CardContent>
-      </Card> */}
-      <Card className="rounded-2xl shadow-sm border dark:border-zinc-800 bg-card overflow-hidden">
+      <Card className="rounded-2xl shadow-lg border dark:border-zinc-800 bg-card overflow-hidden">
         <CardHeader className="flex flex-row justify-between items-center border-b pb-4">
           <div className="space-y-1">
             <CardTitle className="text-lg">Payment Settings</CardTitle>
@@ -340,7 +304,7 @@ export default function Settings() {
       </Card>
 
       {/* NOTIFICATIONS */}
-      <Card className="rounded-2xl shadow border dark:border-zinc-800">
+      <Card className="rounded-2xl shadow-lg border dark:border-zinc-800">
         <CardHeader>
           <CardTitle>Notifications</CardTitle>
           <p className="text-sm text-muted-foreground">
@@ -414,7 +378,7 @@ export default function Settings() {
       </Card>
 
       {/* PREFERENCES */}
-      <Card className="rounded-2xl shadow border dark:border-zinc-800">
+      <Card className="rounded-2xl shadow-lg border dark:border-zinc-800">
         <CardHeader>
           <CardTitle>Preferences</CardTitle>
           <p className="text-sm text-muted-foreground">
@@ -487,7 +451,7 @@ export default function Settings() {
       </Card>
 
       {/* SECURITY */}
-      <Card className="rounded-2xl shadow">
+      <Card className="rounded-2xl shadow-lg">
         <CardHeader>
           <CardTitle>Security</CardTitle>
         </CardHeader>
@@ -501,7 +465,7 @@ export default function Settings() {
       </Card>
 
       {/* DANGER ZONE */}
-      <Card className="rounded-2xl shadow border-red-500">
+      <Card className="rounded-2xl shadow-lg border-red-500">
         <CardHeader>
           <CardTitle className="text-red-500">Danger Zone</CardTitle>
         </CardHeader>

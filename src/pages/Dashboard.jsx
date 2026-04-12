@@ -21,9 +21,9 @@ export default function Dashboard() {
   const payments = useGymStore((state) => state.payments);
   const plans = useGymStore((state) => state.plans);
 
-  if (loading) {
-    return <Loader text="Loading dashboard...." />;
-  }
+  // if (loading) {
+  //   return <Loader text="Loading dashboard...." />;
+  // }
 
   return (
     <div className="flex flex-1 flex-col">

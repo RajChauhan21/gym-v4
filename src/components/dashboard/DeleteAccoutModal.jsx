@@ -36,33 +36,52 @@ export function DeleteAccountModal() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(val) => { if(!val) resetAndClose(); setOpen(val); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(val) => {
+        if (!val) resetAndClose();
+        setOpen(val);
+      }}
+    >
       <DialogTrigger asChild>
-        <Button variant="destructive" className="cursor-pointer rounded-xl font-semibold transition-transform active:scale-95">
+        <Button
+          variant="destructive"
+          className="cursor-pointer rounded-xl font-semibold transition-transform active:scale-95"
+        >
           Delete Account
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="w-[95%] sm:max-w-[425px] rounded-2xl bg-white dark:bg-zinc-950 border-red-200 dark:border-red-900/30 p-0 overflow-hidden shadow-2xl">
+      <DialogContent
+        className="w-[95%] sm:max-w-[425px] rounded-2xl bg-white dark:bg-zinc-950 border-red-200 dark:border-red-900/30 p-0 overflow-hidden shadow-2xl"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <div className="p-6">
           <DialogHeader className="flex flex-col items-center text-center">
             {/* Warning Icon */}
             <div className="w-14 h-14 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4 animate-pulse">
               <AlertOctagon className="w-8 h-8 text-red-600" />
             </div>
-            
+
             <DialogTitle className="text-2xl font-bold text-red-600">
               Permanent Action
             </DialogTitle>
-            
+
             <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-3 leading-relaxed">
-              This will permanently delete all your gym data, membership history, and profile. <strong>This cannot be undone.</strong>
+              This will permanently delete all your gym data, membership
+              history, and profile. <strong>This cannot be undone.</strong>
             </p>
           </DialogHeader>
 
           <div className="mt-6 space-y-3">
-            <Label htmlFor="confirm" className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400">
-              Type <span className="text-red-600">"{EXPECTED_TEXT}"</span> to confirm
+            <Label
+              htmlFor="confirm"
+              className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400"
+            >
+              Type <span className="text-red-600">"{EXPECTED_TEXT}"</span> to
+              confirm
             </Label>
             <Input
               id="confirm"

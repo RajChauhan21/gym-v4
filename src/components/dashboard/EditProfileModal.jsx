@@ -99,7 +99,8 @@ export default function EditProfileModal({
       const cleanPhone = form.phone.replace(/\D/g, ""); // Remove everything except digits
 
       if (cleanPhone.length < 10 || cleanPhone.length > 15) {
-        newErrors.phone = "Enter a valid international phone number (e.g., +91...)";
+        newErrors.phone =
+          "Enter a valid international phone number (e.g., +91...)";
       }
     }
 
@@ -143,7 +144,6 @@ export default function EditProfileModal({
     };
     const response = await saveGymDetails(payload);
     try {
-
       console.log("Save Gym Response:", response);
       if (response.status === 202) {
         console.log("form data " + form);
@@ -154,7 +154,7 @@ export default function EditProfileModal({
           gymName: response?.data.gymName,
           owner: response?.data.ownerName, // mapping ownerName to owner
           email: response?.data.email,
-          phone: response?.data.number,    // mapping number back to phone
+          phone: response?.data.number, // mapping number back to phone
           address: response?.data.location, // mapping location back to address
           website: response?.data.website,
           googleMapUrl: response?.data.googleMapUrl,
@@ -165,28 +165,36 @@ export default function EditProfileModal({
         localStorage.setItem("userProfile", JSON.stringify(payload));
         toast.success("Profile details updated successfully.");
         setOpen(false);
-
-      }
-      else {
-        toast.error(response?.data?.message || "Failed to update profile details. Please try again.");
+      } else {
+        toast.error(
+          response?.data?.message ||
+            "Failed to update profile details. Please try again.",
+        );
       }
     } catch (error) {
-      toast.error(response?.data?.message || "Failed to update profile details. Please try again.");
-    }
-    finally {
+      toast.error(
+        response?.data?.message ||
+          "Failed to update profile details. Please try again.",
+      );
+    } finally {
       setLoading(false);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="w-[90%] max-w-md h-[520px] flex flex-col rounded-2xl">
+      <DialogContent
+        className="w-[90%] max-w-md h-[520px] flex flex-col rounded-2xl"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Edit Profile</DialogTitle>
         </DialogHeader>
 
         {/* FORM */}
-        <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+        <div className="flex-1 overflow-y-auto space-y-3 pr-1 no-scrollbar">
           {/* Gym Name */}
           <div>
             <Label className="mb-3">Gym Name</Label>
@@ -275,7 +283,9 @@ export default function EditProfileModal({
               disabled={loading}
               placeholder="Paste Google Maps link here"
               value={form.googleMapUrl}
-              onChange={(e) => setForm({ ...form, googleMapUrl: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, googleMapUrl: e.target.value })
+              }
             />
           </div>
         </div>
