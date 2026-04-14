@@ -43,7 +43,7 @@ export function LoginForm({
       const response = await login(email, password);
       if (response.data.statusCodeValue === 200) {
         const userData = response.data.body;
-
+        console.log("userData", userData)
         const updatedProfile = {
           ownerId: userData?.ownerId,
           gymId: userData?.gymId,
@@ -54,8 +54,15 @@ export function LoginForm({
           address: userData.location || "Sector 9, Delhi",
           website: userData.website || "://paramountgym.com",
           gymLogo: userData.gymImage || "https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/back06.jpg",
-          ownerLogo: userData.ownerImage || "https://codeskulptor-demos.commondatastorage.googleapis.com/AddressableObject/ironman.jpg",
+          ownerLogo: userData.ownerImage || "https://png.pngtree.com/png-vector/20230801/ourmid/pngtree-cartoon-superhero-with-red-cape-with-logo-on-white-background-vector-png-image_6830646.png",
           googleMapUrl: userData.googleMapUrl || "https://maps.google.com/?q=paramount+gym",
+          planName:userData.planName || "Premium",
+          price:userData.price || 0,
+          startDate:userData.startDate || 'N/A',
+          endDate:userData.endDate || 'N/A',
+          status:userData.status || 'Active',
+          memberLimitCount:userData.memberLimitCount || 12,
+          currentMemberCount:userData.currentMemberCount || 10,
         };
 
         setProfile(updatedProfile);

@@ -4,6 +4,7 @@ import {
   CreditCard,
   Settings,
   Package,
+  Currency
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import {
@@ -44,6 +45,7 @@ const items = [
   { title: "Payments", url: "/payments", icon: CreditCard },
   { title: "Plans", url: "/plans", icon: Package },
   { title: "Settings", url: "/settings", icon: Settings },
+  { title: "Pricing", url: "/pricing", icon: Currency },
 ];
 
 const getInitials = (name) => {

@@ -394,3 +394,14 @@ export async function getAllPayments(
     return error.response;
   }
 }
+
+export async function getAllSubscriptionPlans() {
+  try {
+    const response = await constant.get("/plan/findAll");
+    console.log("Get all plans Response:", response);
+    return response.data;
+  } catch (error) {
+    console.error("API Error in all plans:", error.response || error);
+    return error.response;
+  }
+}

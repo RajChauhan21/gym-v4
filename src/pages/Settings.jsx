@@ -52,11 +52,15 @@ import { useProfile } from "../contexts/ProfileContext";
 import { ChangePasswordModal } from "../components/dashboard/ChangePasswordModal";
 import { LogoutModal } from "../components/dashboard/LogoutModal";
 import { DeleteAccountModal } from "../components/dashboard/DeleteAccoutModal";
+import { UpgradeModal } from "./UpgradeModal";
+import { useNavigate } from "react-router-dom";
+import { ManagePlanModal } from "./ManagePlanModal";
 
 export default function Settings() {
   const { dark, toggleDark } = useTheme();
   const [open, setOpen] = useState(false);
   const { profile, setProfile } = useProfile();
+  const navigate = useNavigate();
   const [payOpen, setPayOpen] = useState(false);
   const [payments, setPayments] = useState({
     upiId: "paramount@okupi",
@@ -64,6 +68,7 @@ export default function Settings() {
     ifscCode: "HDFC0001234",
     holderName: profile.owner,
   });
+  const [openUpgrade, setOpenUpgrade] = useState(false);
   const [notifications, setNotifications] = useState({
     reminders: true,
     expiry: true,
@@ -369,7 +374,7 @@ export default function Settings() {
               </CardTitle>
               <CardDescription className="flex items-center gap-1.5 text-xs">
                 <CreditCard className="size-3" />
-                {profile.planName} • {profile.price}
+                {profile.planName} • ₹{profile.price}
               </CardDescription>
             </div>
             <span
@@ -435,20 +440,30 @@ export default function Settings() {
           <div className="text-xs text-muted-foreground flex items-center justify-start gap-2 py-1">
             <span>Next invoice on</span>
             <span className="font-bold text-foreground bg-muted px-2 py-0.5 rounded">
-              {new Date(profile.endDate).toLocaleDateString(
-                "en-GB",
-                { day: "numeric", month: "short", year: "numeric" },
-              )}
+              {new Date(profile.endDate).toLocaleDateString("en-GB", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
             </span>
           </div>
 
           <div className="flex flex-col gap-2.5">
-            <Button className="w-full font-semibold">Manage Plan</Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="default" onClick={() => setOpenUpgrade(true)}>
+                Upgrade
+              </Button>
+              <Button variant="outline" onClick={() => setPayOpen(true)}>Manage Plan</Button>
+              <UpgradeModal open={openUpgrade} setOpen={setOpenUpgrade} />
+              <ManagePlanModal open={payOpen} setOpen={setPayOpen} />
+            </div>
+
             <div className="grid grid-cols-2 gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 className="text-xs font-medium"
+                onClick={() => navigate("/paymentHistory")}
               >
                 <Receipt className="mr-2 size-3.5" />
                 History

@@ -12,10 +12,11 @@ import { useTheme } from "./contexts/ThemeContext";
 import LandingPage from "./pages/LandingPage";
 import { SideBarLayout } from "./pages/SideBarLayout";
 import "./App.css";
-import 'react-phone-number-input/style.css'
+import "react-phone-number-input/style.css";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./auth/ProtectedRoute";
-
+import PricingPage from "./pages/PricingPage";
+import PaymentHistoryTable from "./pages/PaymentHistoryTable";
 
 function App() {
   const { dark, toggleDark } = useTheme();
@@ -34,6 +35,8 @@ function App() {
                 <Route path="/payments" element={<Payments />} />
                 <Route path="/plans" element={<Plans />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/pricing" element={<PricingPage />} />
+                <Route path="/paymentHistory" element={<PaymentHistoryTable />} />
               </Route>
             </Route>
           </Routes>
