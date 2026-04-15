@@ -405,3 +405,19 @@ export async function getAllSubscriptionPlans() {
     return error.response;
   }
 }
+
+export async function createRazorpaySubscription(ownerId, planId) {
+  try {
+    const response = await constant.post("/razorpay/create-subscription",null,{
+      params:{
+        o:ownerId,
+        p:planId
+      }
+    });
+    console.log("Get razorpay subscription Response:", response);
+    return response.data;
+  } catch (error) {
+    console.error("API Error in razorpay subscription:", error.response || error);
+    return error.response;
+  }
+}

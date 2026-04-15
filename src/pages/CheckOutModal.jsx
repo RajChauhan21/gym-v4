@@ -7,6 +7,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { createRazorpaySubscription } from "../apis/backend_apis";
+import { useState } from "react";
+import { useProfile } from "../contexts/ProfileContext";
 
 export default function CheckOutModal({ open, setOpen, plan }) {
   if (!plan) return null;
@@ -14,6 +17,8 @@ export default function CheckOutModal({ open, setOpen, plan }) {
   const GST_RATE = 0.18;
   const gstAmount = Math.round(plan.price * GST_RATE);
   const total = plan.price + gstAmount;
+  const [loading, setLoading] = useState(false);
+  const { profile } = useProfile();
 
   // const handlePayment = async () => {
   //   // 1. Call backend to create Razorpay order
@@ -56,40 +61,97 @@ export default function CheckOutModal({ open, setOpen, plan }) {
   //   razor.open();
   // };
 
-  const handlePayment = () => {
-    const options = {
-      key: "rzp_test_SdGz0Kv1QdvBfQ",
+  // const handlePayment = () => {
+  //   const options = {
+  //     key: "rzp_test_SdGz0Kv1QdvBfQ",
 
-      // ✅ amount in paise
-      amount: plan.price * 100,
+  //     // ✅ amount in paise
+  //     amount: plan.price * 100,
 
-      currency: "INR",
-      name: "Gym SaaS",
-      description: `${plan.name} Plan`,
+  //     currency: "INR",
+  //     name: "Gym SaaS",
+  //     description: `${plan.name} Plan`,
 
-      // ❌ REMOVE order_id completely
-      // order_id: plan.name,
+  //     // ❌ REMOVE order_id completely
+  //     // order_id: plan.name,
 
-      handler: function (response) {
-        console.log("Payment Success:", response);
+  //     handler: function (response) {
+  //       console.log("Payment Success:", response);
 
-        toast.success("Payment Successful 🎉");
-        setOpen(false);
-      },
+  //       toast.success("Payment Successful 🎉");
+  //       setOpen(false);
+  //     },
 
-      prefill: {
-        name: "Gym Owner",
-        email: "owner@example.com",
-      },
+  //     prefill: {
+  //       name: "Gym Owner",
+  //       email: "owner@example.com",
+  //     },
 
-      theme: {
-        color: "#6366f1",
-      },
-    };
+  //     theme: {
+  //       color: "#6366f1",
+  //     },
+  //   };
 
-    const razor = new window.Razorpay(options);
-    razor.open();
+  //   const razor = new window.Razorpay(options);
+  //   razor.open();
+  // };
+  const handlePayment = async () => {
+    try {
+      setLoading(true);
+
+      // 🔹 Step 1: Call backend to create subscription
+      const res = await createRazorpaySubscription(profile?.ownerId, plan.id);
+      console.log("subs id " + res);
+      
+
+      const subscriptionId = res;
+
+      if (!subscriptionId) {
+        throw new Error("Subscription creation failed");
+      }
+
+      // 🔹 Step 2: Open Razorpay Checkout
+      const options = {
+        key: "rzp_test_SdGz0Kv1QdvBfQ",
+        subscription_id: subscriptionId,
+
+        name: "Gym SaaS",
+        description: "Subscription Payment",
+
+        handler: function (response) {
+          // ⚠️ DO NOT trust this fully
+          console.log("Payment success (frontend):", response);
+
+          // Just UX feedback
+          toast.success("Payment initiated successfully 🎉");
+        },
+
+        modal: {
+          ondismiss: function () {
+            toast.error("Payment cancelled");
+          },
+        },
+
+        prefill: {
+          name: "Gym Owner",
+          email: "owner@example.com",
+        },
+
+        theme: {
+          color: "#6366f1",
+        },
+      };
+
+      const razor = new window.Razorpay(options);
+      razor.open();
+    } catch (error) {
+      console.error(error);
+      toast.error("Something went wrong");
+    } finally {
+      setLoading(false);
+    }
   };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="w-full max-w-md sm:max-w-lg p-6">
