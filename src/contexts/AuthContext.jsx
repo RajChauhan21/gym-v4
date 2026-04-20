@@ -31,14 +31,13 @@ export const AuthProvider = ({ children }) => {
       const hasHint = localStorage.getItem("isLoggedIn") === "true";
 
       if (oauthSuccess) {
-
         const response = await getMe();
         if (response.status === 202) {
           const userData = response.data;
 
           // 2. Map and Sync to Profile Context
           const updatedProfile = {
-            ownerId:userData?.ownerId,
+            ownerId: userData?.ownerId,
             gymId: userData?.gymId,
             gymName: userData?.gymName || "bobs Gym",
             owner: userData?.ownerName || "Raj Sharma",
@@ -46,9 +45,22 @@ export const AuthProvider = ({ children }) => {
             phone: userData?.phone || "9876543210",
             address: userData?.location || "Sector 9, Delhi",
             website: userData?.website || "://paramountgym.com",
-            gymLogo: userData.gymImage || "https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/back06.jpg",
-            ownerLogo: userData.ownerImage || "https://codeskulptor-demos.commondatastorage.googleapis.com/AddressableObject/ironman.jpg",
-            googleMapUrl: userData.googleMapUrl || "https://maps.google.com/?q=paramount+gym",
+            gymLogo:
+              userData.gymImage ||
+              "https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/back06.jpg",
+            ownerLogo:
+              userData.ownerImage ||
+              "https://codeskulptor-demos.commondatastorage.googleapis.com/AddressableObject/ironman.jpg",
+            googleMapUrl:
+              userData.googleMapUrl ||
+              "https://maps.google.com/?q=paramount+gym",
+            planName: userData.planName || "Premium",
+            price: userData.price || 0,
+            startDate: userData.startDate || "N/A",
+            endDate: userData.endDate || "N/A",
+            status: userData.status || "Active",
+            memberLimitCount: userData.memberLimitCount || 12,
+            currentMemberCount: userData.currentMemberCount || 10,
           };
 
           setProfile(updatedProfile);
@@ -65,7 +77,6 @@ export const AuthProvider = ({ children }) => {
           );
           console.log("OAuth Login Success Detected");
         }
-
       } else if (hasHint) {
         setIsAuthenticated(true);
       } else {

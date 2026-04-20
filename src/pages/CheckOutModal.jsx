@@ -10,15 +10,25 @@ import { toast } from "sonner";
 import { createRazorpaySubscription } from "../apis/backend_apis";
 import { useState } from "react";
 import { useProfile } from "../contexts/ProfileContext";
+import { Loader } from "lucide-react";
 
 export default function CheckOutModal({ open, setOpen, plan }) {
   if (!plan) return null;
-  console.log(plan);
   const GST_RATE = 0.18;
   const gstAmount = Math.round(plan.price * GST_RATE);
   const total = plan.price + gstAmount;
   const [loading, setLoading] = useState(false);
   const { profile } = useProfile();
+
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
 
   // const handlePayment = async () => {
   //   // 1. Call backend to create Razorpay order
@@ -98,11 +108,17 @@ export default function CheckOutModal({ open, setOpen, plan }) {
   const handlePayment = async () => {
     try {
       setLoading(true);
+      const loaded = await loadRazorpayScript();
+
+      if (!loaded) {
+        toast.error("Razorpay SDK failed to load");
+        setLoading(false);
+        return;
+      }
 
       // 🔹 Step 1: Call backend to create subscription
       const res = await createRazorpaySubscription(profile?.ownerId, plan.id);
       console.log("subs id " + res);
-      
 
       const subscriptionId = res;
 
@@ -112,7 +128,7 @@ export default function CheckOutModal({ open, setOpen, plan }) {
 
       // 🔹 Step 2: Open Razorpay Checkout
       const options = {
-        key: "rzp_test_SdGz0Kv1QdvBfQ",
+        key: "rzp_test_SfiIKwSs0OhpAz",
         subscription_id: subscriptionId,
 
         name: "Gym SaaS",
@@ -133,8 +149,13 @@ export default function CheckOutModal({ open, setOpen, plan }) {
         },
 
         prefill: {
-          name: "Gym Owner",
-          email: "owner@example.com",
+          name: profile?.owner,
+          email: profile?.email,
+        },
+
+        // customer_id:profile?.owner,
+        notes: {
+          owner_id: profile?.owner, // Put "john" here
         },
 
         theme: {
@@ -154,7 +175,12 @@ export default function CheckOutModal({ open, setOpen, plan }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="w-full max-w-md sm:max-w-lg p-6">
+      <DialogContent
+        className="w-full max-w-md sm:max-w-lg p-6"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-center">
             Checkout
@@ -191,8 +217,16 @@ export default function CheckOutModal({ open, setOpen, plan }) {
           </div>
 
           {/* CTA */}
-          <Button className="w-full mt-4" onClick={handlePayment}>
-            Proceed to Pay ₹{total}
+          <Button
+            className="w-full mt-4"
+            onClick={handlePayment}
+            disabled={loading}
+          >
+            {loading ? (
+              <Loader className="animate-spin mr-2" />
+            ) : (
+              `Proceed to Pay ₹${total}`
+            )}
           </Button>
 
           {/* Trust */}
