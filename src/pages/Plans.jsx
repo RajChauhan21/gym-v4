@@ -15,33 +15,64 @@ import { Package, Clock, Edit3, Trash2 } from "lucide-react";
 import { DeleteModal } from "./DeleteModal";
 import { useGymStore } from "../store/gymStore";
 import { deletePlanById, getAllPlans } from "../apis/backend_apis";
+import { useProfile } from "../contexts/ProfileContext";
 
 export default function Plans() {
   const plans = useGymStore((state) => state.plans);
   const setPlans = useGymStore((state) => state.setPlans);
   const [modalOpen, setModalOpen] = useState(false);
   const [editPlan, setEditPlan] = useState(null);
+  const profile = useProfile();
   const fetchPlans = useGymStore((state) => state.fetchPlans);
 
   useEffect(() => {
+    // if (!profile?.gymId) return;
+
+    console.log("Inside effect");
+    console.log("gymId:", profile?.gymId);
+    console.log("profile", profile.profile);
+
     const fetchAndPopulate = async () => {
       try {
-        // If ownerId is available in scope (from props/context), use it here
-        const data = await getAllPlans();
-        setPlans(data);
-        console.log("Fetched plans data:", data);
+        console.log("Fetching plans for gymId:", profile.profile.gymId);
+
+        const response = await getAllPlans(profile.profile.gymId);
+        if (response.status === 202) {
+          if (response.data) {
+            setPlans(response.data);
+          } else {
+            setPlans([]);
+          }
+        } else if (response.status === 404) {
+          toast.error(
+            "Something went wrong while fetching plans. Please try again later.",
+          );
+        } else if (response.status === 429) {
+          toast.error(
+            "You are performing actions too quickly. Please wait a few seconds and try again.",
+          );
+        }
+
+        console.log("Fetched plans data:", response.data);
       } catch (err) {
         console.error("Initial load failed:", err);
       }
     };
 
     fetchAndPopulate();
-
-    // Empty array [] ensures this runs exactly once on mount
-  }, []);
+  }, [profile]);
 
   // Delete confirmation
   const confirmDelete = async (idx) => {
+    setLoading(true);
+    if (profile.profile.planName === "No Active Plan") {
+      // 1. Show the error toast
+      toast.error(
+        "You need an active plan to use this functionality. Please subscribe to a plan first.",
+      );
+      setLoading(false);
+      return;
+    }
     const id = plans[idx].id;
     try {
       const response = await deletePlanById(id);
@@ -49,9 +80,22 @@ export default function Plans() {
         console.log(response);
         toast.success("Plan deleted successfully");
         fetchPlans();
+      } else if (response.status === 404) {
+        toast.error(
+          "Someting went wrong while deleting the plan. Please try again later.",
+        );
+      } else if (response.status === 429) {
+        toast.error(
+          "You are performing actions too quickly. Please wait a few seconds and try again.",
+        );
       }
     } catch (error) {
-      toast.error(error)
+      toast.error(
+        "Someting went wrong while deleting the plan. Please try again later.",
+      );
+    }
+    finally{
+      setLoading(false);
     }
     // const newPlans = plans.filter((_, i) => i !== idx);
     // setPlans(newPlans);
@@ -60,6 +104,14 @@ export default function Plans() {
 
   // Edit button
   const handleEdit = (plan, idx) => {
+    if (profile.profile.planName === "No Active Plan") {
+      // 1. Show the error toast
+      toast.error(
+        "You need an active plan to use this functionality. Please subscribe to a plan first.",
+      );
+      setLoading(false);
+      return;
+    }
     setEditPlan({ ...plan, index: idx });
     setModalOpen(true);
   };
@@ -97,62 +149,73 @@ export default function Plans() {
 
       {/* --- 1. VISUAL PLAN CARDS (Fills Mobile Space) --- */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {plans.map((plan, idx) => (
-          <Card
-            key={idx}
-            className="relative overflow-hidden border-2 hover:border-primary/50 transition-all group"
-          >
-            {/* Design Element: Top Accent Bar */}
-            <div className="h-2 w-full bg-black dark:bg-white md:bg-white dark:md:bg-black transition-colors duration-200 md:hover:bg-black md:dark:hover:bg-white md:group-hover:bg-black md:dark:group-hover:bg-white" />
+        {plans &&
+          plans.map((plan, idx) => (
+            <Card
+              key={idx}
+              className="relative overflow-hidden border-2 hover:border-primary/50 transition-all group"
+            >
+              {/* Design Element: Top Accent Bar */}
+              <div className="h-2 w-full bg-black dark:bg-white md:bg-white dark:md:bg-black transition-colors duration-200 md:hover:bg-black md:dark:hover:bg-white md:group-hover:bg-black md:dark:group-hover:bg-white" />
 
-            <CardHeader className="pb-2">
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-xl font-bold">{plan.name}</CardTitle>
-                <Package className="size-5 text-muted-foreground opacity-20" />
-              </div>
-            </CardHeader>
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-start">
+                  <CardTitle className="text-xl font-bold">
+                    {plan.name}
+                  </CardTitle>
+                  <Package className="size-5 text-muted-foreground opacity-20" />
+                </div>
+              </CardHeader>
 
-            <CardContent className="space-y-4">
-              <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-extrabold tracking-tight">
-                  ₹{plan.price}
-                </span>
-                <span className="text-sm text-muted-foreground">/ total</span>
-              </div>
+              <CardContent className="space-y-4">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-extrabold tracking-tight">
+                    ₹{plan.price}
+                  </span>
+                  <span className="text-sm text-muted-foreground">/ total</span>
+                </div>
 
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <Clock className="size-4 text-primary" />
-                <span>
-                  Valid for {plan.validity}{" "}
-                  {plan.validity > 1 ? "months" : "month"}
-                </span>
-              </div>
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <Clock className="size-4 text-primary" />
+                  <span>
+                    Valid for {plan.validity}{" "}
+                    {plan.validity > 1 ? "months" : "month"}
+                  </span>
+                </div>
 
-              <div className="pt-4 flex gap-2">
-                <Button
-                  variant="secondary"
-                  className="flex-1 rounded-xl h-9 text-xs"
-                  onClick={() => handleEdit(plan, idx)}
-                >
-                  <Edit3 className="size-3 mr-2" /> Edit
-                </Button>
-                {/* <Button variant="destructive" className="flex-1 rounded-xl h-9 text-xs" onClick={() => handleDelete(idx)}>
+                <div className="pt-4 flex gap-2">
+                  <Button
+                    variant="secondary"
+                    className="flex-1 rounded-xl h-9 text-xs"
+                    onClick={() => handleEdit(plan, idx)}
+                  >
+                    <Edit3 className="size-3 mr-2" /> Edit
+                  </Button>
+                  {/* <Button variant="destructive" className="flex-1 rounded-xl h-9 text-xs" onClick={() => handleDelete(idx)}>
                   <Trash2 className="size-3 mr-2" /> Delete
                 </Button> */}
-                <DeleteModal
-                  itemName={plan.name}
-                  onConfirm={() => confirmDelete(idx)}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                  <DeleteModal
+                    itemName={plan.name}
+                    onConfirm={() => confirmDelete(idx)}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
 
         {/* Empty State / Add New Placeholder */}
         <div
           onClick={() => {
-            setEditPlan(null);
-            setModalOpen(true);
+            if (profile.profile.planName === "No Active Plan") {
+              // 1. Show the error toast
+              toast.error(
+                "You need an active plan to add plans. Please subscribe to a plan first.",
+              );
+            } else {
+              // 2. Clear edit state and open modal if they have a plan
+              setEditPlan(null);
+              setModalOpen(true);
+            }
           }}
           className="border-2 border-dashed rounded-3xl flex flex-col items-center justify-center p-8 text-muted-foreground hover:bg-muted/50 cursor-pointer min-h-[200px] transition-all"
         >

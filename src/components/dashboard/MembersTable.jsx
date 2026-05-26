@@ -13,8 +13,20 @@ import {
   MessageCircle,
   ArrowUp,
   ArrowDown,
+  AlertTriangle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +37,7 @@ import {
 import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import Loader from "@/components/ui/Loader";
+import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import React from "react";
 import AddMemberDialog from "./AddMemberDialog";
@@ -84,6 +97,7 @@ export default function MembersTable() {
   const [sortBy, setSortBy] = useState("expiry"); // Default column
   const [sortDir, setSortDir] = useState("desc"); // Default direction
   const [totalElements, setTotalElements] = useState(0);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [filters, setFilters] = useState({
     name: "",
     dueAmount: "",
@@ -104,11 +118,22 @@ export default function MembersTable() {
   const { profile } = useProfile();
   const [totalDues, setTotalDues] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [dueMembersCount, setDueMembersCount] = useState(0);
 
   const fetchTotalDues = async () => {
     try {
       const response = await getAllDuesOfMembers(profile.ownerId);
-      setTotalDues(response);
+
+      if (response.status === 202 || response.data.statusCodeValue === 200) {
+        setTotalDues(response.data.dueAmount);
+        setDueMembersCount(response.data.dueMembersCount);
+      } else if (response.status === 404) {
+        // setTotalDues(0);
+        // setDueMembersCount(0);
+      } else if (response.status === 429) {
+        // setTotalDues(0);
+        // setDueMembersCount(0);
+      }
     } catch (error) {
       console.error("failed to get dues", error);
     }
@@ -117,7 +142,18 @@ export default function MembersTable() {
   const getAllCount = async () => {
     try {
       const response = await getAllMembersCount(profile.ownerId);
-      setTotalCount(response);
+
+      if (response.status === 202 || response.data.statusCodeValue === 200) {
+        setTotalCount(response.data);
+      } else if (response.status === 404) {
+        // toast.error(
+        //   "Something went wrong while fetching plans. Please try again later.",
+        // );
+      } else if (response.status === 429) {
+        // toast.error(
+        //   "You are performing actions too quickly. Please wait a few seconds and try again.",
+        // );
+      }
     } catch (error) {
       console.error("failed to get count", error);
     }
@@ -143,23 +179,40 @@ export default function MembersTable() {
         sortDir,
         apiFilters,
       );
-      setMembers(
-        Array.isArray(response.data.content) ? response.data.content : [],
-      );
-      setTotalPages(response.data.page.totalPages);
-      setTotalElements(response.data.page.totalElements);
-      setPageSize(response.data.page.size);
-      if (
-        currentPage >= response.data.totalPages &&
-        response.data.totalPages > 0
-      ) {
-        setCurrentPage(0);
-      } else {
-        setCurrentPage(response.data.page.number);
+      if (response.status === 202 || response.data.statusCodeValue === 200) {
+        console.log("API Response:", response);
+        setMembers(
+          Array.isArray(response.data.content) ? response.data.content : [],
+        );
+        setTotalPages(response.data.page.totalPages);
+        setTotalElements(response.data.page.totalElements);
+        setPageSize(response.data.page.size);
+        if (
+          currentPage >= response.data.totalPages &&
+          response.data.totalPages > 0
+        ) {
+          setCurrentPage(0);
+        } else {
+          setCurrentPage(response.data.page.number);
+        }
+        getAllCount();
+        fetchTotalDues();
+        console.log("Fetched members:", response.data);
+      } else if (response.status === 404) {
+        if (
+          response.data &&
+          response.data.message &&
+          response.data.message !== "100"
+        ) {
+          toast.error(
+            "Something went wrong while fetching members. Please try again later.",
+          );
+        }
+      } else if (response.status === 429) {
+        toast.error(
+          "You are performing actions too quickly. Please wait a few seconds and try again.",
+        );
       }
-      getAllCount();
-      fetchTotalDues();
-      console.log("Fetched members:", response.data);
     } catch (err) {
       // If it's a rate limit (429) and we have retries left
       if (err.response?.status === 429 && retries > 0) {
@@ -179,7 +232,7 @@ export default function MembersTable() {
 
   useEffect(() => {
     fetchAndPopulate();
-    fetchPlans();
+    fetchPlans(profile.gymId);
     // Empty array [] ensures this runs exactly once on mount
   }, [
     currentPage,
@@ -187,6 +240,7 @@ export default function MembersTable() {
     sortBy,
     sortDir,
     profile?.ownerId,
+    profile.gymId,
     filters,
     dateType,
   ]);
@@ -206,7 +260,7 @@ export default function MembersTable() {
   // setMembers(membersObject);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const totalMembers = totalCount;
-  const pendingPayments = members.filter((m) => m.dueAmount > 0).length;
+  const pendingPayments = dueMembersCount;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
@@ -225,6 +279,14 @@ export default function MembersTable() {
       : Math.min((currentPage + 1) * pageSize, totalElements);
 
   const resetFilters = () => {
+    if (profile.planName === "No Active Plan") {
+      // 1. Show the error toast
+      toast.error(
+        "You need an active plan to use this functionality. Please subscribe to a plan first.",
+      );
+      setLoading(false);
+      return;
+    }
     setFilterPlan("");
     setFilters({
       name: "",
@@ -282,28 +344,79 @@ export default function MembersTable() {
 
   const [loading, setLoading] = useState(true);
 
+  // const handleSort = (columnName) => {
+  //   if (profile.planName === "No Active Plan") {
+  //     // 1. Show the error toast
+  //     toast.error(
+  //       "You need an active plan to use this functionality. Please subscribe to a plan first.",
+  //     );
+  //     setLoading(false);
+  //     return;
+  //   }
+
+  //   if (sortBy === columnName) {
+  //     // If same column clicked, toggle direction
+  //     setSortDir(sortDir === "asc" ? "desc" : "asc");
+  //   } else {
+  //     // If new column clicked, set it and default to asc
+  //     setSortBy(columnName);
+  //     setSortDir("asc");
+  //   }
+  //   // Reset to first page when sorting changes
+  //   setCurrentPage(0);
+  // };
+
   const handleSort = (columnName) => {
-    if (sortBy === columnName) {
-      // If same column clicked, toggle direction
-      setSortDir(sortDir === "asc" ? "desc" : "asc");
-    } else {
-      // If new column clicked, set it and default to asc
-      setSortBy(columnName);
-      setSortDir("asc");
+    if (profile.planName === "No Active Plan") {
+      toast.error(
+        "You need an active plan to use this functionality. Please subscribe to a plan first.",
+      );
+      setLoading(false);
+      return;
     }
-    // Reset to first page when sorting changes
+
+    // 1. Calculate new values immediately
+    const newDir =
+      sortBy === columnName ? (sortDir === "asc" ? "desc" : "asc") : "asc";
+    const newBy = columnName;
+
+    // 2. Update the React state for the UI
+    setSortBy(newBy);
+    setSortDir(newDir);
     setCurrentPage(0);
+
+    // 3. Call your API/fetch function using the new local variables
+    // fetchSortedData(newBy, newDir, 0);
   };
 
   const handleDelete = async (member) => {
+    setLoading(true);
+    if (profile.planName === "No Active Plan") {
+      // 1. Show the error toast
+      toast.error(
+        "You need an active plan to use this functionality. Please subscribe to a plan first.",
+      );
+      setLoading(false);
+      return;
+    }
     try {
       const response = await deleteMemberById(member.id);
       if (response.status === 202) {
         toast.success(response.data || "Member deleted");
         fetchAndPopulate();
+      } else if (response.status === 404) {
+        toast.error(
+          "Something went wrong while deleting a member. Please try again later.",
+        );
+      } else if (response.status === 429) {
+        toast.error(
+          "You are performing actions too quickly. Please wait a few seconds and try again.",
+        );
       }
     } catch (error) {
       toast.error(error.response?.data || "Failed to delete member");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -333,7 +446,11 @@ export default function MembersTable() {
             Total Members
           </p>
           <p className="text-2xl font-bold dark:text-white">
-            {loading ? <Skeleton className="h-6 w-16 bg-slate-200 dark:bg-slate-800 rounded" /> : totalMembers}
+            {loading ? (
+              <Skeleton className="h-6 w-16 bg-slate-200 dark:bg-slate-800 rounded" />
+            ) : (
+              totalMembers
+            )}
           </p>
         </div>
         <div className="p-4 rounded-2xl bg-card border shadow-sm">
@@ -341,7 +458,11 @@ export default function MembersTable() {
             Pending Dues
           </p>
           <p className="text-2xl font-bold text-orange-500">
-            {loading ? <Skeleton className="h-6 w-16 bg-slate-200 dark:bg-slate-800 rounded" /> : pendingPayments}
+            {loading ? (
+              <Skeleton className="h-6 w-16 bg-slate-200 dark:bg-slate-800 rounded" />
+            ) : (
+              pendingPayments
+            )}
           </p>
         </div>
         <div className="p-4 rounded-2xl bg-card border shadow-sm col-span-2 md:col-span-1">
@@ -373,6 +494,9 @@ export default function MembersTable() {
         <DialogContent className="w-[92%] max-w-md rounded-2xl p-6">
           <DialogHeader>
             <DialogTitle>Search Members</DialogTitle>
+            <h6 className="text-red-600 font-semibold">
+              Filter works automatically, just select the values
+            </h6>
             <DialogDescription className="sr-only">
               Filter and search through your gym members.
             </DialogDescription>
@@ -572,11 +696,12 @@ export default function MembersTable() {
               </SelectTrigger>
               <SelectContent className="max-w-[250px]">
                 <SelectItem value="all">All Plans</SelectItem>
-                {plans.map((p, idx) => (
-                  <SelectItem key={idx} value={p.name}>
-                    {p.name}
-                  </SelectItem>
-                ))}
+                {plans &&
+                  plans.map((p, idx) => (
+                    <SelectItem key={idx} value={p.name}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>
@@ -615,7 +740,9 @@ export default function MembersTable() {
           {/* 5. Date From */}
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-bold uppercase text-muted-foreground">Date From</Label>
+            <Label className="text-xs font-bold uppercase text-muted-foreground">
+              Date From
+            </Label>
             <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -661,7 +788,9 @@ export default function MembersTable() {
 
           {/* 6. Date To */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-bold uppercase text-muted-foreground">Date To</Label>
+            <Label className="text-xs font-bold uppercase text-muted-foreground">
+              Date To
+            </Label>
             <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -716,21 +845,25 @@ export default function MembersTable() {
         </div>
       </Card>
 
-      <div className="bg-card text-card-foreground rounded-xl shadow border dark:border-gray-800 p-3 md:p-8">
-        <div className="overflow-auto h-[450px] no-scrollbar">
+      <div className="bg-card dark:bg-zinc-950 text-card-foreground rounded-xl shadow border dark:border-gray-800 p-3 md:p-8">
+        <div className="relative overflow-auto h-[450px] no-scrollbar border rounded-lg">
           <Table>
-            <TableHeader className="sticky top-0 z-40 bg-card backdrop-blur-md">
+            <TableHeader className="sticky top-0 z-40">
               <TableRow className="hover:bg-transparent">
                 {/* STICKY NAME HEADER */}
                 <TableHead
                   onClick={() => handleSort("name")}
-                  className="sticky left-0 top-0 z-40 bg-card min-w-[150px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] cursor-pointer dark:text-gray-500 text-left pl-4"
+                  className="sticky left-0 top-0 z-50 min-w-[150px] text-white bg-zinc-950 select-none border-b shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-center"
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center gap-2">
                     <span className="text-sm tracking-wider">Name</span>
-                    <div className="flex flex-row -space-y-2 opacity-40">
-                      <ArrowUp className="size-3" />
-                      <ArrowDown className="size-3" />
+                    <div className="flex flex-row -space-y-2">
+                      <ArrowUp
+                        className={`size-3 ${sortBy === "name" && sortDir === "asc" ? "text-primary fill-current" : "text-gray-300"}`}
+                      />
+                      <ArrowDown
+                        className={`size-3 ${sortBy === "name" && sortDir === "desc" ? "text-primary fill-current" : "text-gray-300"}`}
+                      />
                     </div>
                   </div>
                 </TableHead>
@@ -746,23 +879,27 @@ export default function MembersTable() {
                   <TableHead
                     key={col.key}
                     onClick={() => handleSort(col.key)}
-                    className="top-0 z-30  text-center px-4 min-w-[90px]"
+                    className="top-0 z-40 text-center bg-zinc-950 text-white text-sm tracking-wider min-w-[90px]"
                   >
                     <div className="inline-flex items-center justify-center gap-2">
-                      <span className="text-sm dark:text-gray-500 tracking-wider">
+                      <span className="text-sm  tracking-wider">
                         {col.label}
                       </span>
-                      <div className="flex flex-row -space-y-2 opacity-40">
-                        <ArrowUp className="size-3" />
-                        <ArrowDown className="size-3" />
+                      <div className="flex flex-row -space-y-2">
+                        <ArrowUp
+                          className={`size-3 ${sortBy === col.key && sortDir === "asc" ? "text-primary fill-current" : "text-gray-300"}`}
+                        />
+                        <ArrowDown
+                          className={`size-3 ${sortBy === col.key && sortDir === "desc" ? "text-primary fill-current" : "text-gray-300"}`}
+                        />
                       </div>
                     </div>
                   </TableHead>
                 ))}
-                <TableHead className="top-0 z-30 text-center dark:text-gray-500 text-sm tracking-wider min-w-[90px]">
+                <TableHead className="top-0 z-40 text-center bg-zinc-950 text-white text-sm tracking-wider min-w-[90px]">
                   Status
                 </TableHead>
-                <TableHead className="top-0 z-30 text-center dark:text-gray-500 text-sm tracking-wider w-[90px]">
+                <TableHead className="top-0 z-40 text-center bg-zinc-950 text-white text-sm tracking-wider w-[90px]">
                   Actions
                 </TableHead>
               </TableRow>
@@ -799,26 +936,26 @@ export default function MembersTable() {
                       {member.name}
                     </TableCell>
 
-                    <TableCell className="text-center font-mono text-sm">
+                    <TableCell className="text-center font-mono text-sm bg-card">
                       {member.phone}
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="text-center bg-card">
                       <div className="inline-flex w-18 h-6 items-center justify-center rounded-md bg-black dark:bg-white px-2 shadow-sm">
                         <span className="block w-full text-center truncate text-xs font-medium text-white dark:text-black">
                           {member.plan || "N/A"}
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-center text-muted-foreground whitespace-nowrap">
+                    <TableCell className="text-center text-muted-foreground bg-card whitespace-nowrap">
                       {member.joined}
                     </TableCell>
-                    <TableCell className="text-center whitespace-nowrap">
+                    <TableCell className="text-center whitespace-nowrap bg-card">
                       {member.expiry}
                     </TableCell>
-                    <TableCell className="text-center font-semibold">
+                    <TableCell className="text-center font-semibold bg-card">
                       ₹{member.dueAmount}
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="text-center bg-card">
                       {/* <span className={getExpiryColor(member.expiry)}>
                         {getExpiryText(member.expiry)}
                       </span> */}
@@ -832,8 +969,11 @@ export default function MembersTable() {
                     </TableCell>
 
                     {/* ACTION DROPDOWN */}
-                    <TableCell className="text-center">
-                      <DropdownMenu>
+                    <TableCell className="text-center bg-card">
+                      <DropdownMenu
+                      // open={isMenuOpen}
+                      // onOpenChange={setIsMenuOpen}
+                      >
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="ghost"
@@ -851,6 +991,7 @@ export default function MembersTable() {
                             onClick={() => {
                               setSelectedMember(member); // Set the member to edit
                               setIsModalOpen(true); // Open the modal
+                              // setIsMenuOpen(false); // Manually close
                             }}
                             className="gap-2 cursor-pointer"
                           >
@@ -860,7 +1001,10 @@ export default function MembersTable() {
 
                           {member.dueAmount > 0 && (
                             <DropdownMenuItem
-                              onClick={() => sendWhatsAppReminder(member)}
+                              onClick={() => {
+                                sendWhatsAppReminder(member);
+                                // setIsMenuOpen(false); // Manually close
+                              }}
                               className="gap-2 cursor-pointer"
                             >
                               <MessageCircle className="size-4 text-green-500" />
@@ -870,13 +1014,61 @@ export default function MembersTable() {
 
                           <DropdownMenuSeparator />
 
-                          <DropdownMenuItem
-                            onClick={() => handleDelete(member)}
-                            className="gap-2 cursor-pointer text-white-600"
-                          >
-                            <Trash2 className="size-4 text-red-500" />
-                            <span>Delete</span>
-                          </DropdownMenuItem>
+                          {/* DELETE DIALOG */}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <DropdownMenuItem
+                                className="gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                                onSelect={(e) => e.preventDefault()} // Keep dropdown stable while dialog opens
+                              >
+                                <Trash2 className="size-4" />
+                                <span>Delete</span>
+                              </DropdownMenuItem>
+                            </AlertDialogTrigger>
+
+                            <AlertDialogContent className="rounded-2xl">
+                              <AlertDialogHeader>
+                                <div className="flex items-center gap-3 mb-2">
+                                  <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-full">
+                                    <AlertTriangle className="size-5 text-red-600" />
+                                  </div>
+                                  <AlertDialogTitle>
+                                    Are you absolutely sure?
+                                  </AlertDialogTitle>
+                                </div>
+                                <AlertDialogDescription>
+                                  This will permanently delete{" "}
+                                  <span className="font-bold text-foreground">
+                                    "{member.name}"
+                                  </span>{" "}
+                                  and remove their data from our servers. This
+                                  action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+
+                              <AlertDialogFooter className="gap-2 mt-4">
+                                <AlertDialogCancel className="rounded-xl border-zinc-200">
+                                  Cancel
+                                </AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => {
+                                    handleDelete(member);
+                                  }}
+                                  disabled={loading}
+                                  className="bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors"
+                                >
+                                  {loading ? (
+                                    <>
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      Deleting...
+                                    </>
+                                  ) : (
+                                    "Yes, Delete Member"
+                                  )}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

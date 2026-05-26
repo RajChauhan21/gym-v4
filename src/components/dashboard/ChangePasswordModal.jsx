@@ -12,11 +12,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-export function ChangePasswordModal() {
-  const [open, setOpen] = useState(false);
+import { useProfile } from "../../contexts/ProfileContext";
+import { resetPassword } from "../../apis/backend_apis";
+export function ChangePasswordModal({ open, onOpenChange }) {
   const [showPass, setShowPass] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const { profile } = useProfile();
   const getPasswordStrength = (pass) => {
     let score = 0;
     if (pass.length >= 8) score++;
@@ -41,23 +43,53 @@ export function ChangePasswordModal() {
     setPassword("");
     setConfirmPassword("");
     setShowPass(false);
-    toast.success("Password has been reset successfully.");
-    setOpen(false);
+    onOpenChange(false);
+  };
+
+  const handleResetPassword = async () => {
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    try {
+      const response = await resetPassword(profile.ownerId, password);
+      if (response.data == "Password reset successfully") {
+        toast.success("Password reset successfully");
+        resetAndClose();
+      } else if (response.status === 404) {
+        toast.error(
+          "Something went wrong while resetting password. Please try again later.",
+        );
+      } else if (response.status === 429) {
+        toast.Error(
+          "You are performing actions too quickly. Please wait a few seconds and try again.",
+        );
+      }
+    } catch (error) {
+      toast.error(
+        "Something went wrong while resetting password. Please try again later.",
+      );
+    } finally {
+      resetAndClose();
+    }
   };
 
   return (
     <Dialog
       open={open}
       onOpenChange={(val) => {
-        setOpen(val);
-        if (!val) resetAndClose();
+        if (!val) {
+          resetAndClose();
+        }
+
+        onOpenChange(val);
       }}
     >
-      <DialogTrigger asChild>
+      {/* <DialogTrigger asChild>
         <Button className="cursor-pointer bg-zinc-900 mr-2 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 rounded-xl">
           Change Password
         </Button>
-      </DialogTrigger>
+      </DialogTrigger> */}
 
       <DialogContent
         className="sm:max-w-[400px] rounded-2xl bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 p-6 shadow-2xl"
@@ -137,7 +169,7 @@ export function ChangePasswordModal() {
           <Button
             disabled={score < 4 || password !== confirmPassword}
             className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:grayscale transition-all cursor-pointer"
-            onClick={resetAndClose}
+            onClick={handleResetPassword}
           >
             {password !== confirmPassword && password.length > 0
               ? "Passwords Match Needed"

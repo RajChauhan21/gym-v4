@@ -17,11 +17,13 @@ import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import PricingPage from "./pages/PricingPage";
 import PaymentHistoryTable from "./pages/PaymentHistoryTable";
+import { ProfileProvider } from "./contexts/ProfileContext";
 
 function App() {
   const { dark, toggleDark } = useTheme();
   return (
     <AuthProvider>
+      <ProfileProvider>
       <TooltipProvider>
         <BrowserRouter>
           <Routes>
@@ -61,6 +63,7 @@ function App() {
           />
         </BrowserRouter>
       </TooltipProvider>
+      </ProfileProvider>
     </AuthProvider>
   );
 }

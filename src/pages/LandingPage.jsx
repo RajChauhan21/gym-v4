@@ -157,31 +157,31 @@ export default function LandingPage() {
       </section>
 
       {/* --- PRICING SECTION --- */}
-      <section id="pricing" className="py-24">
+      <section id="pricing" className="py-10">
         <div className="max-w-5xl mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-4">
             Simple, Transparent Pricing
           </h2>
           <div className="flex items-center justify-center gap-4 mb-12">
-            <span className={!isYearly ? "font-bold" : "text-muted-foreground"}>
+            {/* <span className={!isYearly ? "font-bold" : "text-muted-foreground"}>
               Monthly
-            </span>
-            <Switch checked={isYearly} onCheckedChange={setIsYearly} />
-            <span className={isYearly ? "font-bold" : "text-muted-foreground"}>
-              Yearly{" "}
-              <Badge
+            </span> */}
+            {/* <Switch checked={isYearly} onCheckedChange={setIsYearly} /> */}
+            {/* <span className={isYearly ? "font-bold" : "text-muted-foreground"}> */}
+              {/* Yearly{" "} */}
+              {/* <Badge
                 variant="secondary"
                 className="ml-1 bg-green-500/10 text-green-600 border-none"
               >
                 Save 20%
-              </Badge>
-            </span>
+              </Badge> */}
+            {/* </span> */}
           </div>
 
           <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             <PricingCard
               title="Starter"
-              price={isYearly ? "399" : "499"}
+              price={"699"}
               description="Perfect for small studio gyms."
               features={[
                 "Up to 50 Members",
@@ -191,7 +191,7 @@ export default function LandingPage() {
             />
             <PricingCard
               title="Pro"
-              price={isYearly ? "799" : "999"}
+              price={"899"}
               description="Our most popular plan for growth."
               highlight
               features={[

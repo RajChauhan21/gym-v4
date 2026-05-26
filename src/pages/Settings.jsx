@@ -10,9 +10,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Loader from "@/components/ui/Loader";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import EditProfileModal from "../components/dashboard/EditProfileModal";
 import EditPaymentModal from "../components/dashboard/EditPaymentModal";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Globe,
@@ -25,6 +32,9 @@ import {
   ArrowRight,
   ShieldCheck,
   ExternalLink,
+  Sparkles,
+  Navigation,
+  Loader2,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -55,13 +65,31 @@ import { DeleteAccountModal } from "../components/dashboard/DeleteAccoutModal";
 import { UpgradeModal } from "./UpgradeModal";
 import { useNavigate } from "react-router-dom";
 import { ManagePlanModal } from "./ManagePlanModal";
+import VerifyOtpModal from "./VerfiyOtpModal";
+import { toast } from "sonner";
+import {
+  getActiveSubscriptionOfOwner,
+  uploadImageForGym,
+  uploadImageForOwner,
+} from "../apis/backend_apis";
+import { ImagePreviewModal } from "./ImagePreviewModal";
 
 export default function Settings() {
   const { dark, toggleDark } = useTheme();
   const [open, setOpen] = useState(false);
-  const { profile, setProfile } = useProfile();
   const navigate = useNavigate();
+  const { profile, setProfile } = useProfile();
+  const [verifyOtpOpen, setVerifyOtpOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
+  const [ownerImage, setOwnerImage] = useState(null);
+  const [gymImage, setGymImage] = useState(null);
+  const [isUploadingOwner, setIsUploadingOwner] = useState(false);
+  const [isUploadingGym, setIsUploadingGym] = useState(false);
+  const [ownerPreviewOpen, setOwnerPreviewOpen] = useState(false);
+  const [gymPreviewOpen, setGymPreviewOpen] = useState(false);
+  const [loadActiveSubs, setLoadActiveSubs] = useState(false);
+  const [editType, setEditType] = useState("gym"); // "gym" or "owner"
   const [payments, setPayments] = useState({
     upiId: "paramount@okupi",
     bankAccount: "1234567890",
@@ -91,54 +119,241 @@ export default function Settings() {
   };
 
   // Helper to calculate cycle stats
-  const getCycleStats = (targetDate) => {
+  const getCycleStats = (startDate, endDate) => {
+    // 1. Guard against null, undefined, or missing profile dates
+    if (!startDate || !endDate) {
+      return { percentage: 0, daysLeft: 0 };
+    }
     const now = new Date();
-    const end = new Date(targetDate);
-    const start = new Date(end);
-    start.setDate(end.getDate() - 30);
+    const start = new Date(startDate);
+    const end = new Date(endDate);
 
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return { percentage: 0, daysLeft: 0 };
+    }
+
+    // Total duration of this specific billing cycle
     const total = end.getTime() - start.getTime();
+    // Time that has passed from the start until right now
     const elapsed = now.getTime() - start.getTime();
-    const percentage = Math.min(Math.max((elapsed / total) * 100, 0), 100);
+
+    // Guard against division by zero if start and end dates are identical
+    const percentage = total > 0 ? (elapsed / total) * 100 : 0;
+
     const daysLeft = Math.ceil(
       (end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
     );
 
     return {
-      percentage: Math.round(percentage),
-      daysLeft: Math.max(daysLeft, 0),
+      // Clamps the value safely between 0% and 100%
+      percentage: Math.round(Math.min(Math.max(percentage, 0), 100)),
+      daysLeft: Math.max(0, daysLeft), // Never show negative days
     };
   };
 
-  const { percentage, daysLeft } = getCycleStats(profile.endDate);
+  const { percentage, daysLeft } = getCycleStats(
+    profile.startDate,
+    profile.endDate,
+  );
   const memberUsagePercent =
     (profile.currentMemberCount / profile.memberLimitCount) * 100;
 
-  const handleImageUpload = (e) => {
+  const handleGymImageUpload = async (e) => {
+    setIsUploadingGym(true);
     const file = e.target.files[0];
     if (!file) return;
 
     // 1. Basic Validation: Only images
     if (!file.type.startsWith("image/")) {
-      alert("Please upload an image file (PNG, JPG, etc.)");
+      toast.error("Please upload an image file (PNG, JPG, etc.)");
+      setIsUploadingGym(false);
       return;
     }
 
     // 2. Size Validation: Max 2MB for SaaS performance
     if (file.size > 2 * 1024 * 1024) {
-      alert("Image size must be less than 2MB");
+      toast.error("Image size must be less than 2MB");
+      setIsUploadingGym(false);
+      return;
+    }
+
+    const allowedExtensions = ["jpg", "jpeg", "png"];
+    const fileExtension = file.name.split(".").pop().toLowerCase();
+
+    if (!allowedExtensions.includes(fileExtension)) {
+      toast.error(
+        `Unsupported file extension: .${fileExtension}. Please use JPG, JPEG, PNG.`,
+      );
+      setIsUploadingGym(false);
       return;
     }
 
     // 3. Create Preview URL
     const url = URL.createObjectURL(file);
 
-    // 4. Update State
-    setProfile((prev) => ({
-      ...prev,
-      logo: url, // For immediate UI preview
-      logoFile: file, // Save the raw file to upload to your database later
-    }));
+    try {
+      const gymId = Number(profile.gymId);
+      const response = await uploadImageForGym(gymId, file);
+      if (response.status === 201 || response.status === 200) {
+        const newImageUrl = response.data; // The URL string from backend
+
+        // 1. Update Context State for immediate UI change
+        setProfile((prev) => {
+          const updatedProfile = { ...prev, gymLogo: newImageUrl };
+
+          // 2. Update LocalStorage so it persists after refresh
+          const storedUser = localStorage.getItem("userProfile"); // Use your actual key name
+          if (storedUser) {
+            const parsedUser = JSON.parse(storedUser);
+            parsedUser.gymLogo = newImageUrl;
+            localStorage.setItem("userProfile", JSON.stringify(parsedUser));
+          }
+          console.log("Updated profile with new gym logo:", updatedProfile);
+          return updatedProfile;
+        });
+
+        toast.success("Gym logo uploaded successfully");
+      } else if (response.status === 404) {
+        toast.error(
+          "Something went wrong while uploading image. Please try again later.",
+        );
+      } else if (response.status === 429) {
+        toast.error(
+          "You are performing actions too quickly. Please wait a few seconds and try again.",
+        );
+      }
+    } catch (error) {
+      toast.error(
+        "Something went wrong while uploading image. Please try again later.",
+      );
+    } finally {
+      setIsUploadingGym(false);
+    }
+  };
+
+  const handleOwnerImageUpload = async (e) => {
+    setIsUploadingOwner(true);
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // 1. Basic Validation: Only images
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file (PNG, JPG, etc.)");
+      setIsUploadingOwner(false);
+      return;
+    }
+
+    const allowedExtensions = ["jpg", "jpeg", "png"];
+    const fileExtension = file.name.split(".").pop().toLowerCase();
+
+    if (!allowedExtensions.includes(fileExtension)) {
+      toast.error(
+        `Unsupported file extension: .${fileExtension}. Please use JPG, JPEG, PNG.`,
+      );
+      setIsUploadingOwner(false);
+      return;
+    }
+
+    // 2. Size Validation: Max 2MB for SaaS performance
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image size must be less than 2MB");
+      setIsUploadingOwner(false);
+      return;
+    }
+
+    // 3. Create Preview URL
+    const url = URL.createObjectURL(file);
+
+    try {
+      const response = await uploadImageForOwner(profile.ownerId, file);
+      if (response.status === 201 || response.status === 200) {
+        const newImageUrl = response.data; // The URL string from backend
+
+        // 1. Update Context State for immediate UI change
+        setProfile((prev) => {
+          const updatedProfile = { ...prev, ownerLogo: newImageUrl };
+
+          // 2. Update LocalStorage so it persists after refresh
+          const storedUser = localStorage.getItem("userProfile"); // Use your actual key name
+          if (storedUser) {
+            const parsedUser = JSON.parse(storedUser);
+            parsedUser.ownerLogo = newImageUrl;
+            localStorage.setItem("userProfile", JSON.stringify(parsedUser));
+          }
+          return updatedProfile;
+        });
+
+        toast.success("Owner image uploaded successfully");
+      } else if (response.status === 404) {
+        toast.error(
+          "Something went wrong while uploading image. Please try again later.",
+        );
+      } else if (response.status === 429) {
+        toast.error(
+          "You are performing actions too quickly. Please wait a few seconds and try again.",
+        );
+      }
+    } catch (error) {
+      toast.error(
+        "Something went wrong while uploading image. Please try again later",
+      );
+    } finally {
+      setIsUploadingOwner(false);
+    }
+  };
+
+  const activeSubscription = async () => {
+    setLoadActiveSubs(true);
+    try {
+      const response = await getActiveSubscriptionOfOwner(profile.ownerId);
+      if (response.status === 201 || response.status === 202) {
+        setProfile((prev) => {
+          // 1. Map backend fields to the correct local state keys
+          const updatedProfile = {
+            ...prev,
+            planName: response.data.name,
+            price: response.data.price,
+            startDate: response.data.startDate,
+            endDate: response.data.endDate,
+            status: response.data.subscriptionStatus,
+          };
+
+          // 2. Update LocalStorage so it persists after refresh
+          const storedUser = localStorage.getItem("userProfile");
+          if (storedUser) {
+            const parsedUser = JSON.parse(storedUser);
+
+            // Map backend fields to the correct localStorage keys
+            parsedUser.planName = response.data.name;
+            parsedUser.price = response.data.price;
+            parsedUser.startDate = response.data.startDate;
+            parsedUser.endDate = response.data.endDate;
+            parsedUser.status = response.data.subscriptionStatus;
+
+            localStorage.setItem("userProfile", JSON.stringify(parsedUser));
+          }
+          console.log('updated localstorage', localStorage.getItem("userProfile"));
+          return updatedProfile;
+        });
+
+        console.log("Active subscription details:", response.data);
+      } else if (response.status === 404) {
+        toast.error(
+          "Something went wrong while uploading image. Please try again later.",
+        );
+      } else if (response.status === 429) {
+        toast.error(
+          "You are performing actions too quickly. Please wait a few seconds and try again.",
+        );
+      }
+    } catch (error) {
+      console.error(
+        "API Error in active subscription:",
+        error.response || error,
+      );
+    } finally {
+      setLoadActiveSubs(false);
+    }
   };
 
   const [loading, setLoading] = useState(true);
@@ -147,220 +362,394 @@ export default function Settings() {
     setTimeout(() => setLoading(false), 1200);
   }, []);
 
-  if (loading) {
-    return <Loader text="Loading Settings...." />;
-  }
+  // if (loading) {
+  //   return <Loader text="Loading Settings...." />;
+  // }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* GYM */}
-      <Card className="rounded-3xl shadow-xl border-none bg-gradient-to-br from-card to-muted/20 overflow-hidden">
-        <div className="flex flex-col lg:flex-row">
-          {/* Branding Section */}
-          <div className="lg:w-96 p-12 flex flex-col items-center justify-center relative overflow-hidden">
-            {/* The "Anti-Box" Background: A soft, large radial gradient instead of a solid color */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(var(--primary),0.15),transparent_70%)]" />
 
-            {/* Animated decorative ring */}
-            {/* <div className="absolute size-84 border-[1px] border-primary/10 rounded-full animate-[spin_20s_linear_infinite] pointer-events-none" /> */}
-
-            <div className="relative group mb-8">
-              {/* High-end Glowing Border */}
-              <div className="absolute -inset-1.5 bg-gradient-to-tr from-primary via-primary/50 to-transparent rounded-[2.5rem] blur-md opacity-20 group-hover:opacity-60 transition-all duration-700"></div>
-
+      <Card className="overflow-hidden rounded-3xl border bg-card shadow-sm">
+        <div className="p-6 lg:p-8">
+          {/* TOP HEADER */}
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            {/* LEFT */}
+            <div className="flex items-center gap-5">
+              {/* LOGO */}
               <div className="relative">
-                <img
-                  src={profile.gymLogo || "https://placeholder.com"}
-                  alt="Gym Logo"
-                  className="w-36 h-36 rounded-[2.5rem] object-cover border-4 border-background shadow-[0_20px_50px_-12px_rgba(0,0,0,0.3)] group-hover:scale-[1.02] transition-transform duration-500"
-                />
-                <label className="absolute inset-0 bg-primary/80 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center rounded-[2.5rem] transition-all cursor-pointer backdrop-blur-sm">
-                  <Camera className="size-6 text-white mb-1" />
-                  <span className="text-white text-[10px] font-black uppercase tracking-widest">
-                    Change Logo
-                  </span>
+                {/* Preview Click */}
+                <button
+                  type="button"
+                  onClick={() => setGymPreviewOpen(true)}
+                  className="group relative"
+                >
+                  <div className="size-24 overflow-hidden rounded-2xl ring-4 ring-background shadow-xl">
+                    <img
+                      src={`${profile.gymLogo}${
+                        profile.gymLogo?.includes("?") ? "&" : "?"
+                      }t=${Date.now()}`}
+                      alt="Gym Logo"
+                      className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                  </div>
+                </button>
+
+                {/* Upload Button */}
+                {/* <label className="absolute -right-2 -bottom-2 cursor-pointer">
+                  <div className="flex size-9 items-center justify-center rounded-full bg-primary text-white dark:text-black shadow-lg">
+                    {isUploadingGym ? (
+                      <div className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    ) : (
+                      <Camera className="size-4" />
+                    )}
+                  </div>
+
                   <input
                     type="file"
                     className="hidden"
-                    onChange={handleImageUpload}
+                    disabled={isUploadingGym}
+                    onChange={handleGymImageUpload}
+                    accept="image/*"
+                  />
+                </label> */}
+                <label
+                  onClick={(e) => {
+                    if (profile.planName === "No Active Plan") {
+                      // 1. Stop the browser from opening the file selector window
+                      e.preventDefault();
+                      // 2. Show the error toast
+                      toast.error(
+                        "You need an active plan to upload images. Please subscribe to a plan first.",
+                      );
+                    }
+                  }}
+                  className={`absolute -right-2 -bottom-2 ${
+                    profile.planName === "No Active Plan"
+                      ? "cursor-not-allowed opacity-70"
+                      : "cursor-pointer"
+                  }`}
+                >
+                  <div className="flex size-9 items-center justify-center rounded-full bg-primary text-white dark:text-black shadow-lg">
+                    {isUploadingGym ? (
+                      <div className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    ) : (
+                      <Camera className="size-4" />
+                    )}
+                  </div>
+
+                  <input
+                    type="file"
+                    className="hidden"
+                    // Block input selection if uploading OR if there is no active plan
+                    disabled={
+                      isUploadingGym || profile.planName === "No Active Plan"
+                    }
+                    onChange={handleGymImageUpload}
+                    accept="image/*"
                   />
                 </label>
               </div>
-            </div>
 
-            <div className="relative z-10 text-center space-y-2">
-              <h3 className="text-3xl font-black tracking-tighter text-foreground uppercase italic leading-none">
-                {profile.gymName}
-              </h3>
-              <div className="flex items-center justify-center gap-2">
-                <span className="h-[1px] w-4 bg-primary/40" />
-                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em]">
-                  Est. 2024
-                </span>
-                <span className="h-[1px] w-4 bg-primary/40" />
+              {/* GYM INFO */}
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-2xl font-bold tracking-tight">
+                    {profile.gymName}
+                  </h2>
+                  <ShieldCheck className="size-5 text-primary" />
+                </div>
+
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Professional Gym Profile
+                </p>
+
+                <Badge variant="secondary" className="mt-3 rounded-full px-3">
+                  Active
+                </Badge>
               </div>
             </div>
+
+            {/* RIGHT ACTION */}
+            <Button
+              onClick={() => {
+                if (profile.planName === "No Active Plan") {
+                  // 1. Show the error toast
+                  toast.error(
+                    "You need an active plan to mange gym profile. Please subscribe to a plan first.",
+                  );
+                } else {
+                  // 2. Open modal and set type if they have a plan
+                  setOpen(true);
+                  setEditType("gym");
+                }
+              }}
+              className="rounded-xl"
+            >
+              Edit Gym Profile
+            </Button>
+
+            <EditProfileModal
+              open={open}
+              setOpen={setOpen}
+              profile={profile}
+              setProfile={setProfile}
+              editType={editType}
+            />
           </div>
 
-          {/* Info Section */}
-          <div className="flex-1 p-8 md:p-12 bg-card/50 backdrop-blur-md">
-            <div className="flex justify-between items-center mb-10">
-              <div>
-                <h4 className="text-xs font-black uppercase tracking-[0.3em] text-primary mb-1">
-                  Business Hub
-                </h4>
-                <p className="text-sm text-muted-foreground font-medium">
-                  Public gym information & location
+          {/* INFO GRID */}
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            {/* ADDRESS */}
+            <div className="rounded-2xl border bg-muted/30 p-5 duration-500 transition-all hover:-translate-y-1 hover:shadow-md">
+              <div className="mb-3 flex items-center gap-2">
+                <MapPin className="size-4 text-primary" />
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Location
                 </p>
               </div>
-              <Button
-                variant="secondary"
-                className="rounded-xl font-bold shadow-sm"
-                onClick={() => setOpen(true)}
-              >
-                Edit Business
-              </Button>
-              <EditProfileModal
-                open={open}
-                setOpen={setOpen}
-                profile={profile}
-                setProfile={setProfile}
-              />
+
+              <p className="text-sm font-medium leading-relaxed">
+                {profile.address || "Not provided"}
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-              <div className="space-y-6">
-                <div className="group">
-                  <div className="flex items-center gap-3 text-muted-foreground mb-3">
-                    <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white dark:group-hover:bg-black transition-colors">
-                      <MapPin className="size-4" />
-                    </div>
-                    <span className="text-[11px] font-black uppercase tracking-widest">
-                      Physical Address
-                    </span>
-                  </div>
-                  <p className="text-md font-bold leading-relaxed pl-1">
-                    {profile.address}
-                  </p>
-                  {profile.googleMapUrl && (
-                    <a
-                      href={profile.googleMapUrl}
-                      target="_blank"
-                      className="mt-3 inline-flex items-center text-[11px] text-blue-500 font-black uppercase tracking-tighter hover:gap-1 transition-all"
-                    >
-                      Get Directions <ExternalLink className="ml-1 size-3" />
-                    </a>
-                  )}
-                </div>
+            {/* MAPS */}
+            <div className="rounded-2xl border bg-muted/30 p-5 duration-500 transition-all hover:-translate-y-1 hover:shadow-md">
+              <div className="mb-3 flex items-center gap-2">
+                <Navigation className="size-4 text-primary" />
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Google Maps
+                </p>
               </div>
 
-              <div className="space-y-6">
-                <div className="group">
-                  <div className="flex items-center gap-3 text-muted-foreground mb-3">
-                    <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white dark:group-hover:bg-black transition-colors">
-                      <Globe className="size-4" />
-                    </div>
-                    <span className="text-[11px] font-black uppercase tracking-widest">
-                      Official Website
-                    </span>
-                  </div>
-                  <p className="text-md font-bold pl-1 italic underline decoration-primary/30 underline-offset-4">
-                    {profile.website || "Not Linked"}
-                  </p>
-                </div>
+              {profile.googleMapUrl ? (
+                <a
+                  href={profile.googleMapUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
+                >
+                  Open in Maps
+                  <ExternalLink className="size-3" />
+                </a>
+              ) : (
+                <p className="text-sm text-muted-foreground">Not provided</p>
+              )}
+            </div>
+
+            {/* WEBSITE */}
+            <div className="rounded-2xl border bg-muted/30 p-5 duration-500 transition-all hover:-translate-y-1 hover:shadow-md">
+              <div className="mb-3 flex items-center gap-2">
+                <Globe className="size-4 text-primary" />
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Website
+                </p>
               </div>
+
+              {profile.website ? (
+                <a
+                  href={profile.website}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
+                >
+                  Visit Website
+                  <ExternalLink className="size-3" />
+                </a>
+              ) : (
+                <p className="text-sm text-muted-foreground">Not provided</p>
+              )}
             </div>
           </div>
         </div>
+
+        {/* IMAGE PREVIEW MODAL */}
+        <ImagePreviewModal
+          open={gymPreviewOpen}
+          onOpenChange={setGymPreviewOpen}
+          image={`${profile.gymLogo}${
+            profile.gymLogo?.includes("?") ? "&" : "?"
+          }t=${Date.now()}`}
+          title={profile.gymName || "Gym"}
+          subtitle="Gym Profile Photo"
+        />
       </Card>
 
       {/* PROFILE */}
-      <Card className="rounded-3xl shadow-lg border border-zinc-200/50 dark:border-zinc-800/50 bg-card p-8 mt-8 relative overflow-hidden">
-        {/* Subtle background decoration */}
-        <div className="absolute -right-4 -bottom-4 size-32 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+      <Card className="overflow-hidden rounded-3xl border bg-card shadow-sm mt-8">
+        <div className="p-6 lg:p-8">
+          {/* TOP HEADER */}
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            {/* LEFT */}
+            <div className="flex items-center gap-5">
+              {/* PROFILE IMAGE */}
+              <div className="relative">
+                {/* PREVIEW BUTTON */}
+                <button
+                  type="button"
+                  onClick={() => setOwnerPreviewOpen(true)}
+                  className="group relative"
+                >
+                  <div className="size-24 overflow-hidden rounded-full ring-4 ring-background shadow-xl">
+                    <img
+                      key={profile.ownerLogo}
+                      src={
+                        profile.ownerLogo?.includes("googleusercontent.com")
+                          ? profile.ownerLogo
+                          : `${profile.ownerLogo}${
+                              profile.ownerLogo?.includes("?") ? "&" : "?"
+                            }t=${Date.now()}`
+                      }
+                      alt="Owner"
+                      className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
 
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-          <div className="flex items-center gap-5">
-            {/* Owner Profile Photo Upload */}
-            <div className="relative group">
-              <div className="absolute -inset-1 bg-gradient-to-tr from-indigo-500 to-purple-600 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-500"></div>
-              <div className="relative size-20">
-                <img
-                  src={profile.ownerLogo || "https://placeholder.com"}
-                  alt="Owner"
-                  className="size-20 rounded-full object-cover border-2 border-background shadow-xl"
-                />
-                <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center rounded-full transition-all cursor-pointer backdrop-blur-sm">
-                  <Camera className="size-4 text-white mb-0.5" />
-                  <span className="text-[8px] text-white font-black uppercase">
-                    Change
-                  </span>
-                  {/* Note: You'll need a separate handler or logic for owner image vs gym logo */}
+                    {/* VIEW OVERLAY */}
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity duration-300">
+                      <span className="text-xs font-bold text-white">View</span>
+                    </div>
+                  </div>
+                </button>
+
+                {/* UPLOAD BUTTON */}
+                <label
+                  onClick={(e) => {
+                    if (profile.planName === "No Active Plan") {
+                      // 1. Prevent the file explorer from opening
+                      e.preventDefault();
+                      // 2. Show the error toast
+                      toast.error(
+                        "You need an active plan to upload images. Please subscribe to a plan first.",
+                      );
+                    }
+                  }}
+                  className={`absolute -right-2 -bottom-2 ${
+                    profile.planName === "No Active Plan"
+                      ? "cursor-not-allowed opacity-70"
+                      : "cursor-pointer"
+                  }`}
+                >
+                  <div className="flex size-9 items-center justify-center rounded-full bg-primary text-white dark:text-black shadow-lg transition-transform hover:scale-105">
+                    {isUploadingOwner ? (
+                      <div className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    ) : (
+                      <Camera className="size-4" />
+                    )}
+                  </div>
+
                   <input
                     type="file"
                     className="hidden"
-                    onChange={handleImageUpload}
+                    // Also disable the input field entirely as a backup safety measure
+                    disabled={
+                      isUploadingOwner || profile.planName === "No Active Plan"
+                    }
+                    onChange={handleOwnerImageUpload}
+                    accept="image/*"
                   />
                 </label>
               </div>
+
+              {/* OWNER INFO */}
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-2xl font-bold tracking-tight">
+                    {profile.owner || "Owner Name"}
+                  </h2>
+
+                  <ShieldCheck className="size-5 text-primary" />
+                </div>
+
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Gym Management Profile
+                </p>
+
+                <Badge variant="secondary" className="mt-3 rounded-full px-3">
+                  Private Account
+                </Badge>
+              </div>
             </div>
 
-            <div>
-              <h4 className="text-xl font-black tracking-tight flex items-center gap-2">
-                Owner Profile
-                <ShieldCheck className="size-4 text-indigo-500" />
-              </h4>
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-[0.15em]">
-                Private Account Details
+            {/* ACTION BUTTON */}
+            <Button
+              onClick={() => {
+                if (profile.planName === "No Active Plan") {
+                  // 1. Show the error toast
+                  toast.error(
+                    "You need an active plan to manage your profile. Please subscribe to a plan first.",
+                  );
+                } else {
+                  // 2. Open modal and set type if they have a plan
+                  setOpen(true);
+                  setEditType("owner");
+                }
+              }}
+              className="rounded-xl"
+            >
+              Edit Owner Profile
+            </Button>
+          </div>
+
+          {/* INFO GRID */}
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            {/* FULL NAME */}
+            <div className="rounded-2xl border bg-muted/30 p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+              <div className="mb-3 flex items-center gap-2">
+                <User className="size-4 text-primary" />
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Full Name
+                </p>
+              </div>
+
+              <p className="text-sm font-medium leading-relaxed">
+                {profile.owner || "Not provided"}
+              </p>
+            </div>
+
+            {/* PHONE */}
+            <div className="rounded-2xl border bg-muted/30 p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+              <div className="mb-3 flex items-center gap-2">
+                <Phone className="size-4 text-primary" />
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Phone Line
+                </p>
+              </div>
+
+              <p className="text-sm font-medium leading-relaxed">
+                {profile.phone || "Not provided"}
+              </p>
+            </div>
+
+            {/* EMAIL */}
+            <div className="rounded-2xl border bg-muted/30 p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+              <div className="mb-3 flex items-center gap-2">
+                <Mail className="size-4 text-primary" />
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Management Email
+                </p>
+              </div>
+
+              <p className="text-sm font-medium break-all">
+                {profile.email || "Not provided"}
               </p>
             </div>
           </div>
 
-          <Button
-            variant="secondary"
-            className="rounded-xl font-bold shadow-sm"
-            onClick={() => setOpen(true)}
-          >
-            Edit Profile
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
-            {
-              label: "Full Name",
-              value: profile.owner,
-              icon: <User className="size-3" />,
-            },
-            {
-              label: "Phone Line",
-              value: profile.phone,
-              icon: <Phone className="size-3" />,
-            },
-            {
-              label: "Management Email",
-              value: profile.email,
-              icon: <Mail className="size-3" />,
-            },
-          ].map((item, i) => (
-            <div
-              key={i}
-              className="p-5 rounded-2xl bg-muted/40 border border-zinc-200/50 dark:border-zinc-800/50 hover:bg-card hover:shadow-md transition-all duration-300"
-            >
-              <div className="flex items-center gap-2 text-muted-foreground mb-2">
-                {item.icon}
-                <span className="text-[10px] font-black uppercase tracking-[0.15em]">
-                  {item.label}
-                </span>
-              </div>
-              <p
-                className="font-bold text-foreground truncate"
-                title={item.value}
-              >
-                {item.value || "Not Set"}
-              </p>
-            </div>
-          ))}
+          {/* IMAGE PREVIEW MODAL */}
+          <ImagePreviewModal
+            open={ownerPreviewOpen}
+            onOpenChange={setOwnerPreviewOpen}
+            image={
+              profile.ownerLogo?.includes("googleusercontent.com")
+                ? profile.ownerLogo
+                : `${profile.ownerLogo}${
+                    profile.ownerLogo?.includes("?") ? "&" : "?"
+                  }t=${Date.now()}`
+            }
+            title={profile.owner || "Owner"}
+            subtitle="Owner Profile Photo"
+          />
         </div>
       </Card>
 
@@ -372,17 +761,88 @@ export default function Settings() {
               <CardTitle className="text-lg font-bold tracking-tight">
                 Subscription
               </CardTitle>
-              <CardDescription className="flex items-center gap-1.5 text-xs">
-                <CreditCard className="size-3" />
-                {profile.planName} • ₹{profile.price}
+              {/* <CardDescription className="flex items-center gap-1.5 text-xs">
+                <Badge
+                  className={`text-xs px-3 py-1 border-0 shadow-sm ${
+                    profile.planName === "Max Pro"
+                      ? "bg-gradient-to-r from-orange-100 to-amber-200 text-orange-900"
+                      : "bg-gradient-to-r from-violet-100 to-purple-200 text-purple-900"
+                  }`}
+                >
+                  {profile.planName}
+                </Badge>
+
+                <span className="text-sm font-semibold text-black dark:text-white">
+                  ₹{profile.price}
+                </span>
+              </CardDescription> */}
+              <CardDescription className="flex flex-col items-start gap-3 text-xs">
+                {/* PLAN BADGE + PRICE */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge
+                    className={`text-xs px-3 py-1 border-0 shadow-sm ${
+                      profile.planName === "Max Pro"
+                        ? "bg-gradient-to-r from-orange-100 to-amber-200 text-orange-900"
+                        : "bg-gradient-to-r from-violet-100 to-purple-200 text-purple-900"
+                    }`}
+                  >
+                    {profile.planName}
+                  </Badge>
+
+                  <span className="text-sm font-semibold text-black dark:text-white">
+                    ₹{profile.price}
+                  </span>
+                </div>
+
+                {/* YOUR EXISTING STATUS BADGE HERE */}
+
+                {/* BUTTON + TOOLTIP BELOW STATUS */}
               </CardDescription>
             </div>
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize
-              ${profile.status === "active" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400" : "bg-amber-100 text-amber-700"}`}
-            >
-              {profile.status}
-            </span>
+
+            <div className="flex flex-col items-center gap-4">
+              <span
+                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize
+  ${
+    profile.status === "Active" || profile.status === "ACTIVE"
+      ? "bg-blue-600 text-white dark:bg-blue-600 dark:text-white"
+      : "bg-red-600 text-white line-through" // Changed to line-through
+  }`}
+              >
+                {profile.status || "Active"}
+              </span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      disabled={
+                        loadActiveSubs
+                      }
+                      onClick={async () => {
+                        activeSubscription();
+                      }}
+                      className="rounded-xl h-6"
+                    >
+                      {loadActiveSubs ? (
+                        <>
+                          <Loader2 className="mr-2 size-4 animate-spin" />
+                          Refreshing...
+                        </>
+                      ) : (
+                        "Refresh"
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+
+                  <TooltipContent>
+                    <p>
+                      Not seeing the correct subscription status? Click here to refresh and fetch the latest details from our servers.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </div>
         </CardHeader>
 
@@ -396,20 +856,52 @@ export default function Settings() {
                 </p>
                 <Users className="size-3 text-muted-foreground" />
               </div>
-              <div className="flex items-baseline gap-1">
+              {/* <div className="flex items-baseline gap-1">
                 <span className="text-2xl font-bold">
                   {profile.currentMemberCount}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   / {profile.memberLimitCount}
                 </span>
+              </div> */}
+              <div>
+                {profile?.planName === "No Active Plan" ? (
+                  // 1. Case: User has no active membership plan - Show status message
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-xl font-bold italic text-neutral-500 dark:text-neutral-400">
+                      Inactive
+                    </span>
+                    <span className="text-xs text-muted-foreground font-medium">
+                      No active subscription plan found
+                    </span>
+                  </div>
+                ) : (
+                  // 2. Case: User has an active plan - Show normal progress stats
+                  <>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-2xl font-bold">
+                        {profile?.currentMemberCount}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        / {profile?.memberLimitCount}
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-gray-200 dark:bg-gray-800 overflow-hidden mt-2">
+                      <div
+                        className="h-full bg-primary transition-all duration-700"
+                        style={{ width: `${memberUsagePercent}%` }}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
-              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+
+              {/* <div className="h-1.5 w-full rounded-full bg-gray-200 dark:bg-gray-800 overflow-hidden">
                 <div
-                  className="h-full bg-primary transition-all duration-700"
+                  className="h-full bg-primary  transition-all duration-700"
                   style={{ width: `${memberUsagePercent}%` }}
                 />
-              </div>
+              </div> */}
             </div>
 
             {/* Billing Cycle Progress */}
@@ -421,14 +913,55 @@ export default function Settings() {
                 <CalendarDays className="size-3 text-muted-foreground" />
               </div>
               <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold italic text-orange-600 dark:text-orange-400">
-                  {daysLeft}
-                </span>
-                <span className="text-xs text-muted-foreground font-medium">
-                  days left
-                </span>
+                <div>
+                  {profile?.planName === "No Active Plan" ? (
+                    // 1. Case: User has no active membership plan
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-xl font-bold italic text-neutral-500 dark:text-neutral-400">
+                        Inactive
+                      </span>
+                      <span className="text-xs text-muted-foreground font-medium">
+                        No active subscription plan found
+                      </span>
+                    </div>
+                  ) : daysLeft === 0 ? (
+                    <>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xl font-bold italic text-red-600 dark:text-red-400 animate-pulse">
+                          Renewal Today
+                        </span>
+                        <span className="text-xs text-muted-foreground font-medium">
+                          Subscription charges apply today
+                        </span>
+                      </div>
+                      {/* <div className="h-1.5 w-full rounded-full bg-gray-200 dark:bg-gray-800 overflow-hidden">
+                        <div
+                          className="h-full bg-orange-500 transition-all duration-1000"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div> */}
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-2xl font-bold italic text-orange-600 dark:text-orange-400">
+                          {daysLeft}
+                        </span>
+                        <span className="text-xs text-muted-foreground font-medium">
+                          {daysLeft === 1 ? "day left" : "days left"}
+                        </span>
+                      </div>
+                      {/* <div className="h-1.5 w-full rounded-full bg-gray-200 dark:bg-gray-800 overflow-hidden">
+                        <div
+                          className="h-full bg-orange-500 transition-all duration-1000"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div> */}
+                    </>
+                  )}
+                </div>
               </div>
-              <div className="h-1.5 w-full rounded-full bg-muted/50 overflow-hidden">
+              <div className="h-1.5 w-full rounded-full bg-gray-200 dark:bg-gray-800 overflow-hidden">
                 <div
                   className="h-full bg-orange-500 transition-all duration-1000"
                   style={{ width: `${percentage}%` }}
@@ -440,42 +973,50 @@ export default function Settings() {
           <div className="text-xs text-muted-foreground flex items-center justify-start gap-2 py-1">
             <span>Next invoice on</span>
             <span className="font-bold text-foreground bg-muted px-2 py-0.5 rounded">
-              {new Date(profile.endDate).toLocaleDateString("en-GB", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })}
+              {profile?.planName === "No Active Plan" ||
+              !profile?.endDate ||
+              isNaN(new Date(profile.endDate).getTime())
+                ? // Fallback text when there is no valid end date
+                  "N/A"
+                : // Cleanly formats only when a valid date exists
+                  new Date(profile.endDate).toLocaleDateString("en-GB", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })}
             </span>
           </div>
 
           <div className="flex flex-col gap-2.5">
             <div className="grid grid-cols-2 gap-2">
-              <Button variant="default" onClick={() => setOpenUpgrade(true)}>
+              <Button variant="default" onClick={() => navigate("/pricing")}>
                 Upgrade
               </Button>
-              <Button variant="outline" onClick={() => setPayOpen(true)}>Manage Plan</Button>
-              <UpgradeModal open={openUpgrade} setOpen={setOpenUpgrade} />
+              <Button variant="outline" onClick={() => setPayOpen(true)}>
+                Manage Plan
+              </Button>
+              {/* <UpgradeModal open={openUpgrade} setOpen={setOpenUpgrade} /> */}
               <ManagePlanModal open={payOpen} setOpen={setPayOpen} />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 w-full">
               <Button
                 variant="outline"
                 size="sm"
-                className="text-xs font-medium"
+                className="text-xs font-medium "
                 onClick={() => navigate("/paymentHistory")}
               >
                 <Receipt className="mr-2 size-3.5" />
                 History
               </Button>
-              <Button
+              {/* <Button
                 variant="outline"
                 size="sm"
                 className="text-xs font-medium"
               >
                 <Download className="mr-2 size-3.5" />
                 Invoices
-              </Button>
+              </Button> */}
             </div>
           </div>
         </CardContent>
@@ -710,24 +1251,43 @@ export default function Settings() {
         </CardHeader>
 
         <CardContent className="space-y-3">
-          {/* <Button className="mr-2">Change Password</Button> */}
-          {/* <Button>Logout from all devices</Button> */}
-          <ChangePasswordModal />
-          <LogoutModal />
+          {/* <Button onClick={() => setVerifyOtpOpen(true)}>
+            Change Password
+          </Button> */}
+          <VerifyOtpModal
+            open={verifyOtpOpen}
+            onOpenChange={setVerifyOtpOpen}
+            email={profile.email}
+            onVerified={() => {
+              // close otp modal
+              setVerifyOtpOpen(false);
+
+              // open password modal
+              setChangePasswordOpen(true);
+            }}
+          />
+          <ChangePasswordModal
+            open={changePasswordOpen}
+            onOpenChange={setChangePasswordOpen}
+          />
+          {/* <LogoutModal /> */}
         </CardContent>
-      </Card>
-
-      {/* DANGER ZONE */}
-      <Card className="rounded-2xl shadow-lg border-red-500">
-        <CardHeader>
-          <CardTitle className="text-red-500">Danger Zone</CardTitle>
-        </CardHeader>
-
         <CardContent>
           {/* <Button variant="destructive">Delete Account</Button> */}
           <DeleteAccountModal />
         </CardContent>
       </Card>
+
+      {/* DANGER ZONE */}
+      {/* <Card className="rounded-2xl shadow-lg border-red-500">
+        <CardHeader>
+          <CardTitle className="text-red-500">Danger Zone</CardTitle>
+        </CardHeader>
+
+        <CardContent>
+          <DeleteAccountModal />
+        </CardContent>
+      </Card> */}
     </div>
   );
 }

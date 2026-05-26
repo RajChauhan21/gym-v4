@@ -163,8 +163,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <Link to="/dashboard">
                 {/* v4 size utilities */}
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <img src={profile.gymLogo} alt="Logo" className="size-5! rounded-sm" />
+                <div className="flex aspect-square size-8 items-center justify-center rounded-2xl bg-sidebar-primary text-sidebar-primary-foreground">
+                  <img src={profile.gymLogo} alt="Logo" className="size-5! rounded-2xl" />
                 </div>
                 {/* v4 shorthand for hiding text when collapsed */}
                 <div className="grid flex-1 text-left text-sm leading-tight group-data-collapsible-icon:hidden">

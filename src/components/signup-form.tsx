@@ -53,7 +53,7 @@ export function SignupForm({
 
     if (!passwordRegex.test(formData.password)) {
       toast.error(
-        "Password must be 8+ characters and include uppercase, lowercase, and a number."
+        "Password must be 8+ characters and include uppercase, lowercase, and a number.",
       );
       setLoading(false);
       return;
@@ -67,9 +67,19 @@ export function SignupForm({
           "Account created successfully, please sign in to continue!!",
         );
         closeModal();
+      } else if (response.status === 404) {
+        toast.error(
+          "Something went wrong while fetching plans. Please try again later.",
+        );
+      } else if (response.status === 429) {
+        toast.error(
+          "You are performing actions too quickly. Please wait a few seconds and try again.",
+        );
       }
     } catch (error) {
-      toast.error("Error creating account");
+      toast.error(
+        "Something went wrong while fetching plans. Please try again later.",
+      );
     } finally {
       setLoading(false);
     }
@@ -124,15 +134,21 @@ export function SignupForm({
                     type={showPassword ? "text" : "password"}
                     value={formData.password}
                     disabled={loading}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
                     required
                   />
                 </Field>
 
                 {/* Confirm Password Field + Icon */}
                 <Field>
-                  <FieldLabel htmlFor="confirm-password">Confirm Password</FieldLabel>
-                  <div className="relative"> {/* This relative wrapper keeps the icon inside the input */}
+                  <FieldLabel htmlFor="confirm-password">
+                    Confirm Password
+                  </FieldLabel>
+                  <div className="relative">
+                    {" "}
+                    {/* This relative wrapper keeps the icon inside the input */}
                     <Input
                       id="confirm-password"
                       className="pr-10" // Space for the icon
@@ -146,7 +162,9 @@ export function SignupForm({
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
-                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
                     >
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>

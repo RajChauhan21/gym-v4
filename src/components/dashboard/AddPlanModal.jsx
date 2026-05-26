@@ -15,6 +15,7 @@ import { addPlan } from "../../apis/backend_apis";
 import { useGymStore } from "../../store/gymStore";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
+import { useProfile } from "../../contexts/ProfileContext";
 export default function AddPlanModal({
   open,
   setOpen,
@@ -27,6 +28,12 @@ export default function AddPlanModal({
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const fetchPlans = useGymStore((state) => state.fetchPlans);
+  const profile = useProfile();
+
+  useEffect(() => {
+    fetchPlans(profile.profile.gymId);
+    // Empty array [] ensures this runs exactly once on mount
+  }, [profile.profile.gymId]);
 
   useEffect(() => {
     if (open) {
@@ -55,18 +62,30 @@ export default function AddPlanModal({
     if (!form.price || isNaN(form.price))
       newErrors.price = "Enter a valid amount";
     setErrors(newErrors);
+    setLoading(false);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async () => {
-    if (!validate()) return;
     setLoading(true);
+    if (profile.profile.planName === "No Active Plan") {
+      // 1. Show the error toast
+      toast.error(
+        "You need an active plan to use this functionality. Please subscribe to a plan first.",
+      );
+      setLoading(false);
+      return;
+    }
+    if (!validate()) return;
+
     try {
       const plan = {
         id: editPlan?.id ?? null,
+        gymId: profile.profile.gymId,
         name: form.name,
         validity: form.validity,
         price: form.price,
+        ownerId: profile.profile.ownerId,
       };
 
       const response = await addPlan(plan);
@@ -75,16 +94,29 @@ export default function AddPlanModal({
         toast.success(
           editPlan ? "Plan updated succeessfully" : "Plan added successfully",
         );
-        fetchPlans();
+        fetchPlans(profile.profile.gymId);
         setEditPlan(null);
       } else if (response.status === 404) {
+        if (
+          response.data &&
+          response.data.message &&
+          response.data.message.includes("404")
+        ) {
+          toast.error("Please setup your gym profile before adding plans.");
+        } else if(response.data.message == "Plan already exists") {
+          toast.error(
+           response.data.message,
+          );
+        }
+      } else if (response.status === 429) {
         toast.error(
-          response.data.message ||
-            "Plan not found. Please select a valid plan.",
+          "You are performing actions too quickly. Please wait a few seconds and try again.",
         );
       }
     } catch (error) {
-      toast.error("Error saving plan");
+      toast.error(
+        "Something went wrong while fetching plans. Please try again later.",
+      );
     } finally {
       setLoading(false);
       setOpen(false);
@@ -113,15 +145,21 @@ export default function AddPlanModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogTrigger asChild>
-        <Button
-          onClick={() => setOpen(true)}
-          className="mb-4 dark:bg-white dark:text-black"
-        >
-          {"+ Add Plan"}
-        </Button>
-      </DialogTrigger>
-
+      <Button
+        onClick={() => {
+          // CRITICAL: Double check if your API returns 'No Active Plan' or 'No Active plan'
+          if (profile.profile.planName === "No Active Plan") {
+            toast.error(
+              "You need an active plan to add plans. Please subscribe to a plan first.",
+            );
+          } else {
+            setOpen(true); // This safely updates modalOpen in the parent
+          }
+        }}
+        className="mb-4 dark:bg-white dark:text-black"
+      >
+        {"+ Add Plan"}
+      </Button>
       <DialogContent
         className="w-[90%] max-w-md rounded-2xl p-0 shadow-xl flex flex-col h-[480px]"
         onPointerDownOutside={(e) => e.preventDefault()}

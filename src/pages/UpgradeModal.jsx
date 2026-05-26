@@ -25,28 +25,39 @@ export function UpgradeModal({ open, setOpen }) {
   const getSubscriptionPlans = async () => {
     try {
       setLoading(true);
-      const data = await getAllSubscriptionPlans();
+      const response = await getAllSubscriptionPlans();
 
-      // Transform backend response to match UI needs
-      const transformedPlans = data.map((plan) => ({
-        id: plan.id,
-        name: plan.name,
-        price: plan.price,
-        days: plan.days,
-        // Check if any subscription in the array is ACTIVE
-        isActive: plan.subscriptions.some((s) => s.status === "ACTIVE"),
-        // Highlight logic (example: highlight the 'Amateaur' plan)
-        highlighted: plan.name === "Amateaur",
-        // Map feature IDs to readable text or use member limit
-        features: [
-          `Up to ${plan.memberLimit} members`,
-          `${plan.days} days validity`,
-          plan.features.length > 5 ? "Priority support" : "Email support",
-          plan.features.length > 0 ? "Core features included" : "Basic access",
-        ],
-      }));
-
-      setPlans(transformedPlans);
+      if (response.status === 202 || response.data.statusCodeValue === 200) {
+        // Transform backend response to match UI needs
+        const transformedPlans = response.data.map((plan) => ({
+          id: plan.id,
+          name: plan.name,
+          price: plan.price,
+          days: plan.days,
+          // Check if any subscription in the array is ACTIVE
+          isActive: plan.subscriptions.some((s) => s.status === "ACTIVE"),
+          // Highlight logic (example: highlight the 'Amateaur' plan)
+          highlighted: plan.name === "Amateaur",
+          // Map feature IDs to readable text or use member limit
+          features: [
+            `Up to ${plan.memberLimit} members`,
+            `${plan.days} days validity`,
+            plan.features.length > 5 ? "Priority support" : "Email support",
+            plan.features.length > 0
+              ? "Core features included"
+              : "Basic access",
+          ],
+        }));
+        setPlans(transformedPlans);
+      } else if (response.status === 404) {
+        toast.error(
+          "Something went wrong while fetching subscription plans. Please try again later.",
+        );
+      } else if (response.status === 429) {
+        toast.error(
+          "You are performing actions too quickly. Please wait a few seconds and try again.",
+        );
+      }
     } catch (error) {
       console.error("Error fetching subscription plans:", error);
     } finally {

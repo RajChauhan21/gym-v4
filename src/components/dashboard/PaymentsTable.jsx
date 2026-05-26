@@ -131,32 +131,77 @@ export default function PaymentsTable() {
   const getRevenues = async () => {
     try {
       const response = await getRevenue(profile.ownerId);
-      setTotalRevenue(response.totalRevenue);
-      sethisMonthRevenue(response.currentMonthRevenue);
-      setTotalReccords(response.totalRecords);
+
+      if (response.status === 202 || response.data.statusCodeValue === 200) {
+        setTotalRevenue(response.totalRevenue);
+        sethisMonthRevenue(response.currentMonthRevenue);
+      } else if (response.status === 404) {
+        // toast.error(
+        //   "Something went wrong while fetching plans. Please try again later.",
+        // );
+      } else if (response.status === 429) {
+        // toast.error(
+        //   "You are performing actions too quickly. Please wait a few seconds and try again.",
+        // );
+      }
     } catch (error) {
       console.error("unable to fetch revenue", error);
     }
   };
 
   const deletePayment = async (payment) => {
+    if (profile.planName === "No Active Plan") {
+      // 1. Show the error toast
+      toast.error(
+        "You need an active plan to use this functionality. Please subscribe to a plan first.",
+      );
+      setLoading(false);
+      return;
+    }
     try {
       const response = await deletePaymentById(payment.paymentId);
       if (response.status === 202) {
         toast.success("Payment deleted successfully");
         fetchPayments();
-      } else {
-        toast.error("Failed to delete payment");
+      } else if (response.status === 404) {
+        toast.error(
+          "Something went wrong while deleting payment. Please try again later.",
+        );
+      } else if (response.status === 429) {
+        toast.error(
+          "You are performing actions too quickly. Please wait a few seconds and try again.",
+        );
       }
     } catch (error) {
+      toast.error(
+        "Something went wrong while deleting payment. Please try again later.",
+      );
       console.error("Failed to delete payment, error");
     }
   };
 
   const searchAllMembers = async () => {
+    if (profile.planName === "No Active Plan") {
+      // 1. Show the error toast
+      toast.error(
+        "You need an active plan to use this functionality. Please subscribe to a plan first.",
+      );
+      setLoading(false);
+      return;
+    }
     try {
       const response = await searchMembers(profile.ownerId, query);
-      setMembers(Array.isArray(response.data) ? response.data : []);
+      if (response.status === 202 || response.data.statusCodeValue === 200) {
+        setMembers(Array.isArray(response.data) ? response.data : []);
+      } else if (response.status === 404) {
+        toast.error(
+          "Something went wrong while fetching members. Please try again later.",
+        );
+      } else if (response.status === 429) {
+        toast.error(
+          "You are performing actions too quickly. Please wait a few seconds and try again.",
+        );
+      }
     } catch (error) {
       console.error("unable to fetch members", error);
     }
@@ -179,26 +224,47 @@ export default function PaymentsTable() {
         sortDir,
         filters,
       );
-      setPayments(response.data.content);
-      setTotalPages(response?.data?.page?.totalPages ?? 0);
-      setTotalElements(response?.data?.page?.totalElements ?? 0);
-      setPageSize(response.data.page.size);
-      if (
-        currentPage >= response.data.totalPages &&
-        response.data.totalPages > 0
-      ) {
-        setCurrentPage(0);
-      } else {
-        setCurrentPage(response?.data?.page?.number ?? 0);
+      if (response.status === 202 || response.data.statusCodeValue === 200) {
+        setTotalReccords(response?.data?.page?.totalElements ?? 0);
+        setPayments(response?.data?.content ?? []);
+        setTotalPages(response?.data?.page?.totalPages ?? 0);
+        setTotalElements(response?.data?.page?.totalElements ?? 0);
+        setPageSize(response.data.page.size);
+        if (
+          currentPage >= response.data.totalPages &&
+          response.data.totalPages > 0
+        ) {
+          setCurrentPage(0);
+        } else {
+          setCurrentPage(response?.data?.page?.number ?? 0);
+        }
+        console.log(currentPage);
+        console.log({
+          page: response.data.number,
+          totalPages: response.data.totalPages,
+          size: response.data.size,
+          totalElements: response.data.totalElements,
+        });
+        getRevenues();
+      } else if (response.status === 404) {
+        // toast.error(
+        //   "Something went wrong while fetching payments. Please try again later.",
+        // );
+        if (
+          response.data &&
+          response.data.message &&
+          response.data.message !== "100"
+        ) {
+          toast.error(
+            "Something went wrong while fetching payments. Please try again",
+          );
+          // Member already exists with the name
+        }
+      } else if (response.status === 429) {
+        toast.error(
+          "You are performing actions too quickly. Please wait a few seconds and try again.",
+        );
       }
-      console.log(currentPage);
-      console.log({
-        page: response.data.number,
-        totalPages: response.data.totalPages,
-        size: response.data.size,
-        totalElements: response.data.totalElements,
-      });
-      getRevenues();
     } catch (error) {
       console.log(error);
     } finally {
@@ -239,6 +305,14 @@ export default function PaymentsTable() {
   const emptyRows = pageSize - payments.length;
 
   const resetFilters = () => {
+    if (profile.planName === "No Active Plan") {
+      // 1. Show the error toast
+      toast.error(
+        "You need an active plan to use this functionality. Please subscribe to a plan first.",
+      );
+      setLoading(false);
+      return;
+    }
     setFilters({
       name: "",
       amount: "",
@@ -302,6 +376,14 @@ export default function PaymentsTable() {
 
   const handleAddPayment = async () => {
     setLoadingPayment(true);
+    if (profile.planName === "No Active Plan") {
+      // 1. Show the error toast
+      toast.error(
+        "You need an active plan to use this functionality. Please subscribe to a plan first.",
+      );
+      setLoadingPayment(false);
+      return;
+    }
     const validation = validate();
     if (Object.keys(validation).length > 0) {
       setErrors(validation);
@@ -323,8 +405,14 @@ export default function PaymentsTable() {
       if (response.status === 202) {
         toast.success("Payement recorded successfully");
         fetchPayments();
-      } else {
-        toast.error("Failed to record payment");
+      } else if (response.status === 404) {
+        toast.error(
+          "Something went wrong while saving payment. Please try again later.",
+        );
+      } else if (response.status === 429) {
+        toast.error(
+          "You are performing actions too quickly. Please wait a few seconds and try again.",
+        );
       }
     } catch (error) {
       toast.error("Failed to record payment");
@@ -363,6 +451,14 @@ export default function PaymentsTable() {
   };
 
   const handleSort = (columnName) => {
+    if (profile.planName === "No Active Plan") {
+      // 1. Show the error toast
+      toast.error(
+        "You need an active plan to use this functionality. Please subscribe to a plan first.",
+      );
+      setLoading(false);
+      return;
+    }
     if (sortBy === columnName) {
       // If same column clicked, toggle direction
       setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -395,9 +491,25 @@ export default function PaymentsTable() {
             if (!openPayment) resetForm(); // ✅ Clears data & errors on close
           }}
         >
-          <DialogTrigger asChild>
-            <Button className="rounded-md flex gap-2">+ Record Payment</Button>
-          </DialogTrigger>
+          {/* <DialogTrigger asChild> */}
+          {/* <Button className="rounded-md flex gap-2">+ Record Payment</Button> */}
+          {/* </DialogTrigger> */}
+          <Button
+            onClick={() => {
+              if (profile.planName === "No Active Plan") {
+                // 1. Show the error toast
+                toast.error(
+                  "You need an active plan to add payments. Please subscribe to a plan first.",
+                );
+              } else {
+                // 2. Open the modal if they have a plan
+                setOpenPayment(true);
+              }
+            }}
+            className="mb-4 dark:bg-white dark:text-black"
+          >
+            + Record Payment
+          </Button>
 
           <DialogContent
             className="max-w-md"
@@ -640,6 +752,9 @@ export default function PaymentsTable() {
         <DialogContent className="w-[92%] max-w-md rounded-2xl p-6">
           <DialogHeader>
             <DialogTitle>Search Payments</DialogTitle>
+            <h6 className="text-red-600 font-semibold">
+              Filter works automatically, just select the values
+            </h6>
             <DialogDescription className="sr-only">
               Filter and search through your gym members.
             </DialogDescription>
@@ -892,7 +1007,9 @@ export default function PaymentsTable() {
           {/* 5. Date From */}
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-bold uppercase text-muted-foreground">Date From</Label>
+            <Label className="text-xs font-bold uppercase text-muted-foreground">
+              Date From
+            </Label>
             <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -936,7 +1053,9 @@ export default function PaymentsTable() {
 
           {/* 6. Date To */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-bold uppercase text-muted-foreground">Date To</Label>
+            <Label className="text-xs font-bold uppercase text-muted-foreground">
+              Date To
+            </Label>
             <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -987,87 +1106,60 @@ export default function PaymentsTable() {
         </div>
       </Card>
 
-      <div className="bg-card text-card-foreground rounded-xl shadow border dark:border-gray-800 p-3 md:p-8">
-        <div className="overflow-auto h-[408px] no-scrollbar">
+      <div className="bg-card dark:bg-zinc-950 text-card-foreground rounded-xl shadow border dark:border-gray-800 p-3 md:p-8">
+        <div className="relative overflow-auto h-[408px] no-scrollbar border rounded-lg">
           {" "}
           {/* Fixed height to prevent jumping */}
           <Table>
             {/* <TableHeader className="sticky top-0 z-30 bg-card"> */}
-            <TableHeader className="sticky top-0 z-40 backdrop-blur-md">
-              <TableRow>
+            <TableHeader className="sticky top-0 z-40">
+              <TableRow className="hover:bg-transparent">
+                {" "}
+                {/* Prevents the row-level hover effect on headers */}
                 <TableHead
-                  onClick={() => handleSort("memberName")} // Matches SQL alias 'AS memberName'
-                  className="sticky left-0 top-0 z-30 min-w-[150px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] bg-card dark:text-gray-500 select-none text-center"
+                  onClick={() => handleSort("memberName")}
+                  className="sticky left-0 top-0 z-50 min-w-[150px] text-white bg-zinc-950 select-none text-center border-b shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]"
                 >
-                  <div className="inline-flex items-center justify-center gap-1">
+                  <div className="inline-flex items-center justify-center gap-1 cursor-pointer">
                     <span>Name</span>
-                    <div className="flex flex-row space-y-1  cursor-pointer">
-                      {/* Highlight ArrowUp if sorting by memberName and order is asc */}
+                    <div className="flex flex-row">
                       <ArrowUp
                         className={`size-3 ${sortBy === "memberName" && sortDir === "asc" ? "text-primary fill-current" : "text-gray-300"}`}
                       />
-                      {/* Highlight ArrowDown if sorting by memberName and order is desc */}
                       <ArrowDown
                         className={`size-3 ${sortBy === "memberName" && sortDir === "desc" ? "text-primary fill-current" : "text-gray-300"}`}
                       />
                     </div>
                   </div>
                 </TableHead>
-
-                <TableHead
-                  onClick={() => handleSort("membershipName")}
-                  className="dark:text-gray-500 text-center"
-                >
-                  <div className="inline-flex items-center justify-center gap-1">
-                    <span>Plan</span>
-                    <div className="flex flex-row -space-y-1 cursor-pointer">
-                      <ArrowUp
-                        className={`size-3 ${sortBy === "membershipName" && sortDir === "asc" ? "text-primary fill-current" : "text-gray-300"}`}
-                      />
-                      <ArrowDown
-                        className={`size-3 ${sortBy === "membershipName" && sortDir === "desc" ? "text-primary fill-current" : "text-gray-300"}`}
-                      />
+                {/* Apply the same bg and sticky top to ALL other headers */}
+                {[
+                  { label: "Plan", key: "membershipName" },
+                  { label: "Amount", key: "amount" },
+                  { label: "Date", key: "paymentDate" },
+                ].map((header) => (
+                  <TableHead
+                    key={header.key}
+                    onClick={() => handleSort(header.key)}
+                    className="sticky top-0 z-40 bg-zinc-950 text-white text-center border-b cursor-pointer select-none"
+                  >
+                    <div className="inline-flex items-center justify-center gap-1">
+                      <span>{header.label}</span>
+                      <div className="flex flex-row">
+                        <ArrowUp
+                          className={`size-3 ${sortBy === header.key && sortDir === "asc" ? "text-primary fill-current" : "text-gray-300"}`}
+                        />
+                        <ArrowDown
+                          className={`size-3 ${sortBy === header.key && sortDir === "desc" ? "text-primary fill-current" : "text-gray-300"}`}
+                        />
+                      </div>
                     </div>
-                  </div>
-                </TableHead>
-
-                <TableHead
-                  onClick={() => handleSort("amount")}
-                  className="dark:text-gray-500 text-center"
-                >
-                  <div className="inline-flex items-center justify-center gap-1">
-                    <span>Amount</span>
-                    <div className="flex flex-row -space-y-1  cursor-pointer">
-                      <ArrowUp
-                        className={`size-3 ${sortBy === "amount" && sortDir === "asc" ? "text-primary fill-current" : "text-gray-300"}`}
-                      />
-                      <ArrowDown
-                        className={`size-3 ${sortBy === "amount" && sortDir === "desc" ? "text-primary fill-current" : "text-gray-300"}`}
-                      />
-                    </div>
-                  </div>
-                </TableHead>
-
-                <TableHead
-                  onClick={() => handleSort("paymentDate")}
-                  className="dark:text-gray-500 text-center"
-                >
-                  <div className="inline-flex items-center justify-center gap-1">
-                    <span>Date</span>
-                    <div className="flex flex-row -space-y-1  cursor-pointer">
-                      <ArrowUp
-                        className={`size-3 ${sortBy === "paymentDate" && sortDir === "asc" ? "text-primary fill-current" : "text-gray-300"}`}
-                      />
-                      <ArrowDown
-                        className={`size-3 ${sortBy === "paymentDate" && sortDir === "desc" ? "text-primary fill-current" : "text-gray-300"}`}
-                      />
-                    </div>
-                  </div>
-                </TableHead>
-                <TableHead className="dark:text-gray-500 text-center">
+                  </TableHead>
+                ))}
+                <TableHead className="sticky top-0 z-40 text-white bg-zinc-950 text-center border-b">
                   Method
                 </TableHead>
-                <TableHead className="dark:text-gray-500 text-center">
+                <TableHead className="sticky top-0 z-40 text-white bg-zinc-950 text-center border-b">
                   Actions
                 </TableHead>
               </TableRow>
@@ -1164,26 +1256,14 @@ export default function PaymentsTable() {
                 <TableRow>
                   <TableCell colSpan={8} className="h-32 text-center">
                     <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
-                      <p className="text-lg font-medium">No payments found</p>
+                      <p className="text-lg font-medium">No Payments found</p>
                       <p className="text-sm">
-                        Try adding a new payment or check your connection.
+                        Try adding a new member or check your connection.
                       </p>
                     </div>
                   </TableCell>
                 </TableRow>
               )}
-
-              {/* Placeholder Rows to maintain fixed height */}
-              {emptyRows > 0 &&
-                Array.from({ length: emptyRows }).map((_, i) => (
-                  <TableRow key={`empty-${i}`} className="border-transparent">
-                    <TableCell className="sticky left-0 bg-card py-6 border-transparent" />
-                    <TableCell className="py-6 border-transparent" />
-                    <TableCell className="py-6 border-transparent" />
-                    <TableCell className="py-6 border-transparent" />
-                    <TableCell className="py-6 border-transparent" />
-                  </TableRow>
-                ))}
             </TableBody>
           </Table>
         </div>

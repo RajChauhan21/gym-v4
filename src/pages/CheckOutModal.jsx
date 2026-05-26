@@ -117,10 +117,27 @@ export default function CheckOutModal({ open, setOpen, plan }) {
       }
 
       // 🔹 Step 1: Call backend to create subscription
-      const res = await createRazorpaySubscription(profile?.ownerId, plan.id);
-      console.log("subs id " + res);
+      const response = await createRazorpaySubscription(
+        profile?.ownerId,
+        plan.id,
+      );
 
-      const subscriptionId = res;
+      const subscriptionId = null;
+
+      if (response.status === 202 || response.data.statusCodeValue === 200) {
+        subscriptionId = response.data;
+        console.log("subs id " + response.data);
+      } else if (response.status === 404) {
+        toast.error(
+          "Something went wrong while connecting to razorpay. Please try again later.",
+        );
+        return;
+      } else if (response.status === 429) {
+        toast.error(
+          "You are performing actions too quickly. Please wait a few seconds and try again.",
+        );
+        return;
+      }
 
       if (!subscriptionId) {
         throw new Error("Subscription creation failed");
@@ -128,7 +145,7 @@ export default function CheckOutModal({ open, setOpen, plan }) {
 
       // 🔹 Step 2: Open Razorpay Checkout
       const options = {
-        key: "rzp_test_SfiIKwSs0OhpAz",
+        key: "rzp_test_SfiIKwSs0OhpAz", // do not harcode in production!
         subscription_id: subscriptionId,
 
         name: "Gym SaaS",
@@ -149,17 +166,18 @@ export default function CheckOutModal({ open, setOpen, plan }) {
         },
 
         prefill: {
-          name: profile?.owner,
+          phone: profile?.phone,
           email: profile?.email,
         },
 
         // customer_id:profile?.owner,
         notes: {
           owner_id: profile?.owner, // Put "john" here
+          subsId: subscriptionId,
         },
 
         theme: {
-          color: "#6366f1",
+          color: "#e2e3fe",
         },
       };
 

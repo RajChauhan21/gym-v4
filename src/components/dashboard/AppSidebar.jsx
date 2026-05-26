@@ -4,7 +4,8 @@ import {
   CreditCard,
   Settings,
   Package,
-  Currency
+  Currency,
+  History,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import {
@@ -40,12 +41,23 @@ import { useAuth } from "../../contexts/AuthContext";
 import { Button } from "../ui/button";
 
 const items = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Members", url: "/members", icon: Users },
-  { title: "Payments", url: "/payments", icon: CreditCard },
-  { title: "Plans", url: "/plans", icon: Package },
-  { title: "Settings", url: "/settings", icon: Settings },
-  { title: "Pricing", url: "/pricing", icon: Currency },
+  {
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: LayoutDashboard,
+    act: "overview",
+  },
+  { title: "Members", url: "/members", icon: Users, act: "members" },
+  { title: "Payments", url: "/payments", icon: CreditCard, act: "members" },
+  { title: "Plans", url: "/plans", icon: Package, act: "members" },
+  { title: "Settings", url: "/settings", icon: Settings, act: "Owner" },
+  { title: "Pricing", url: "/pricing", icon: Currency, act: "Owner" },
+  {
+    title: "History & Invoices",
+    url: "/paymentHistory",
+    icon: History,
+    act: "Owner",
+  },
 ];
 
 const getInitials = (name) => {
@@ -74,9 +86,12 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" className="hover:bg-transparent">
               {/* Company Logo Container */}
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                {/* <Dumbbell className="size-5" /> */}
-                <img src={profile.gymLogo} alt="Logo" className="rounded-sm" />
+              <div className="aspect-square size-11 rounded-xl overflow-hidden bg-muted">
+                <img
+                  src={profile.gymLogo}
+                  alt="Heloo"
+                  className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+                />
               </div>
 
               {/* Company Name & Tagline */}
@@ -95,28 +110,70 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Menu</SidebarGroupLabel>
+          <SidebarGroupLabel>Overview</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location.pathname === item.url}
-                    tooltip={item.title}
-                    className="
-    data-[active=true]:bg-black data-[active=true]:text-white 
-    dark:data-[active=true]:bg-white dark:data-[active=true]:text-black
-    transition-colors
-  "
-                  >
-                    <Link to={item.url} onClick={() => setOpenMobile(false)}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {items
+                .filter((item) => item.act === "overview")
+                .map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={location.pathname === item.url}
+                      tooltip={item.title}
+                      className="transition-colors data-[active=true]:bg-black data-[active=true]:text-white dark:data-[active=true]:bg-white dark:data-[active=true]:text-black"
+                    >
+                      <Link to={item.url} onClick={() => setOpenMobile(false)}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+          <SidebarGroupLabel>Members</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {items
+                .filter((item) => item.act === "members")
+                .map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={location.pathname === item.url}
+                      tooltip={item.title}
+                      className="transition-colors data-[active=true]:bg-black data-[active=true]:text-white dark:data-[active=true]:bg-white dark:data-[active=true]:text-black"
+                    >
+                      <Link to={item.url} onClick={() => setOpenMobile(false)}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+          <SidebarGroupLabel>Owner</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {items
+                .filter((item) => item.act === "Owner")
+                .map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={location.pathname === item.url}
+                      tooltip={item.title}
+                      className="transition-colors data-[active=true]:bg-black data-[active=true]:text-white dark:data-[active=true]:bg-white dark:data-[active=true]:text-black"
+                    >
+                      <Link to={item.url} onClick={() => setOpenMobile(false)}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -132,10 +189,10 @@ export function AppSidebar() {
                   size="lg"
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
-                  <Avatar className="h-8 w-8 rounded-lg">
+                  <Avatar className="h-12 w-12 rounded-sm">
                     <AvatarImage
                       src={profile.ownerLogo}
-                      alt="Rahul"
+                      alt="ABC"
                       referrerPolicy={
                         profile.ownerLogo?.includes("google")
                           ? "no-referrer"

@@ -182,6 +182,14 @@ export default function AddMemberDialog({
 
   const handleSubmit = async () => {
     setLoading(true);
+    if (profile.planName === "No Active Plan") {
+      // 1. Show the error toast
+      toast.error(
+        "You need an active plan to add members. Please subscribe to a plan first.",
+      );
+      setLoading(false);
+      return;
+    }
     const validation = validate();
     if (Object.keys(validation).length > 0) {
       setErrors(validation);
@@ -213,13 +221,34 @@ export default function AddMemberDialog({
         );
         await fetchMembers(profile.ownerId);
       } else if (response.status === 404) {
+        // toast.error(
+        //   response.data.message ||
+        //     "Plan not found. Please select a valid plan.",
+        // );
+        if (
+          response.data &&
+          response.data.message &&
+          response.data.message == "100"
+        ) {
+          toast.error(
+            "You need an active plan to add members. Please subscribe to a plan first.",
+          );
+          // Member already exists with the name
+        } else if (
+          response.data &&
+          response.data.message &&
+          response.data.message == "112"
+        ) {
+          toast.error("Member already exists with the name");
+          // Member already exists with the name
+        }
+      } else if (response.status === 429) {
         toast.error(
-          response.data.message ||
-            "Plan not found. Please select a valid plan.",
+          "You are performing actions too quickly. Please wait a few seconds and try again.",
         );
       }
     } catch (error) {
-      toast.error(error ? error : "Error saving member. Please try again.");
+      toast.error("Error saving member. Please try again.");
     } finally {
       resetForm();
       setOpen(false);
@@ -235,14 +264,23 @@ export default function AddMemberDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogTrigger asChild>
-        <Button
-          onClick={() => setOpen(true)}
-          className="mb-4 dark:bg-white dark:text-black"
-        >
-          + Add Member
-        </Button>
-      </DialogTrigger>
+      {/* <DialogTrigger asChild> */}
+      <Button
+        onClick={() => {
+          if (profile.planName === "No Active Plan") {
+            // 1. Show the error toast
+            toast.error(
+              "You need an active plan to add members. Please subscribe to a plan first.",
+            );
+          } else {
+            // 2. Open the modal if they have a plan
+            setOpen(true);
+          }
+        }}
+        className="mb-4 dark:bg-white dark:text-black"
+      >
+        + Add Member
+      </Button>
 
       {/* Fixed height changed to max-height + overflow-hidden */}
       <DialogContent

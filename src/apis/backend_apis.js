@@ -61,6 +61,19 @@ export async function saveGymDetails(gymData) {
   }
 }
 
+export async function saveOwnerDetails(ownerData) {
+  try {
+    // Await the post request directly
+    const response = await constant.put("/owner/update", ownerData);
+    console.log("Owner Data Response:", response);
+    return response;
+  } catch (error) {
+    // Re-throw the error so your handleSave catch block can handle the UI toast
+    console.error("API Error in saveOwnerDetails:", error.response || error);
+    return error.response;
+  }
+}
+
 export async function getAllMembers(
   ownerId,
   page = 0,
@@ -115,13 +128,33 @@ export async function addPlan(plan) {
   }
 }
 
-export async function getAllPlans() {
+export async function getAllPlans(gymId) {
   try {
-    const response = await constant.get("/member-ship/getAll");
+    console.log("gymId",gymId);
+    const response = await constant.get("/member-ship/getAll",{
+      params:{
+        q:gymId
+      }
+    });
     console.log("Get all plans Response:", response);
-    return response.data;
+    return response;
   } catch (error) {
     console.error("API Error in Get all plans:", error.response || error);
+    return error.response;
+  }
+}
+
+export async function getActiveSubscriptionOfOwner(ownerId) {
+  try {
+    const response = await constant.get("/owner/active-subscription", {
+      params: {
+        q: ownerId,
+      },
+    });
+    console.log("Get active subscription Response:", response);
+    return response;
+  } catch (error) {
+    console.error("API Error in active subscription:", error.response || error);
     return error.response;
   }
 }
@@ -134,7 +167,7 @@ export async function getAllDuesOfMembers(ownerId) {
       },
     });
     console.log("Get dues Response:", response);
-    return response.data;
+    return response;
   } catch (error) {
     console.error("API Error in dues:", error.response || error);
     return error.response;
@@ -149,7 +182,7 @@ export async function getAllMembersCount(ownerId) {
       },
     });
     console.log("Get member count Response:", response);
-    return response.data;
+    return response;
   } catch (error) {
     console.error("API Error in member count:", error.response || error);
     return error.response;
@@ -164,19 +197,19 @@ export async function getRevenue(ownerId) {
       },
     });
     console.log("Get revenue Response:", response);
-    return response.data;
+    return response;
   } catch (error) {
     console.error("API Error in revenue:", error.response || error);
     return error.response;
   }
 }
 
-export async function getRevenueOverview(ownerId,days) {
+export async function getRevenueOverview(ownerId, days) {
   try {
     const response = await constant.get("/pay/getRevenueChartDetails", {
       params: {
-        q:ownerId,
-        d:days
+        q: ownerId,
+        d: days,
       },
     });
     console.log("Get revenue chart Response:", response);
@@ -212,7 +245,10 @@ export async function getMembersJoinedCurrentMonth(ownerId) {
     console.log("Get members joined this month Response:", response);
     return response.data;
   } catch (error) {
-    console.error("API Error in members joined this month:", error.response || error);
+    console.error(
+      "API Error in members joined this month:",
+      error.response || error,
+    );
     return error.response;
   }
 }
@@ -227,7 +263,10 @@ export async function getMembersExpiringSoon(ownerId) {
     console.log("Get members expiring soon Response:", response);
     return response.data;
   } catch (error) {
-    console.error("API Error in members expiring soon:", error.response || error);
+    console.error(
+      "API Error in members expiring soon:",
+      error.response || error,
+    );
     return error.response;
   }
 }
@@ -278,7 +317,7 @@ export async function getRecentPaymentByMember(ownerId) {
   }
 }
 
-export async function searchMembers(ownerId,query) {
+export async function searchMembers(ownerId, query) {
   try {
     const response = await constant.get("/member/searchMembers", {
       params: {
@@ -383,7 +422,7 @@ export async function getAllPayments(
           page: page,
           size: size,
           sort: `${sortBy},${direction}`,
-          ...cleanFilters
+          ...cleanFilters,
         },
       },
     );
@@ -399,7 +438,7 @@ export async function getAllSubscriptionPlans() {
   try {
     const response = await constant.get("/plan/findAll");
     console.log("Get all plans Response:", response);
-    return response.data;
+    return response;
   } catch (error) {
     console.error("API Error in all plans:", error.response || error);
     return error.response;
@@ -408,16 +447,151 @@ export async function getAllSubscriptionPlans() {
 
 export async function createRazorpaySubscription(ownerId, planId) {
   try {
-    const response = await constant.post("/razorpay/create-subscription",null,{
-      params:{
-        o:ownerId,
-        p:planId
-      }
-    });
+    const response = await constant.post(
+      "/razorpay/create-subscription",
+      null,
+      {
+        params: {
+          o: ownerId,
+          p: planId,
+        },
+      },
+    );
     console.log("Get razorpay subscription Response:", response);
-    return response.data;
+    return response;
   } catch (error) {
-    console.error("API Error in razorpay subscription:", error.response || error);
+    console.error(
+      "API Error in razorpay subscription:",
+      error.response || error,
+    );
+    return error.response;
+  }
+}
+
+export async function getAllPaymentsOfOwner(
+  ownerId,
+  page = 0,
+  size = 10,
+  sortBy = "createdAt",
+  sortDir = "desc",
+  filters = {},
+) {
+  const cleanFilters = Object.fromEntries(
+    Object.entries(filters).filter(
+      ([_, value]) => value !== "" && value !== null && value !== undefined,
+    ),
+  );
+  try {
+    const response = await constant.get("/owner/getAllPaymentsOwner", {
+      params: {
+        q: ownerId,
+        page,
+        size,
+        sort: `${sortBy},${sortDir}`,
+        ...cleanFilters,
+      },
+    });
+    console.log("Get owner payment history Response:", response);
+    return response;
+  } catch (error) {
+    console.error(
+      "API Error in owner payment history:",
+      error.response || error,
+    );
+    return error.response;
+  }
+}
+
+export async function sendOtp(email) {
+  try {
+    const response = await constant.get("/owner/sendOtp", {
+      params: {
+        q: email,
+      },
+    });
+    console.log("send otp response:", response);
+    return response;
+  } catch (error) {
+    console.error("send otp error response:", error.response || error);
+    return error.response;
+  }
+}
+
+export async function verifyOtp(email, otp) {
+  try {
+    const response = await constant.get("/owner/verifyOtp", {
+      params: {
+        e: email,
+        q: otp,
+      },
+    });
+    console.log("verify otp response:", response);
+    return response;
+  } catch (error) {
+    console.error("verify otp error response:", error.response || error);
+    return error.response;
+  }
+}
+
+export async function resetPassword(ownerId, password) {
+  try {
+    const response = await constant.get("/owner/resetPassword", {
+      params: {
+        q: ownerId,
+        p: password,
+      },
+    });
+    console.log("reset password response:", response);
+    return response;
+  } catch (error) {
+    console.error("reset password error response:", error.response || error);
+    return error.response;
+  }
+}
+
+export async function uploadImageForOwner(id, file) {
+  try {
+    // Create FormData to hold the file and the ID
+    const formData = new FormData();
+    formData.append("q", id);
+    formData.append("t", "owner");
+    formData.append("file", file);
+
+    const response = await constant.post("owner/upload/image", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    console.log("owner upload image response:", response);
+    return response;
+  } catch (error) {
+    console.error(
+      "owner upload image error response:",
+      error.response || error,
+    );
+    return error.response;
+  }
+}
+
+export async function uploadImageForGym(id, file) {
+  try {
+    // Create FormData to hold the file and the ID
+    const formData = new FormData();
+    formData.append("g", id);
+    formData.append("t", "gym");
+    formData.append("file", file);
+
+    const response = await constant.post("gym/upload/image", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    console.log("gym upload image response:", response);
+    return response;
+  } catch (error) {
+    console.error("gym upload image error response:", error.response || error);
     return error.response;
   }
 }

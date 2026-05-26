@@ -29,6 +29,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useProfile } from "../contexts/ProfileContext";
 import { getRevenueOverview } from "../apis/backend_apis";
 import { Skeleton } from "./ui/skeleton";
+import { toast } from "sonner";
 
 export const description = "An interactive area chart";
 
@@ -90,8 +91,18 @@ export function ChartAreaInteractive() {
       setLoading(true);
       const response = await getRevenueOverview(profile.ownerId, days);
 
-      const filled = fillMissingDates(response.data, days);
-      setChartData(filled);
+      if (response.status === 202 || response.data.statusCodeValue === 200) {
+        const filled = fillMissingDates(response.data, days);
+        setChartData(filled);
+      } else if (response.status === 404) {
+        // toast.error(
+        //   "Something went wrong while fetching plans. Please try again later.",
+        // );
+      } else if (response.status === 429) {
+        // toast.error(
+        //   "You are performing actions too quickly. Please wait a few seconds and try again.",
+        // );
+      }
       setLoading(false);
     }
 
@@ -162,7 +173,10 @@ export function ChartAreaInteractive() {
               {/* Mock X-Axis labels */}
               <div className="flex justify-between px-2">
                 {[1, 2, 3, 4].map((i) => (
-                  <Skeleton key={i} className="h-3 w-12 bg-slate-200 dark:bg-slate-800 rounded" />
+                  <Skeleton
+                    key={i}
+                    className="h-3 w-12 bg-slate-200 dark:bg-slate-800 rounded"
+                  />
                 ))}
               </div>
             </div>

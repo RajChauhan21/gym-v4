@@ -17,7 +17,10 @@ export default function ExpiringMembers() {
     setLoading(true);
     try {
       const response = await getLatestMemberExpiry(profile?.ownerId);
-      setMember(response.data ? response.data : []);
+
+      if (response.status === 202 || response.data.statusCodeValue === 200) {
+        setMember(response.data ? response.data : []);
+      }
     } catch (error) {
       console.error(error);
     } finally {

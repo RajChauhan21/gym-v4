@@ -1,6 +1,7 @@
 export function InvoiceTemplate({ data }) {
   return (
-    <div className="p-6 bg-white text-black w-[800px]">
+    // Use a hardcoded hex for white to avoid OKLCH variables
+    <div style={{ backgroundColor: '#ffffff', color: '#000000' }} className="p-6 w-[800px]">
       <h1 className="text-2xl font-bold mb-4">Invoice</h1>
 
       <div className="flex justify-between mb-6">
@@ -8,7 +9,6 @@ export function InvoiceTemplate({ data }) {
           <p className="font-semibold">Your Gym Name</p>
           <p className="text-sm">Nashik, India</p>
         </div>
-
         <div className="text-right">
           <p>Invoice #: {data.id}</p>
           <p>Date: {data.date}</p>
@@ -41,7 +41,8 @@ export function InvoiceTemplate({ data }) {
         <p className="font-bold">Total: ₹1178</p>
       </div>
 
-      <p className="text-xs mt-6 text-muted-foreground">
+      {/* Replaced text-muted-foreground with text-gray-500 */}
+      <p className="text-xs mt-6 text-gray-500">
         This is a system-generated invoice.
       </p>
     </div>

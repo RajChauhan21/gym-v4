@@ -1,9 +1,13 @@
 import { create } from "zustand";
-import { getAllMembers, getAllPayments, getAllPlans } from "../apis/backend_apis";
+import {
+  getAllMembers,
+  getAllPayments,
+  getAllPlans,
+} from "../apis/backend_apis";
 
 export const useGymStore = create((set) => ({
   // DATA
- members: [],
+  members: [],
   payments: [
     // --- MARCH 2026 ---
     {
@@ -356,27 +360,37 @@ export const useGymStore = create((set) => ({
     },
   ],
 
-  plans: [
-    { name: "Gold", duration: 3, price: 1500 },
-    { name: "Silver", duration: 1, price: 500 },
-    { name: "Platinum", duration: 6, price: 4500 },
-    { name: "Diamond", duration: 12, price: 500 },
-  ],
+  plans: [],
 
   fetchMembers: async (ownerId) => {
     try {
       const data = await getAllMembers(ownerId);
       // Use Array.isArray to be 100% safe before updating state
-      set({ members: Array.isArray(data.data.content) ? data.data.content : [] });
+      set({
+        members: Array.isArray(data.data.content) ? data.data.content : [],
+      });
     } catch (error) {
       set({ members: [] }); // Reset to empty array on failure
     }
   },
 
-  fetchPlans: async () => {
+  fetchPlans: async (gymId) => {
     try {
-      const data = await getAllPlans(); // Your API utility
-      set({ plans: data });
+      const response = await getAllPlans(gymId); // Your API utility
+
+      if (response.status === 202 || response.data.statusCodeValue === 200) {
+        set({ plans: response.data });
+      } else if (response.status === 404) {
+        // toast.error(
+        //   "Something went wrong while fetching plans. Please try again later.",
+        // );
+        set({ plans: [] });
+      } else if (response.status === 429) {
+        // toast.Error(
+        //   "You are performing actions too quickly. Please wait a few seconds and try again.",
+        // );
+        set({ plans: [] });
+      }
     } catch (error) {
       console.error("Failed to fetch:", error);
       set({ plans: [] });
@@ -386,7 +400,20 @@ export const useGymStore = create((set) => ({
   fetchPayments: async (ownerId) => {
     try {
       const data = await getAllPayments(ownerId); // Your API utility
-      set({ payments: data });
+
+      if (response.status === 202 || response.data.statusCodeValue === 200) {
+        set({ payments: data });
+      } else if (response.status === 404) {
+        // toast.error(
+        //   "Something went wrong while fetching payments. Please try again later.",
+        // );
+        set({ payments: [] });
+      } else if (response.status === 429) {
+        // toast.Error(
+        //   "You are performing actions too quickly. Please wait a few seconds and try again.",
+        // );
+        set({ payments: [] });
+      }
     } catch (error) {
       console.error("Failed to fetch:", error);
       set({ payments: [] });

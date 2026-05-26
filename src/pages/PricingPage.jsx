@@ -8,19 +8,20 @@ import { Check } from "lucide-react";
 const plans = [
   {
     name: "Basic",
-    monthly: 499,
+    monthly: 699,
     yearly: 4990,
     features: [
       "Up to 50 members",
       "Basic analytics",
       "Manual payments",
       "Email support",
+      "Email support",
     ],
     highlighted: false,
   },
   {
     name: "Pro",
-    monthly: 999,
+    monthly: 899,
     yearly: 9990,
     features: [
       "Up to 200 members",
@@ -30,19 +31,6 @@ const plans = [
       "Priority support",
     ],
     highlighted: true,
-  },
-  {
-    name: "Premium",
-    monthly: 1999,
-    yearly: 19990,
-    features: [
-      "Unlimited members",
-      "All analytics",
-      "Automation + reports",
-      "Custom branding",
-      "Dedicated support",
-    ],
-    highlighted: false,
   },
 ];
 
@@ -68,19 +56,8 @@ export default function PricingPage({ compact = false }) {
         </div>
       )}
 
-      {/* Toggle */}
-      <div className="flex items-center justify-center gap-3 mt-8">
-        <span className={!isYearly ? "font-medium" : "text-muted-foreground"}>
-          Monthly
-        </span>
-        <Switch checked={isYearly} onCheckedChange={setIsYearly} />
-        <span className={isYearly ? "font-medium" : "text-muted-foreground"}>
-          Yearly (Save 2 months)
-        </span>
-      </div>
-
       {/* Pricing Cards */}
-      <div className={`mt-10 grid gap-6 ${compact ? "grid-cols-1" : "md:grid-cols-3"} max-w-6xl mx-auto`}>
+      <div className={`mt-10 grid gap-6 ${compact ? "grid-cols-1" : "md:grid-cols-2"} max-w-6xl mx-auto`}>
         {plans.map((plan) => {
           const price = isYearly ? plan.yearly : plan.monthly;
 
@@ -126,7 +103,7 @@ export default function PricingPage({ compact = false }) {
                   variant={plan.highlighted ? "default" : "outline"}
                   onClick={() => handlePlanSelect(plan.name)}
                 >
-                  {plan.highlighted ? "Get Started" : "Choose Plan"}
+                  {plan.highlighted ? "Get Pro" : "Choose Basic"}
                 </Button>
               </CardContent>
             </Card>
@@ -134,11 +111,11 @@ export default function PricingPage({ compact = false }) {
         })}
       </div>
 
-      {!compact && (
+      {/* {!compact && (
         <div className="mt-16 text-center text-sm text-muted-foreground">
           No hidden charges • 7-day free trial
         </div>
-      )}
+      )} */}
     </div>
   );
 }

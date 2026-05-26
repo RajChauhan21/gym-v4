@@ -17,8 +17,9 @@ export default function RecentPayments() {
     setLoading(true);
     try {
       const response = await getRecentPaymentByMember(profile?.ownerId);
-      setLatest(response.data);
-      console.log(latest);
+      if (response.status === 202 || response.data.statusCodeValue === 200) {
+        setLatest(response.data);
+      }
     } catch (error) {
       console.error(error);
     } finally {

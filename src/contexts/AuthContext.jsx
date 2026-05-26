@@ -2,13 +2,15 @@ import { createContext, useContext, useState, useEffect } from "react";
 import constant from "../apis/constant"; // your axios instance
 import { useProfile } from "./ProfileContext";
 import { getMe } from "../apis/backend_apis";
+import { Loader } from "lucide";
+import { Loader2 } from "lucide-react";
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   // Sync initial state with localStorage
   const [isAuthenticated, setIsAuthenticated] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const { profile, setProfile } = useProfile();
 
   const logout = async () => {
@@ -30,61 +32,83 @@ export const AuthProvider = ({ children }) => {
       const oauthSuccess = params.get("login") === "success";
       const hasHint = localStorage.getItem("isLoggedIn") === "true";
 
-      if (oauthSuccess) {
-        const response = await getMe();
-        if (response.status === 202) {
-          const userData = response.data;
+      try {
+        if (oauthSuccess) {
+          const response = await getMe();
+          if (response.status === 202) {
+            const userData = response.data;
 
-          // 2. Map and Sync to Profile Context
-          const updatedProfile = {
-            ownerId: userData?.ownerId,
-            gymId: userData?.gymId,
-            gymName: userData?.gymName || "bobs Gym",
-            owner: userData?.ownerName || "Raj Sharma",
-            email: userData?.email,
-            phone: userData?.phone || "9876543210",
-            address: userData?.location || "Sector 9, Delhi",
-            website: userData?.website || "://paramountgym.com",
-            gymLogo:
-              userData.gymImage ||
-              "https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/back06.jpg",
-            ownerLogo:
-              userData.ownerImage ||
-              "https://codeskulptor-demos.commondatastorage.googleapis.com/AddressableObject/ironman.jpg",
-            googleMapUrl:
-              userData.googleMapUrl ||
-              "https://maps.google.com/?q=paramount+gym",
-            planName: userData.planName || "Premium",
-            price: userData.price || 0,
-            startDate: userData.startDate || "N/A",
-            endDate: userData.endDate || "N/A",
-            status: userData.status || "Active",
-            memberLimitCount: userData.memberLimitCount || 12,
-            currentMemberCount: userData.currentMemberCount || 10,
-          };
+            // 2. Map and Sync to Profile Context
+            const updatedProfile = {
+              ownerId: userData?.ownerId,
+              gymId: userData?.gymId,
+              gymName: userData?.gymName || "bobs Gym",
+              owner: userData?.ownerName || "Raj Sharma",
+              email: userData?.email,
+              phone: userData?.phone || "9876543210",
+              address: userData?.location || "Sector 9, Delhi",
+              website: userData?.website || "https://paramountgym.com",
+              gymLogo:
+                userData.gymImage ||
+                "https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/back06.jpg",
+              ownerLogo:
+                userData.ownerImage ||
+                "https://codeskulptor-demos.commondatastorage.googleapis.com/AddressableObject/ironman.jpg",
+              googleMapUrl:
+                userData.googleMapUrl ||
+                "https://maps.google.com/?q=paramount+gym",
+              planName: userData.planName || "Premium",
+              price: userData.price || 0,
+              startDate: userData.startDate || "N/A",
+              endDate: userData.endDate || "N/A",
+              status: userData.status || "Active",
+              memberLimitCount: userData.memberLimitCount || 12,
+              currentMemberCount: userData.currentMemberCount || 10,
+            };
 
-          setProfile(updatedProfile);
-          localStorage.setItem("userProfile", JSON.stringify(updatedProfile)); //store user details in LS
+            setProfile(updatedProfile);
+            localStorage.setItem("userProfile", JSON.stringify(updatedProfile)); //store user details in LS
 
-          localStorage.setItem("isLoggedIn", "true");
+            localStorage.setItem("isLoggedIn", "true");
+            setIsAuthenticated(true);
+
+            // Clean the URL without triggering a full re-render loop
+            window.history.replaceState(
+              {},
+              document.title,
+              window.location.pathname,
+            );
+            console.log("OAuth Login Success Detected");
+          }
+        } else if (hasHint) {
           setIsAuthenticated(true);
+          const storedProfile = localStorage.getItem("userProfile");
 
-          // Clean the URL without triggering a full re-render loop
-          window.history.replaceState(
-            {},
-            document.title,
-            window.location.pathname,
-          );
-          console.log("OAuth Login Success Detected");
+          if (storedProfile) {
+            setProfile(JSON.parse(storedProfile));
+          }
+        } else {
+          setIsAuthenticated(false);
         }
-      } else if (hasHint) {
-        setIsAuthenticated(true);
-      } else {
+      } catch (error) {
+        console.error("Auth check failed:", error);
         setIsAuthenticated(false);
+      } finally {
+        setLoading(false);
       }
     };
     checkAuth();
   }, [setProfile]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-white">
+        <div className="scale-90 md:scale-100">
+          <Loader2 />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider
