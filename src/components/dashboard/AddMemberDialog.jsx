@@ -23,7 +23,7 @@ import { useGymStore } from "../../store/gymStore";
 import { toast } from "sonner";
 import { PhoneNumberInput } from "@/components/ui/phone-input";
 import { allowOnlyText, allowOnlyNumbers } from "../../lib/inputValidator";
-import { addMember } from "../../apis/backend_apis";
+import { addMember, getActiveMembers } from "../../apis/backend_apis";
 import { email } from "zod";
 import { useProfile } from "../../contexts/ProfileContext";
 import { Calendar } from "@/components/ui/calendar";
@@ -32,7 +32,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { format, addMonths, parseISO } from "date-fns";
+import { format, addMonths, parseISO, isSameDay } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -41,12 +41,14 @@ export default function AddMemberDialog({
   setOpen,
   editingMember,
   setEditingMember,
+  setActiveMembersCount,
 }) {
   const plans = useGymStore((state) => state.plans);
   const [errors, setErrors] = useState({});
   // const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isStartDateCalendarOpen, setIsStartDateCalendarOpen] = useState(false);
   // const { toast } = useToast()
   const { profile } = useProfile();
   const [form, setForm] = useState({
@@ -59,17 +61,31 @@ export default function AddMemberDialog({
     email: "",
     joiningDate: null,
     expiryDate: null,
+    startDate: null,
   });
+
+  const getActiveMembersCount = async () => {
+    try {
+      const response = await getActiveMembers(profile.ownerId, 1);
+      if (response.status === 202 || response.data.statusCodeValue === 202) {
+        setActiveMembersCount(response.data || 0);
+      } else if (response.status === 404) {
+      } else if (response.status === 429) {
+      }
+    } catch (error) {
+    } finally {
+    }
+  };
 
   const fetchMembers = useGymStore((state) => state.fetchMembers);
 
   useEffect(() => {
-    if (form.joiningDate && form.plan) {
+    if (form.startDate && form.plan) {
       // Find the selected plan object to get its validity months
       const selectedPlan = plans.find((p) => p.name === form.plan);
 
       if (selectedPlan) {
-        const startDate = new Date(form.joiningDate);
+        const startDate = new Date(form.startDate);
         const expiryDate = addMonths(startDate, selectedPlan.validity);
 
         // Format to yyyy-MM-dd for Java LocalDate compatibility
@@ -79,7 +95,7 @@ export default function AddMemberDialog({
         }));
       }
     }
-  }, [form.joiningDate, form.plan, plans]);
+  }, [form.startDate, form.plan, plans]);
 
   useEffect(() => {
     if (editingMember) {
@@ -87,11 +103,12 @@ export default function AddMemberDialog({
         name: editingMember.name,
         plan: editingMember.plan,
         phone: editingMember.phone,
-        email: editingMember.email || "craj4757@gmail.com",
+        email: editingMember.email || "abc4757@gmail.com",
         address: editingMember.address || "12",
         amount: editingMember.due || 0,
         joiningDate: editingMember.joined || null,
         expiryDate: editingMember.expiry || null,
+        startDate: editingMember.startDate || null,
       });
       console.log("Editing member:", editingMember);
       console.log("Editing form member:", form);
@@ -116,6 +133,7 @@ export default function AddMemberDialog({
     email: "",
     expiryDate: null,
     joiningDate: null,
+    startDate: null,
   };
 
   const handleClose = (isOpen) => {
@@ -125,6 +143,10 @@ export default function AddMemberDialog({
       resetForm();
     }
   };
+
+  useEffect(() => {
+    validate();
+  }, [form]);
 
   const validate = () => {
     let newErrors = {};
@@ -170,11 +192,15 @@ export default function AddMemberDialog({
       newErrors.joiningDate = "Joining date required";
     }
 
+    if (!form.startDate) {
+      newErrors.startDate = "Start date required";
+    }
+
     if (!form.expiryDate) {
       newErrors.expiryDate = "Expiry date required";
     }
 
-    if (!form.plan == null) {
+    if (!form.plan) {
       newErrors.plan = "Plan required";
     }
     return newErrors;
@@ -200,7 +226,7 @@ export default function AddMemberDialog({
     const duration = selectedPlan ? selectedPlan.validity : 0;
     try {
       const member = {
-        packageId: selectedPlan?.id ?? null, // Defaults to empty string if null
+        memberShipId: selectedPlan?.id ?? null, // Defaults to empty string if null
         memberId: editingMember?.id ?? null, // Keep null if the DB needs it for updates
         ownerId: profile.ownerId,
         name: form.name || "",
@@ -209,6 +235,7 @@ export default function AddMemberDialog({
         address: form.address || "",
         joined: form.joiningDate || null,
         expiry: form.expiryDate || null,
+        startDate: form.startDate || null,
       };
       const response = await addMember(member);
       console.log(member);
@@ -221,10 +248,6 @@ export default function AddMemberDialog({
         );
         await fetchMembers(profile.ownerId);
       } else if (response.status === 404) {
-        // toast.error(
-        //   response.data.message ||
-        //     "Plan not found. Please select a valid plan.",
-        // );
         if (
           response.data &&
           response.data.message &&
@@ -233,6 +256,16 @@ export default function AddMemberDialog({
           toast.error(
             "You need an active plan to add members. Please subscribe to a plan first.",
           );
+          // Member already exists with the name
+        } else if (
+          response.data &&
+          response.data.message &&
+          response.data.message == "limit"
+        ) {
+          toast.error(
+            "Member limit reached. Upgrade your plan or manage existing members to add new members.",
+          );
+
           // Member already exists with the name
         } else if (
           response.data &&
@@ -254,6 +287,7 @@ export default function AddMemberDialog({
       setOpen(false);
       setLoading(false);
       editingMember ? setEditingMember(null) : null; // Clear editing state after update
+      getActiveMembersCount();
     }
   };
 
@@ -261,6 +295,8 @@ export default function AddMemberDialog({
     setForm(initialFormState);
     setErrors({});
   };
+
+  const errorCount = Object.keys(errors || {}).length;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -304,6 +340,21 @@ export default function AddMemberDialog({
           </DialogPrimitive.Close>
         </DialogHeader>
 
+        {errorCount > 0 && (
+          <div className="mx-6 mt-4 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-900/50 dark:bg-red-950/30">
+            <p className="mb-2 text-sm font-medium text-red-700 dark:text-red-400">
+              Please fill/fix {errorCount} field{errorCount > 1 ? "s" : ""}{" "}
+              before continuing:
+            </p>
+
+            <ul className="ml-5 list-disc text-sm text-red-600 dark:text-red-300">
+              {Object.keys(errors).map((field) => (
+                <li key={field}>{field}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Body: Scrollable only when content exceeds max-height */}
         <div className="overflow-y-auto p-6 space-y-4 no-scrollbar">
           <div>
@@ -334,7 +385,7 @@ export default function AddMemberDialog({
                     "w-full justify-start text-left font-normal px-3", // Added padding
                     !form.joiningDate && "text-muted-foreground",
                   )}
-                  disabled={loading}
+                  disabled={loading || editingMember} // Disable if editing to prevent date changes
                 >
                   <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />{" "}
                   {/* shrink-0 prevents icon squashing */}
@@ -352,6 +403,9 @@ export default function AddMemberDialog({
                   mode="single"
                   selected={
                     form.joiningDate ? parseISO(form.joiningDate) : undefined
+                  }
+                  defaultMonth={
+                    form.joiningDate ? parseISO(form.joiningDate) : new Date()
                   }
                   onSelect={(date) => {
                     setForm({
@@ -371,9 +425,62 @@ export default function AddMemberDialog({
             </div>
           </div>
 
+          <div className="space-y-1">
+            <Label>Membership Start Date</Label>
+            <Popover
+              open={isStartDateCalendarOpen}
+              onOpenChange={setIsStartDateCalendarOpen}
+            >
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-full justify-start text-left font-normal px-3", // Added padding
+                    !form.startDate && "text-muted-foreground",
+                  )}
+                  disabled={loading}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />{" "}
+                  {/* shrink-0 prevents icon squashing */}
+                  <span className="truncate">
+                    {" "}
+                    {/* truncate prevents text going out of the field */}
+                    {form.startDate
+                      ? format(parseISO(form.startDate), "PPP")
+                      : "Pick a date"}
+                  </span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={
+                    form.startDate ? parseISO(form.startDate) : undefined
+                  }
+                  defaultMonth={
+                    form.startDate ? parseISO(form.startDate) : new Date()
+                  }
+                  onSelect={(date) => {
+                    setForm({
+                      ...form,
+                      startDate: date ? format(date, "yyyy-MM-dd") : "",
+                    });
+                    setIsStartDateCalendarOpen(false); // This closes the popover automatically
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            <div className="min-h-[20px]">
+              {errors?.startDate && (
+                <p className="text-red-500 text-sm">{errors.startDate}</p>
+              )}
+            </div>
+          </div>
+
           {/* Expiry Date (Read Only / Auto-populated) */}
           <div className="space-y-1">
-            <Label>Date of Expiry</Label>
+            <Label>Membership End Date</Label>
             <div className="relative">
               <Input
                 type="text"

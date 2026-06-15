@@ -134,7 +134,7 @@ export default function EditProfileModal({
 
     const payload = {
       gymId: profile.gymId, // mapping gymId
-      // ownerId: profile.ownerId, // mapping ownerId
+      ownerId: profile.ownerId, // mapping ownerId
       gymName: form.gymName, // mapping from 'name'
       // ownerName: form.owner, // mapping from 'ownerName'
       website: form.website, // mapping from 'website'
@@ -167,7 +167,20 @@ export default function EditProfileModal({
         toast.success("Gym profile details updated successfully.");
         setOpen(false);
       } else if (response.status === 404) {
-        toast.error("Failed to update gym profile details. Please try again.");
+        if (
+          response.data &&
+          response.data.message &&
+          response.data.message === "100"
+        ) {
+          toast.error(
+            "You need an active plan to use this functionality. Please subscribe to a plan first.",
+          );
+          // Member already exists with the name
+        } else {
+          toast.error(
+            "Failed to update gym profile details. Please try again.",
+          );
+        }
       } else if (response.status === 429) {
         toast.error(
           "You're performing actions too quickly. Please wait a few seconds.",
@@ -224,7 +237,18 @@ export default function EditProfileModal({
         toast.success("Owner details updated successfully.");
         setOpen(false);
       } else if (response.status === 404) {
-        toast.error("Failed to update owner details. Please try again.");
+        if (
+          response.data &&
+          response.data.message &&
+          response.data.message === "100"
+        ) {
+          toast.error(
+            "You need an active plan to use this functionality. Please subscribe to a plan first.",
+          );
+          // Member already exists with the name
+        } else {
+          toast.error("Failed to update owner details. Please try again.");
+        }
       } else if (response.status === 429) {
         toast.error(
           "You're performing actions too quickly. Please wait a few seconds.",

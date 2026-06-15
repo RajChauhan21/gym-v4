@@ -14,6 +14,7 @@ import {
   ArrowUp,
   ArrowDown,
   AlertTriangle,
+  CalendarClock,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -77,33 +78,46 @@ import {
 } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { Search, SlidersHorizontal, X, UserCheck, UserX } from "lucide-react";
 import { useGymStore } from "../../store/gymStore";
 import { MemberDetailsModal } from "./MemberDetailsModal";
 import { useProfile } from "../../contexts/ProfileContext";
 import {
+  changeMemberActiveStatus,
   deleteMemberById,
+  getActiveMembers,
   getAllDuesOfMembers,
   getAllMembers,
   getAllMembersCount,
+  renewMemberShip,
 } from "../../apis/backend_apis";
 import { toast } from "sonner";
+import RenewMembershipDialog from "./RenewMembershipDialog";
 export default function MembersTable() {
   const [currentPage, setCurrentPage] = useState(0); // backend uses 0-based
   const [dateToOpen, setDateToOpen] = useState(false);
+  const [openDropdownId, setOpenDropdownId] = useState(null);
   const [dateFromOpen, setDateFromOpen] = useState(false);
+  const [mobileDateFromOpen, setMobileDateFromOpen] = useState(false);
+  const [mobileDateToOpen, setMobileDateToOpen] = useState(false);
   const [totalPages, setTotalPages] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [sortBy, setSortBy] = useState("expiry"); // Default column
   const [sortDir, setSortDir] = useState("desc"); // Default direction
   const [totalElements, setTotalElements] = useState(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [activeMembersCount, setActiveMembersCount] = useState(0);
+  const [renewOpen, setRenewOpen] = useState(false);
+  const [selectedRenewalMember, setSelectedRenewalMember] = useState(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [renewLoading, setRenewLoading] = useState(false);
   const [filters, setFilters] = useState({
     name: "",
     dueAmount: "",
     fromDate: "", // Matches @Param "joinedFrom"
     toDate: "", // Matches @Param "joinedTo"
     plan: "",
+    isActive: null,
   });
 
   const sendWhatsAppReminder = (member) => {
@@ -119,6 +133,19 @@ export default function MembersTable() {
   const [totalDues, setTotalDues] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [dueMembersCount, setDueMembersCount] = useState(0);
+
+  const getActiveMembersCount = async () => {
+    try {
+      const response = await getActiveMembers(profile.ownerId, 1);
+      if (response.status === 202 || response.data.statusCodeValue === 202) {
+        setActiveMembersCount(response.data || 0);
+      } else if (response.status === 404) {
+      } else if (response.status === 429) {
+      }
+    } catch (error) {
+    } finally {
+    }
+  };
 
   const fetchTotalDues = async () => {
     try {
@@ -159,8 +186,48 @@ export default function MembersTable() {
     }
   };
 
+  const changeMemberStatus = async (action, memberId, ownerId) => {
+    setIsUpdating(true);
+    try {
+      const response = await changeMemberActiveStatus(
+        action,
+        memberId,
+        ownerId,
+      );
+      if (response.status === 202 || response.data.statusCodeValue === 202) {
+        if (response.data == "active") {
+          toast.success("Member activated successfully");
+        } else if (response.data == "inactive") {
+          toast.success("Member deactivated successfully");
+        }
+      } else if (response.status === 404) {
+        if (
+          response.data &&
+          response.data.message &&
+          response.data.message == "limit"
+        ) {
+          toast.error(
+            "You've reached your plan's member limit. Please upgrade your plan or deactivate existing members.",
+          );
+        }
+      } else if (response.status === 429) {
+        toast.error(
+          "You are performing actions too quickly. Please wait a few seconds and try again.",
+        );
+      }
+    } catch (error) {
+      console.error("failed to change member status", error);
+    } finally {
+      setIsUpdating(false);
+      fetchAndPopulate();
+      getActiveMembersCount();
+    }
+  };
+
   const fetchAndPopulate = async (retries = 3) => {
     setLoading(true);
+    const activeFilter =
+      filters.isActive === "all" ? null : filters.isActive == "1" ? 1 : 0;
     const apiFilters = {
       name: filters.name || null,
       dueAmount: filters.dueAmount || null,
@@ -168,7 +235,10 @@ export default function MembersTable() {
       joinedTo: dateType === "joined" ? filters.toDate : null,
       expiryFrom: dateType === "expiry" ? filters.fromDate : null,
       expiryTo: dateType === "expiry" ? filters.toDate : null,
+      startFrom: dateType === "start" ? filters.fromDate : null,
+      startTo: dateType === "start" ? filters.toDate : null,
       plan: filters.plan,
+      isActive: filters.isActive !== null ? activeFilter : null,
     };
     try {
       const response = await getAllMembers(
@@ -228,6 +298,7 @@ export default function MembersTable() {
 
   useEffect(() => {
     getAllCount();
+    getActiveMembersCount();
   }, []);
 
   useEffect(() => {
@@ -294,6 +365,7 @@ export default function MembersTable() {
       fromDate: "",
       toDate: "",
       plan: "",
+      isActive: null,
     });
     setIsFilterOpen(false);
     setCurrentPage(0);
@@ -308,10 +380,10 @@ export default function MembersTable() {
 
     const diffDays = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
 
+    // 1. Expired in the past
     if (diffDays < 0) {
       const absDays = Math.abs(diffDays);
 
-      // Shortened labels to ensure text fits within the original sizing
       if (absDays < 30) {
         return `Exp. ${absDays}d ago`;
       } else if (absDays < 365) {
@@ -323,48 +395,44 @@ export default function MembersTable() {
       }
     }
 
+    // 2. Exact same day
     if (diffDays === 0) return "Exp. Today";
-    if (diffDays <= 7) return `Exp. in ${diffDays}d`;
 
-    return "Active";
+    // 3. NEW/UPDATED: Expiring within 1 to 7 days from today (inclusive)
+    if (diffDays > 0 && diffDays <= 7) {
+      return `Expring. in ${diffDays}d`;
+    }
+
+    // 4. More than 7 days in the future
+    return expiryDate;
   }
 
-  function getExpiryBg(expiryDate) {
+  function getExpiryTextColor(expiryDate) {
     const today = new Date();
     const expiry = new Date(expiryDate);
     today.setHours(0, 0, 0, 0);
     expiry.setHours(0, 0, 0, 0);
 
-    const diffDays = (expiry - today) / (1000 * 60 * 60 * 24);
+    // Use Math.ceil to match the day-rounding of your text function
+    const diffDays = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
 
+    // 1. Expired or expires today -> Red
+    if (diffDays <= 0) return "text-red-500";
+
+    // 2. Expiring within 1 to 7 days -> Blue
+    if (diffDays > 0 && diffDays <= 7) return "text-blue-500";
+
+    // 3. More than 7 days left -> Default / No extra class
+    return "";
+  }
+
+  function getExpiryBg(isActive) {
     // Constant backgrounds: Red for expired/today, Blue for future
-    if (diffDays <= 0) return "bg-red-500";
-    return "bg-blue-500";
+    if (isActive == 0) return "bg-red-500";
+    return "bg-sky-500";
   }
 
   const [loading, setLoading] = useState(true);
-
-  // const handleSort = (columnName) => {
-  //   if (profile.planName === "No Active Plan") {
-  //     // 1. Show the error toast
-  //     toast.error(
-  //       "You need an active plan to use this functionality. Please subscribe to a plan first.",
-  //     );
-  //     setLoading(false);
-  //     return;
-  //   }
-
-  //   if (sortBy === columnName) {
-  //     // If same column clicked, toggle direction
-  //     setSortDir(sortDir === "asc" ? "desc" : "asc");
-  //   } else {
-  //     // If new column clicked, set it and default to asc
-  //     setSortBy(columnName);
-  //     setSortDir("asc");
-  //   }
-  //   // Reset to first page when sorting changes
-  //   setCurrentPage(0);
-  // };
 
   const handleSort = (columnName) => {
     if (profile.planName === "No Active Plan") {
@@ -424,6 +492,59 @@ export default function MembersTable() {
     setTimeout(() => setLoading(false), 1200);
   }, []);
 
+  const activePercentage =
+    totalMembers > 0
+      ? Math.round((activeMembersCount / profile.memberLimitCount) * 100)
+      : 0;
+
+  const activePercent =
+    profile.memberLimitCount > 0
+      ? Math.round((activeMembersCount / profile.memberLimitCount) * 100)
+      : 0;
+  const r = 42;
+  const circumference = 2 * Math.PI * r;
+  const dashOffset = circumference - (activePercent / 100) * circumference;
+
+  const radius = 22;
+
+  const pendingPercent =
+    totalMembers > 0 ? Math.round((pendingPayments / totalMembers) * 100) : 0;
+
+  const pendingDashOffset =
+    circumference - (pendingPercent / 100) * circumference;
+
+  const handleRenew = async (form) => {
+    setRenewLoading(true);
+    try {
+      const planId = plans.find((p) => p.name === form.plan)?.id;
+      const payload = {
+        memberId: selectedRenewalMember.id,
+        planId: planId,
+        ownerId: profile.ownerId,
+        dueAmount: form.totalPayable,
+        startDate: form.startDate,
+        joiningDate: form.joinedDate,
+        expiryDate: form.expiryDate,
+      };
+
+      // await api.post("/members/renew", payload);
+      const response = await renewMemberShip(payload);
+      if (response.status === 202 || response.statusCodeValue === 202) {
+        if (response.data == "OK") {
+          toast.success("Membership renewed successfully");
+        } else if (response.data == "404") {
+          toast.error("Something went wrong");
+        }
+      }
+      fetchAndPopulate();
+      // refresh table
+    } catch (err) {
+      toast.error("Failed to renew membership");
+    } finally {
+      setRenewLoading(false);
+    }
+  };
+
   // if (loading) {
   //   return <Loader text="Loading Members...." />;
   // }
@@ -436,55 +557,261 @@ export default function MembersTable() {
         setOpen={setIsModalOpen}
         editingMember={selectedMember}
         setEditingMember={setSelectedMember}
+        setActiveMembersCount={setActiveMembersCount}
       />
-      {/* <div className="bg-white rounded-xl shadow p-6 md:p-8"> */}
+      <RenewMembershipDialog
+        open={renewOpen}
+        setOpen={setRenewOpen}
+        member={selectedRenewalMember}
+        plans={plans} // if you have plans list
+        onRenew={handleRenew}
+        loading={renewLoading}
+      />
 
       {/* --- QUICK STATS CARDS --- */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 m-1">
-        <div className="p-4 rounded-2xl bg-card border shadow-sm">
-          <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">
-            Total Members
-          </p>
-          <p className="text-2xl font-bold dark:text-white">
-            {loading ? (
-              <Skeleton className="h-6 w-16 bg-slate-200 dark:bg-slate-800 rounded" />
-            ) : (
-              totalMembers
-            )}
-          </p>
+      {profile?.planName === "Max Pro" ? (
+        /* --- RENDERED IF PLAN IS MAX PRO --- */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 m-1 items-stretch">
+          {/* Total Members */}
+          <div className="lg:col-span-2">
+            <div className="p-4 rounded-2xl bg-card border shadow-sm w-full relative">
+              {/* Title */}
+              <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest mb-4">
+                Member Limit
+              </p>
+
+              <div className="flex items-center justify-between gap-6">
+                {/* LEFT SIDE - RING */}
+                <div className="flex items-center justify-center w-1/2 relative">
+                  {loading ? (
+                    <Skeleton className="h-[80px] w-[80px] rounded-full bg-slate-200 dark:bg-slate-800" />
+                  ) : (
+                    <>
+                      <svg
+                        width={100}
+                        height={100}
+                        className="shrink-0 -rotate-90"
+                      >
+                        <circle
+                          cx={50}
+                          cy={50}
+                          r={r}
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={8}
+                          className="text-slate-200 dark:text-slate-700"
+                        />
+                        <circle
+                          cx={50}
+                          cy={50}
+                          r={r}
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={8}
+                          strokeDasharray={circumference}
+                          strokeDashoffset={dashOffset}
+                          strokeLinecap="round"
+                          className="text-sky-500 transition-all duration-700 ease-in-out"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <span className="text-sm font-bold text-sky-500 font-semibold">
+                          {activePercent}%
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* RIGHT SIDE - STATS */}
+                <div className="w-1/2 flex flex-col items-start justify-center">
+                  {loading ? (
+                    <>
+                      <Skeleton className="h-8 w-16 mb-2" />
+                      <Skeleton className="h-3 w-24" />
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-3xl font-bold leading-none text-sky-500">
+                        {profile.memberLimitCount}
+                      </p>
+
+                      <p className="text-xm text-muted-foreground mt-2">
+                        <span className="text-sky-500 font-semibold">
+                          {activeMembersCount}
+                        </span>{" "}
+                        {activeMembersCount === 1
+                          ? "active member"
+                          : "active members"}
+                      </p>
+
+                      <p className="text-[14px] text-muted-foreground mt-1">
+                        {activePercent}% utilization
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Pending Dues */}
+          <div className="lg:col-span-2">
+            <div className="p-4 rounded-2xl bg-card border shadow-sm w-full relative">
+              {/* Title */}
+              <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest mb-4">
+                Pending Dues
+              </p>
+
+              <div className="flex items-center justify-between gap-6">
+                {/* LEFT SIDE - RING */}
+                <div className="flex items-center justify-center w-1/2 relative">
+                  {loading ? (
+                    <Skeleton className="h-[80px] w-[80px] rounded-full bg-slate-200 dark:bg-slate-800" />
+                  ) : (
+                    <>
+                      <svg
+                        width={100}
+                        height={100}
+                        className="shrink-0 -rotate-90"
+                      >
+                        <circle
+                          cx={50}
+                          cy={50}
+                          r={r}
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={8}
+                          className="text-slate-200 dark:text-slate-700"
+                        />
+                        <circle
+                          cx={50}
+                          cy={50}
+                          r={r}
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={8}
+                          strokeDasharray={circumference}
+                          strokeDashoffset={pendingDashOffset}
+                          strokeLinecap="round"
+                          className="text-orange-500 transition-all duration-700 ease-in-out"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <span className="text-sm font-bold text-orange-500 font-semibold">
+                          {pendingPercent}%
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* RIGHT SIDE - STATS */}
+                <div className="w-1/2 flex flex-col items-start justify-center">
+                  {loading ? (
+                    <>
+                      <Skeleton className="h-8 w-16 mb-2" />
+                      <Skeleton className="h-3 w-24" />
+                    </>
+                  ) : (
+                    <>
+                      {/* Kept font-bold and leading-none, swapped color back to match text style if desired, or left orange here */}
+                      <p className="text-3xl font-bold leading-none text-orange-500">
+                        {pendingPayments}
+                      </p>
+
+                      <p className="text-xm text-muted-foreground mt-2">
+                        <span className="text-orange-500 font-semibold">
+                          {pendingPayments}
+                        </span>{" "}
+                        {pendingPayments === 1
+                          ? "pending member"
+                          : "pending members"}
+                      </p>
+
+                      <p className="text-[14px] text-muted-foreground mt-1">
+                        {pendingPercent}% of total members
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Total Due Amount */}
+          <div className="lg:col-span-1 h-full">
+            <div className="p-4 rounded-2xl bg-card border shadow-sm flex flex-col items-center justify-center text-center h-full w-full relative">
+              <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest mb-2">
+                Total Due Amount
+              </p>
+              <p className="text-2xl font-bold text-red-500">
+                {loading ? (
+                  <Skeleton className="h-6 w-16 bg-slate-200 dark:bg-slate-800 rounded" />
+                ) : (
+                  <span>
+                    ₹{(Number(totalDues) || 0).toLocaleString("en-IN")}
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="p-4 rounded-2xl bg-card border shadow-sm">
-          <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">
-            Pending Dues
-          </p>
-          <p className="text-2xl font-bold text-orange-500">
-            {loading ? (
-              <Skeleton className="h-6 w-16 bg-slate-200 dark:bg-slate-800 rounded" />
-            ) : (
-              pendingPayments
-            )}
-          </p>
+      ) : (
+        /* --- OPTIONAL: RENDERED FOR ALL OTHER PLANS (FALLBACK) --- */
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 m-1">
+          <div className="p-4 rounded-2xl bg-card border shadow-sm">
+            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest mb-1">
+              Total / Active Members
+            </p>
+
+            <div className="text-2xl font-bold dark:text-white flex items-baseline gap-1">
+              {loading ? (
+                <Skeleton className="h-6 w-16 bg-slate-200 dark:bg-slate-800 rounded" />
+              ) : (
+                <>
+                  <span>{totalMembers}</span>
+                  <span className="text-muted-foreground text-xl font-medium">
+                    /
+                  </span>
+                  <span className="text-sky-500">{activeMembersCount}</span>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="p-4 rounded-2xl bg-card border shadow-sm">
+            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">
+              Pending Dues
+            </p>
+            <p className="text-2xl font-bold text-orange-500">
+              {loading ? (
+                <Skeleton className="h-6 w-16 bg-slate-200 dark:bg-slate-800 rounded" />
+              ) : (
+                pendingPayments
+              )}
+            </p>
+          </div>
+          <div className="p-4 rounded-2xl bg-card border shadow-sm col-span-2 md:col-span-1">
+            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">
+              Total Due Amount
+            </p>
+            <p className="text-2xl font-bold text-red-500">
+              {loading ? (
+                <Skeleton className="h-6 w-16 bg-slate-200 dark:bg-slate-800 rounded" />
+              ) : (
+                <span>₹{(Number(totalDues) || 0).toLocaleString("en-IN")}</span>
+              )}
+            </p>
+          </div>
         </div>
-        <div className="p-4 rounded-2xl bg-card border shadow-sm col-span-2 md:col-span-1">
-          <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">
-            Total Due Amount
-          </p>
-          <p className="text-2xl font-bold text-red-500">
-            {loading ? (
-              <Skeleton className="h-6 w-16 bg-slate-200 dark:bg-slate-800 rounded" />
-            ) : (
-              <span>₹{(Number(totalDues) || 0).toLocaleString("en-IN")}</span>
-            )}
-          </p>
-        </div>
-      </div>
+      )}
 
       {/* Mobile Search filters */}
       <Dialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>
         <DialogTrigger asChild>
           <Button
             variant="outline"
-            className="md:hidden flex gap-2 rounded-full shadow-sm w-full mb-2 mt-2"
+            className="md:hidden flex gap-2 rounded-full shadow-sm w-full mb-2 mt-3"
           >
             <Search className="size-4" />
             <span>Search & Filter</span>
@@ -516,30 +843,33 @@ export default function MembersTable() {
                 }
               />
             </div>
-
             {/* Date type selector */}
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase text-muted-foreground">
                 Filter Date By
               </Label>
               <Select value={dateType} onValueChange={setDateType}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="expiry">Expiry Date</SelectItem>
                   <SelectItem value="joined">Joining Date</SelectItem>
+                  <SelectItem value="start">Start Date</SelectItem>
+                  <SelectItem value="expiry">Expiry Date</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {/* 4. Date Range */}
             {/* <div className="grid grid-cols-2 gap-4"> */}
-            <div className="space-y-2">
+            <div className="space-y-1">
               <Label className="text-xs font-bold uppercase text-muted-foreground">
                 From
               </Label>
-              <Popover>
+              <Popover
+                open={mobileDateFromOpen}
+                onOpenChange={setMobileDateFromOpen}
+              >
                 {" "}
                 {/* Changed Dialog to Popover */}
                 <PopoverTrigger asChild>
@@ -547,7 +877,6 @@ export default function MembersTable() {
                     variant={"outline"}
                     className={cn(
                       "w-full justify-start text-left font-normal px-3",
-                      !filters.fromDate && "text-muted-foreground",
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
@@ -572,6 +901,51 @@ export default function MembersTable() {
                         ...prev,
                         fromDate: date ? format(date, "yyyy-MM-dd") : "",
                       }));
+                      setMobileDateFromOpen(false);
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs font-bold uppercase text-muted-foreground">
+                To
+              </Label>
+              <Popover
+                open={mobileDateToOpen}
+                onOpenChange={setMobileDateToOpen}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal px-3",
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                    <span className="truncate">
+                      {filters.to
+                        ? format(parseISO(filters.to), "PPP")
+                        : "Pick a date"}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                {/* MATCHED FIX: Removed side="top" to let it anchor naturally from the top edge */}
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    defaultMonth={
+                      filters.to ? parseISO(filters.to) : new Date()
+                    }
+                    selected={filters.to ? parseISO(filters.to) : undefined}
+                    onSelect={(date) => {
+                      setFilters((prev) => ({
+                        ...prev,
+                        to: date ? format(date, "yyyy-MM-dd") : "",
+                      }));
+                      setMobileDateToOpen(false);
                     }}
                     initialFocus
                   />
@@ -581,48 +955,32 @@ export default function MembersTable() {
 
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase text-muted-foreground">
-                To
+                Active Members
               </Label>
-              <Popover>
-                {" "}
-                {/* Changed Dialog to Popover */}
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal px-3",
-                      !filters.toDate && "text-muted-foreground",
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
-                    <span className="truncate">
-                      {filters.toDate
-                        ? format(parseISO(filters.toDate), "PPP")
-                        : "Pick a date"}
-                    </span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    defaultMonth={
-                      filters.toDate ? parseISO(filters.toDate) : new Date()
-                    }
-                    selected={
-                      filters.toDate ? parseISO(filters.toDate) : undefined
-                    }
-                    onSelect={(date) => {
-                      setFilters((prev) => ({
-                        ...prev,
-                        toDate: date ? format(date, "yyyy-MM-dd") : "",
-                      }));
-                    }}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <Select
+                value={
+                  filters.isActive === null
+                    ? "all"
+                    : filters.isActive.toString()
+                }
+                onValueChange={(val) =>
+                  setFilters({
+                    ...filters,
+                    isActive: val === "all" ? null : Number(val),
+                  })
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All Members" />
+                </SelectTrigger>
+
+                <SelectContent>
+                  <SelectItem value="all">All Members</SelectItem>
+                  <SelectItem value="1">Active</SelectItem>
+                  <SelectItem value="0">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            {/* </div> */}
 
             {/* 2. Plan Select */}
             <div className="space-y-2">
@@ -636,7 +994,7 @@ export default function MembersTable() {
                 }
                 className="w-full"
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="All Plans" />
                 </SelectTrigger>
                 <SelectContent>
@@ -663,13 +1021,15 @@ export default function MembersTable() {
 
       {/* Pc Filter logic */}
       <Card className="hidden md:block p-4 bg-card border shadow-sm mb-2 mt-2">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 items-end">
+        {/* <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 items-end"> */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
           {/* 1. Member Name */}
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 w-full">
             <Label className="text-xs font-bold uppercase text-muted-foreground">
               Member Name
             </Label>
             <Input
+              className="w-full dark:text-white text-black placeholder:text-black/50 dark:placeholder:text-white/50"
               placeholder="Search name..."
               value={filters.name}
               onChange={(e) => setFilters({ ...filters, name: e.target.value })}
@@ -677,7 +1037,7 @@ export default function MembersTable() {
           </div>
 
           {/* 2. Plan Filter */}
-          <div className="space-y-1.5 min-w-0">
+          <div className="space-y-1.5 w-full">
             <Label className="text-xs font-bold uppercase text-muted-foreground">
               Plan
             </Label>
@@ -687,7 +1047,7 @@ export default function MembersTable() {
                 setFilters({ ...filters, plan: val === "all" ? "" : val })
               }
             >
-              <SelectTrigger className="w-full max-w-[180px] overflow-hidden">
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="All Plans">
                   <span className="truncate block text-left">
                     {filters.plan || "All Plans"}
@@ -707,11 +1067,12 @@ export default function MembersTable() {
           </div>
 
           {/* 3. Due Amount */}
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 w-full">
             <Label className="text-xs font-bold uppercase text-muted-foreground">
               Due Amount
             </Label>
             <Input
+              className="w-full"
               type="number"
               placeholder="Amount..."
               value={filters.dueAmount}
@@ -722,24 +1083,53 @@ export default function MembersTable() {
           </div>
 
           {/* 4. Date Type Selector */}
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 w-full">
             <Label className="text-xs font-bold uppercase text-muted-foreground">
               Filter Date By
             </Label>
             <Select value={dateType} onValueChange={setDateType}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="expiry">Expiry Date</SelectItem>
                 <SelectItem value="joined">Joining Date</SelectItem>
+                <SelectItem value="start">Start Date</SelectItem>
+                <SelectItem value="expiry">Expiry Date</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Is Active filter */}
+          <div className="space-y-1.5 w-full">
+            <Label className="text-xs font-bold uppercase text-muted-foreground">
+              Active Members
+            </Label>
+            <Select
+              value={
+                filters.isActive === null ? "all" : filters.isActive.toString()
+              }
+              onValueChange={(val) =>
+                setFilters({
+                  ...filters,
+                  isActive: val === "all" ? null : Number(val),
+                })
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All Members" />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value="all">All Members</SelectItem>
+                <SelectItem value="1">Active</SelectItem>
+                <SelectItem value="0">Inactive</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           {/* 5. Date From */}
 
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 w-full">
             <Label className="text-xs font-bold uppercase text-muted-foreground">
               Date From
             </Label>
@@ -787,7 +1177,7 @@ export default function MembersTable() {
           </div>
 
           {/* 6. Date To */}
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 w-full">
             <Label className="text-xs font-bold uppercase text-muted-foreground">
               Date To
             </Label>
@@ -835,25 +1225,30 @@ export default function MembersTable() {
           </div>
 
           {/* 7. Actions */}
-          <Button
-            onClick={resetFilters}
-            variant="outline"
-            className="w-full rounded-md"
-          >
-            Clear
-          </Button>
+          <div className="space-y-1.5 w-full">
+            <Label className="text-xs font-bold uppercase text-muted-foreground">
+              Clear Filters
+            </Label>
+            <Button
+              onClick={resetFilters}
+              variant="outline"
+              className="w-full rounded-md"
+            >
+              Clear
+            </Button>
+          </div>
         </div>
       </Card>
 
       <div className="bg-card dark:bg-zinc-950 text-card-foreground rounded-xl shadow border dark:border-gray-800 p-3 md:p-8">
         <div className="relative overflow-auto h-[450px] no-scrollbar border rounded-lg">
-          <Table>
+          <Table className="w-auto lg:table-fixed lg:w-full">
             <TableHeader className="sticky top-0 z-40">
               <TableRow className="hover:bg-transparent">
                 {/* STICKY NAME HEADER */}
                 <TableHead
                   onClick={() => handleSort("name")}
-                  className="sticky left-0 top-0 z-50 min-w-[150px] text-white bg-zinc-950 select-none border-b shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-center"
+                  className="sticky left-0 top-0 z-50 min-w-[150px] px-4 text-white bg-zinc-950 select-none border-b shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-center"
                 >
                   <div className="flex items-center justify-center gap-2">
                     <span className="text-sm tracking-wider">Name</span>
@@ -873,13 +1268,14 @@ export default function MembersTable() {
                   { label: "Phone", key: "phone" },
                   { label: "Plan", key: "plan" },
                   { label: "Joined", key: "joined" },
-                  { label: "Expiry", key: "expiry" },
+                  { label: "Start Date", key: "startDate" },
+                  { label: "Expiry Date", key: "expiry" },
                   { label: "Due", key: "dueAmount" },
                 ].map((col) => (
                   <TableHead
                     key={col.key}
                     onClick={() => handleSort(col.key)}
-                    className="top-0 z-40 text-center bg-zinc-950 text-white text-sm tracking-wider min-w-[90px]"
+                    className="top-0 z-40 text-center px-4 bg-zinc-950 text-white text-sm tracking-wider min-w-[90px]"
                   >
                     <div className="inline-flex items-center justify-center gap-2">
                       <span className="text-sm  tracking-wider">
@@ -896,7 +1292,7 @@ export default function MembersTable() {
                     </div>
                   </TableHead>
                 ))}
-                <TableHead className="top-0 z-40 text-center bg-zinc-950 text-white text-sm tracking-wider min-w-[90px]">
+                <TableHead className="top-0 z-40 text-center px-4 bg-zinc-950 text-white text-sm tracking-wider min-w-[90px]">
                   Status
                 </TableHead>
                 <TableHead className="top-0 z-40 text-center bg-zinc-950 text-white text-sm tracking-wider w-[90px]">
@@ -931,48 +1327,62 @@ export default function MembersTable() {
                     {/* STICKY NAME CELL */}
                     <TableCell
                       onClick={() => setViewingMember(member)}
-                      className="sticky left-0 z-10 cursor-pointer font-bold bg-card shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-left pl-6"
+                      className="sticky left-0 z-10 text-center px-4 cursor-pointer font-bold bg-card shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]"
                     >
                       {member.name}
                     </TableCell>
 
-                    <TableCell className="text-center font-mono text-sm bg-card">
+                    <TableCell className="text-center px-4 font-mono text-sm bg-card">
                       {member.phone}
                     </TableCell>
-                    <TableCell className="text-center bg-card">
+                    <TableCell className="text-center px-4 bg-card">
                       <div className="inline-flex w-18 h-6 items-center justify-center rounded-md bg-black dark:bg-white px-2 shadow-sm">
                         <span className="block w-full text-center truncate text-xs font-medium text-white dark:text-black">
                           {member.plan || "N/A"}
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-center text-muted-foreground bg-card whitespace-nowrap">
+                    <TableCell className="text-center px-4 text-muted-foreground bg-card whitespace-nowrap">
                       {member.joined}
                     </TableCell>
-                    <TableCell className="text-center whitespace-nowrap bg-card">
-                      {member.expiry}
+                    <TableCell
+                      className={`text-center px-4 whitespace-nowrap bg-card`}
+                    >
+                      {/* {member.expiry} */}
+                      {member.startDate || "N/A"}
                     </TableCell>
-                    <TableCell className="text-center font-semibold bg-card">
+                    <TableCell
+                      className={`text-center px-4 whitespace-nowrap bg-card ${getExpiryTextColor(member.expiry)}`}
+                    >
+                      {/* {member.expiry} */}
+                      {getExpiryText(member.expiry)}
+                    </TableCell>
+                    <TableCell
+                      className={`text-center px-4 font-semibold bg-card ${member.dueAmount > 0 ? "text-orange-500" : ""}`}
+                    >
                       ₹{member.dueAmount}
                     </TableCell>
-                    <TableCell className="text-center bg-card">
+
+                    <TableCell className="text-center px-4 bg-card">
                       {/* <span className={getExpiryColor(member.expiry)}>
                         {getExpiryText(member.expiry)}
                       </span> */}
                       <div
-                        className={`inline-flex w-24 h-6 items-center justify-center rounded-md px-2 shadow-sm ${getExpiryBg(member.expiry)}`}
+                        className={`inline-flex w-24 h-6 items-center justify-center rounded-md px-2 shadow-sm ${getExpiryBg(member.isActive)}`}
                       >
                         <span className="block w-full text-center truncate text-[10px] font-bold text-white dark:text-black uppercase">
-                          {getExpiryText(member.expiry)}
+                          {member.isActive == 1 ? "Active" : "Inactive"}
                         </span>
                       </div>
                     </TableCell>
 
                     {/* ACTION DROPDOWN */}
-                    <TableCell className="text-center bg-card">
+                    <TableCell className="text-center px-4 bg-card">
                       <DropdownMenu
-                      // open={isMenuOpen}
-                      // onOpenChange={setIsMenuOpen}
+                        open={openDropdownId === member.id}
+                        onOpenChange={(open) => {
+                          setOpenDropdownId(open ? member.id : null);
+                        }}
                       >
                         <DropdownMenuTrigger asChild>
                           <Button
@@ -989,14 +1399,36 @@ export default function MembersTable() {
                         >
                           <DropdownMenuItem
                             onClick={() => {
-                              setSelectedMember(member); // Set the member to edit
-                              setIsModalOpen(true); // Open the modal
-                              // setIsMenuOpen(false); // Manually close
+                              if (member.isActive === 1) {
+                                setSelectedMember(member); // Set the member to edit
+                                setIsModalOpen(true); // Open the modal
+                                // setIsMenuOpen(false); // Manually close
+                              } else {
+                                toast.error(
+                                  "You can only update active members",
+                                );
+                              }
                             }}
                             className="gap-2 cursor-pointer"
                           >
                             <Pencil className="size-4 text-blue-500" />
                             <span>Update</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="gap-2 cursor-pointer"
+                            onClick={() => {
+                              if (member.isActive === 1) {
+                                setSelectedRenewalMember(member);
+                                setRenewOpen(true);
+                              } else {
+                                toast.error(
+                                  "You can only renew  active members",
+                                );
+                              }
+                            }}
+                          >
+                            <CalendarClock className="size-4 text-blue-500" />
+                            <span>Renew</span>
                           </DropdownMenuItem>
 
                           {member.dueAmount > 0 && (
@@ -1011,6 +1443,48 @@ export default function MembersTable() {
                               <span>Remind</span>
                             </DropdownMenuItem>
                           )}
+
+                          <DropdownMenuItem
+                            className="gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                            onSelect={(e) => {
+                              e.preventDefault();
+
+                              changeMemberStatus(
+                                member.isActive === 1 ? "inactive" : "active",
+                                member.id,
+                                profile.ownerId,
+                              );
+                            }}
+                          >
+                            {/* <Trash2 className="size-4" /> */}
+                            {isUpdating ? (
+                              <>
+                                <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                                <span className="text-muted-foreground">
+                                  Updating...
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                {member.isActive === 1 ? (
+                                  <UserX className="text-red-600 size-4" />
+                                ) : (
+                                  <UserCheck className="text-green-600 size-4" />
+                                )}
+                                <span
+                                  className={
+                                    member.isActive === 1
+                                      ? "text-red-600"
+                                      : "text-green-600"
+                                  }
+                                >
+                                  {member.isActive === 1
+                                    ? "InActive"
+                                    : "Active"}
+                                </span>
+                              </>
+                            )}
+                          </DropdownMenuItem>
 
                           <DropdownMenuSeparator />
 
@@ -1033,7 +1507,7 @@ export default function MembersTable() {
                                     <AlertTriangle className="size-5 text-red-600" />
                                   </div>
                                   <AlertDialogTitle>
-                                    Are you absolutely sure?
+                                    Permanently Delete Member?
                                   </AlertDialogTitle>
                                 </div>
                                 <AlertDialogDescription>
@@ -1041,7 +1515,12 @@ export default function MembersTable() {
                                   <span className="font-bold text-foreground">
                                     "{member.name}"
                                   </span>{" "}
-                                  and remove their data from our servers. This
+                                  and remove all their data, including{" "}
+                                  <span className="font-bold text-foreground">
+                                    payment history
+                                  </span>{" "}
+                                  from our servers. Alternatively, you can
+                                  temporarily deactivate their account. This
                                   action cannot be undone.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>

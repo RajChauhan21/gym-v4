@@ -71,6 +71,8 @@ import {
   getActiveSubscriptionOfOwner,
   uploadImageForGym,
   uploadImageForOwner,
+  getAllMembersCount,
+  getActiveMembers,
 } from "../apis/backend_apis";
 import { ImagePreviewModal } from "./ImagePreviewModal";
 
@@ -90,6 +92,7 @@ export default function Settings() {
   const [gymPreviewOpen, setGymPreviewOpen] = useState(false);
   const [loadActiveSubs, setLoadActiveSubs] = useState(false);
   const [editType, setEditType] = useState("gym"); // "gym" or "owner"
+  const [activeMembersCount, setActiveMembersCount] = useState(0);
   const [payments, setPayments] = useState({
     upiId: "paramount@okupi",
     bankAccount: "1234567890",
@@ -117,6 +120,10 @@ export default function Settings() {
     currentMembers: 120,
     maxMembers: 200,
   };
+
+  useEffect(() => {
+    activeSubscription();
+  }, profile.ownerId);
 
   // Helper to calculate cycle stats
   const getCycleStats = (startDate, endDate) => {
@@ -149,6 +156,35 @@ export default function Settings() {
       percentage: Math.round(Math.min(Math.max(percentage, 0), 100)),
       daysLeft: Math.max(0, daysLeft), // Never show negative days
     };
+  };
+
+  const getAllMemberCount = async () => {
+    try {
+      const response = await getAllMembersCount(profile.ownerId);
+
+      if (response.status === 202 || response.data.statusCodeValue === 200) {
+        console.log(response);
+        const currentCount = response.data;
+        setProfile((prev) => {
+          const updatedProfile = { ...prev, currentMemberCount: currentCount };
+
+          // 2. Update LocalStorage so it persists after refresh
+          const storedUser = localStorage.getItem("userProfile"); // Use your actual key name
+          if (storedUser) {
+            const parsedUser = JSON.parse(storedUser);
+            parsedUser.currentMemberCount = currentCount;
+            localStorage.setItem("userProfile", JSON.stringify(parsedUser));
+          }
+          console.log("Updated profile with new gym logo:", updatedProfile);
+          return updatedProfile;
+        });
+        // setProfile()
+      } else if (response.status === 404) {
+      } else if (response.status === 429) {
+      }
+    } catch (error) {
+      console.error("failed to get count", error);
+    }
   };
 
   const { percentage, daysLeft } = getCycleStats(
@@ -311,11 +347,13 @@ export default function Settings() {
           // 1. Map backend fields to the correct local state keys
           const updatedProfile = {
             ...prev,
-            planName: response.data.name,
-            price: response.data.price,
-            startDate: response.data.startDate,
-            endDate: response.data.endDate,
-            status: response.data.subscriptionStatus,
+            planName: response.data.name || "No Active Plan",
+            price: response.data.price || 0,
+            startDate: response.data.startDate || "N/A",
+            endDate: response.data.endDate || "N/A",
+            billingDate: response.data.billingDate || "N/A",
+            status: response.data.subscriptionStatus || "",
+            memberLimitCount: response.data.memberLimitCount || 0,
           };
 
           // 2. Update LocalStorage so it persists after refresh
@@ -324,15 +362,19 @@ export default function Settings() {
             const parsedUser = JSON.parse(storedUser);
 
             // Map backend fields to the correct localStorage keys
-            parsedUser.planName = response.data.name;
-            parsedUser.price = response.data.price;
-            parsedUser.startDate = response.data.startDate;
-            parsedUser.endDate = response.data.endDate;
-            parsedUser.status = response.data.subscriptionStatus;
+            parsedUser.planName = response.data.name || "No Active Plan";
+            parsedUser.price = response.data.price || 0;
+            parsedUser.startDate = response.data.startDate || "N/A";
+            parsedUser.endDate = response.data.endDate || "N/A";
+            parsedUser.billingDate = response.data.billingDate || "N/A";
+            parsedUser.status = response.data.subscriptionStatus || "";
 
             localStorage.setItem("userProfile", JSON.stringify(parsedUser));
           }
-          console.log('updated localstorage', localStorage.getItem("userProfile"));
+          console.log(
+            "updated localstorage",
+            localStorage.getItem("userProfile"),
+          );
           return updatedProfile;
         });
 
@@ -356,11 +398,30 @@ export default function Settings() {
     }
   };
 
+  const getActiveMembersCount = async () => {
+    try {
+      const response = await getActiveMembers(profile.ownerId, 1);
+      if (response.status === 202 || response.data.statusCodeValue === 202) {
+        setActiveMembersCount(response.data || 0);
+      } else if (response.status === 404) {
+      } else if (response.status === 429) {
+      }
+    } catch (error) {
+    } finally {
+    }
+  };
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setTimeout(() => setLoading(false), 1200);
+    // setTimeout(() => setLoading(false), 1200);
+    getAllMemberCount();
+    getActiveMembersCount();
   }, []);
+
+  const isOverdue = profile?.endDate
+    ? new Date(profile.endDate) < new Date()
+    : false;
 
   // if (loading) {
   //   return <Loader text="Loading Settings...." />;
@@ -761,21 +822,6 @@ export default function Settings() {
               <CardTitle className="text-lg font-bold tracking-tight">
                 Subscription
               </CardTitle>
-              {/* <CardDescription className="flex items-center gap-1.5 text-xs">
-                <Badge
-                  className={`text-xs px-3 py-1 border-0 shadow-sm ${
-                    profile.planName === "Max Pro"
-                      ? "bg-gradient-to-r from-orange-100 to-amber-200 text-orange-900"
-                      : "bg-gradient-to-r from-violet-100 to-purple-200 text-purple-900"
-                  }`}
-                >
-                  {profile.planName}
-                </Badge>
-
-                <span className="text-sm font-semibold text-black dark:text-white">
-                  ₹{profile.price}
-                </span>
-              </CardDescription> */}
               <CardDescription className="flex flex-col items-start gap-3 text-xs">
                 {/* PLAN BADGE + PRICE */}
                 <div className="flex items-center gap-2 flex-wrap">
@@ -783,7 +829,9 @@ export default function Settings() {
                     className={`text-xs px-3 py-1 border-0 shadow-sm ${
                       profile.planName === "Max Pro"
                         ? "bg-gradient-to-r from-orange-100 to-amber-200 text-orange-900"
-                        : "bg-gradient-to-r from-violet-100 to-purple-200 text-purple-900"
+                        : profile.planName === "Basic"
+                          ? "bg-gradient-to-r from-violet-100 to-purple-200 text-purple-900"
+                          : "bg-gradient-to-r from-blue-100 to-green-200 text-green-900"
                     }`}
                   >
                     {profile.planName}
@@ -804,21 +852,23 @@ export default function Settings() {
               <span
                 className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize
   ${
-    profile.status === "Active" || profile.status === "ACTIVE"
+    profile.status === "Active" ||
+    profile.status === "ACTIVE" ||
+    profile.status === "PARTIALLY_ACTIVE"
       ? "bg-blue-600 text-white dark:bg-blue-600 dark:text-white"
       : "bg-red-600 text-white line-through" // Changed to line-through
   }`}
               >
-                {profile.status || "Active"}
+                {profile.status === "PARTIALLY_ACTIVE"
+                  ? "PARTIALLY ACTIVE"
+                  : "Active"}
               </span>
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       size="sm"
-                      disabled={
-                        loadActiveSubs
-                      }
+                      disabled={loadActiveSubs}
                       onClick={async () => {
                         activeSubscription();
                       }}
@@ -837,7 +887,8 @@ export default function Settings() {
 
                   <TooltipContent>
                     <p>
-                      Not seeing the correct subscription status? Click here to refresh and fetch the latest details from our servers.
+                      Not seeing the correct subscription status? Click here to
+                      refresh and fetch the latest details from our servers.
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -852,7 +903,7 @@ export default function Settings() {
             <div className="space-y-3 rounded-xl border p-4 shadow-sm">
               <div className="flex items-center justify-between">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Members
+                 Active / Total Members
                 </p>
                 <Users className="size-3 text-muted-foreground" />
               </div>
@@ -880,7 +931,7 @@ export default function Settings() {
                   <>
                     <div className="flex items-baseline gap-1">
                       <span className="text-2xl font-bold">
-                        {profile?.currentMemberCount}
+                        {activeMembersCount}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         / {profile?.memberLimitCount}
@@ -905,7 +956,7 @@ export default function Settings() {
             </div>
 
             {/* Billing Cycle Progress */}
-            <div className="space-y-3 rounded-xl border p-4 bg-muted/20 shadow-sm">
+            {/* <div className="space-y-3 rounded-xl border p-4 bg-muted/20 shadow-sm">
               <div className="flex items-center justify-between">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                   Cycle Progress
@@ -934,12 +985,6 @@ export default function Settings() {
                           Subscription charges apply today
                         </span>
                       </div>
-                      {/* <div className="h-1.5 w-full rounded-full bg-gray-200 dark:bg-gray-800 overflow-hidden">
-                        <div
-                          className="h-full bg-orange-500 transition-all duration-1000"
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div> */}
                     </>
                   ) : (
                     <>
@@ -951,12 +996,6 @@ export default function Settings() {
                           {daysLeft === 1 ? "day left" : "days left"}
                         </span>
                       </div>
-                      {/* <div className="h-1.5 w-full rounded-full bg-gray-200 dark:bg-gray-800 overflow-hidden">
-                        <div
-                          className="h-full bg-orange-500 transition-all duration-1000"
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div> */}
                     </>
                   )}
                 </div>
@@ -967,13 +1006,90 @@ export default function Settings() {
                   style={{ width: `${percentage}%` }}
                 />
               </div>
+            </div> */}
+            <div className="space-y-3 rounded-xl border p-4 bg-muted/20 shadow-sm">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Cycle Progress
+                </p>
+                <CalendarDays className="size-3 text-muted-foreground" />
+              </div>
+              <div className="flex items-baseline gap-1">
+                <div>
+                  {profile?.planName === "No Active Plan" ? (
+                    // 1. Case: User has no active membership plan
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-xl font-bold italic text-neutral-500 dark:text-neutral-400">
+                        Inactive
+                      </span>
+                      <span className="text-xs text-muted-foreground font-medium">
+                        No active subscription plan found
+                      </span>
+                    </div>
+                  ) : isOverdue ? (
+                    // 2. Case: Billing date has passed based on profile.endDate
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl font-bold italic text-red-600 dark:text-red-500">
+                          Past Due
+                        </span>
+                        <span className="text-[10px] font-bold uppercase bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400 px-2 py-0.5 rounded-full border border-red-200 dark:border-red-900 animate-pulse">
+                          Overdue
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground font-medium">
+                        Plan expired on{" "}
+                        {new Date(profile.endDate).toLocaleDateString()}
+                      </span>
+                    </div>
+                  ) : daysLeft === 0 ? (
+                    // 3. Case: Active plan expiring today
+                    <>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xl font-bold italic text-red-600 dark:text-red-400 animate-pulse">
+                          Renewal Today
+                        </span>
+                        <span className="text-xs text-muted-foreground font-medium">
+                          Subscription charges apply today
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    // 4. Case: Active plan with days remaining
+                    <>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-2xl font-bold italic text-orange-600 dark:text-orange-400">
+                          {daysLeft}
+                        </span>
+                        <span className="text-xs text-muted-foreground font-medium">
+                          {daysLeft === 1 ? "day left" : "days left"}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-gray-200 dark:bg-gray-800 overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-1000 ${
+                    isOverdue ? "bg-red-600" : "bg-orange-500"
+                  }`}
+                  style={{ width: `${isOverdue ? 100 : percentage}%` }}
+                />
+              </div>
             </div>
           </div>
-
+          {/* endDate */}
           <div className="text-xs text-muted-foreground flex items-center justify-start gap-2 py-1">
-            <span>Next invoice on</span>
-            <span className="font-bold text-foreground bg-muted px-2 py-0.5 rounded">
+            <span>
               {profile?.planName === "No Active Plan" ||
+              profile.status === "PARTIALLY_ACTIVE"
+                ? "Your Last Date"
+                : "Next Invoice Date"}
+            </span>
+            {/* <span className="font-bold text-foreground bg-muted px-2 py-0.5 rounded">
+              {profile?.planName === "No Active Plan" ||
+              profile.status === "PARTIALLY_ACTIVE" ||
               !profile?.endDate ||
               isNaN(new Date(profile.endDate).getTime())
                 ? // Fallback text when there is no valid end date
@@ -983,7 +1099,40 @@ export default function Settings() {
                     day: "numeric",
                     month: "short",
                     year: "numeric",
+                  })
+                  ?
+                  profile?.planName !== "No Active Plan" ||
+              profile.status !== "PARTIALLY_ACTIVE" ||
+              !profile?.billingDate ||
+              isNaN(new Date(profile.billingDate).getTime())
+                ? // Fallback text when there is no valid end date
+                  "N/A"
+                : // Cleanly formats only when a valid date exists
+                  new Date(profile.billingDate).toLocaleDateString("en-GB", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
                   })}
+            </span> */}
+            <span className="font-bold text-foreground bg-muted px-2 py-0.5 rounded">
+              {profile?.planName === "No Active Plan" ||
+              profile?.status === "PARTIALLY_ACTIVE"
+                ? profile?.endDate &&
+                  !isNaN(new Date(profile.endDate).getTime())
+                  ? new Date(profile.endDate).toLocaleDateString("en-GB", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })
+                  : "N/A"
+                : profile?.billingDate &&
+                    !isNaN(new Date(profile.billingDate).getTime())
+                  ? new Date(profile.billingDate).toLocaleDateString("en-GB", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })
+                  : "N/A"}
             </span>
           </div>
 

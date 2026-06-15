@@ -13,11 +13,31 @@ import {
   User,
   CreditCard,
   Clock,
+  TimerIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function MemberDetailsModal({ member, open, onOpenChange }) {
   if (!member) return null;
+
+  function getExpiryTextColor(expiryDate) {
+    const today = new Date();
+    const expiry = new Date(expiryDate);
+    today.setHours(0, 0, 0, 0);
+    expiry.setHours(0, 0, 0, 0);
+
+    // Use Math.ceil to match the day-rounding of your text function
+    const diffDays = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+
+    // 1. Expired or expires today -> Red
+    if (diffDays <= 0) return "text-red-500";
+
+    // 2. Expiring within 1 to 7 days -> Blue
+    if (diffDays > 0 && diffDays <= 7) return "text-blue-500";
+
+    // 3. More than 7 days left -> Default / No extra class
+    return "text-black dark:text-white";
+  }
 
   function getExpiryColor(expiryDate) {
     const today = new Date();
@@ -34,6 +54,12 @@ export function MemberDetailsModal({ member, open, onOpenChange }) {
     return "text-blue-500";
   }
 
+  function getExpiryBg(isActive) {
+    // Constant backgrounds: Red for expired/today, Blue for future
+    if (isActive == 0) return "bg-red-600";
+    return "bg-sky-600";
+  }
+
   function getExpiryText(expiryDate) {
     const today = new Date();
     const expiry = new Date(expiryDate);
@@ -43,10 +69,10 @@ export function MemberDetailsModal({ member, open, onOpenChange }) {
 
     const diffDays = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
 
+    // 1. Expired in the past
     if (diffDays < 0) {
       const absDays = Math.abs(diffDays);
 
-      // Shortened labels to ensure text fits within the original sizing
       if (absDays < 30) {
         return `Exp. ${absDays}d ago`;
       } else if (absDays < 365) {
@@ -58,16 +84,22 @@ export function MemberDetailsModal({ member, open, onOpenChange }) {
       }
     }
 
+    // 2. Exact same day
     if (diffDays === 0) return "Exp. Today";
-    if (diffDays <= 7) return `Exp. in ${diffDays}d`;
 
-    return "Active";
+    // 3. NEW/UPDATED: Expiring within 1 to 7 days from today (inclusive)
+    if (diffDays > 0 && diffDays <= 7) {
+      return `Expring. in ${diffDays}d`;
+    }
+
+    // 4. More than 7 days in the future
+    return expiryDate;
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="md:max-w-md w-[92%]  rounded-2xl p-0 overflow-hidden border-none shadow-2xl bg-card"
+        className="w-[90vw] max-w-[380px] sm:max-w-md p-0 overflow-hidden rounded-2xl border-none shadow-2xl bg-card"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
@@ -84,20 +116,34 @@ export function MemberDetailsModal({ member, open, onOpenChange }) {
               <DialogTitle className="text-xl font-bold truncate">
                 {member.name}
               </DialogTitle>
-              <div className="flex gap-2 mt-1">
+              <div className="flex flex-wrap gap-2 mt-1">
                 <Badge
                   variant="outline"
                   className="font-semibold bg-background"
                 >
                   {member.plan} Plan
                 </Badge>
-                <Badge
-                  className={cn(
-                    "bg-white dark:bg-black",
-                    getExpiryColor(member.expiry),
-                  )}
+                <Badge variant="outline"
+                  className={`max-w-[120px] truncate bg-background text-center ${getExpiryTextColor(member.expiry)}`}
+                  title={getExpiryText(member.expiry)} // Shows full text on hover
                 >
                   {getExpiryText(member.expiry)}
+                </Badge>
+
+                {/* <Badge
+                  className={cn(
+                    "bg-white dark:bg-black",
+                    getExpiryBg(member.isActive),
+                  )}
+                >
+                  {member.isActive == 1 ? "Active" : "Inactive"}
+                </Badge> */}
+                <Badge
+                  className={`inline-flex w-24 h-5 items-center justify-center rounded-xl px-2 shadow-sm ${getExpiryBg(member.isActive)}`}
+                >
+                  <span className="block w-full text-center truncate text-[10px] font-bold text-white dark:text-black uppercase">
+                    {member.isActive == 1 ? "Active" : "Inactive"}
+                  </span>
                 </Badge>
               </div>
             </div>
@@ -105,7 +151,7 @@ export function MemberDetailsModal({ member, open, onOpenChange }) {
         </div>
 
         {/* Details List */}
-        <div className="p-6 space-y-5">
+        <div className="p-6 space-y-5 overflow-x-hidden">
           {/* Contact Section - Single Column for Long Text */}
           <div className="space-y-4">
             <DetailItem
@@ -127,6 +173,13 @@ export function MemberDetailsModal({ member, open, onOpenChange }) {
               value={member.address || "No address on file"}
               isLongText
             />
+
+            <DetailItem
+              icon={<TimerIcon className="size-4 text-primary" />}
+              label="Joined"
+              value={member.joined || "No address on file"}
+              isLongText
+            />
           </div>
 
           <div className="h-px bg-border w-full my-2" />
@@ -135,18 +188,18 @@ export function MemberDetailsModal({ member, open, onOpenChange }) {
           <div className="grid grid-cols-2 gap-4">
             <DetailItem
               icon={<Calendar className="size-4 text-muted-foreground" />}
-              label="Joined Date"
-              value={member.joined}
+              label="Start Date"
+              value={member.startDate || "N/A"}
             />
             <DetailItem
               icon={<Clock className="size-4 text-muted-foreground" />}
               label="Expiry Date"
-              value={member.expiry}
+              value={member.expiry || "N/A"}
             />
           </div>
 
           {/* Footer Stats */}
-          <div className="pt-4 mt-2 border-t flex justify-between items-center bg-muted/30 -mx-6 px-6 py-4">
+          <div className="pt-4 mt-2 border-t bg-muted/30 -mx-6 px-6 py-4 flex flex-col sm:flex-row gap-3 sm:gap-0 sm:justify-between sm:items-center">
             <div className="space-y-0.5">
               <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">
                 Balance Due

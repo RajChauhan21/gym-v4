@@ -65,7 +65,8 @@ export function LoginForm({
           price: userData.price || 0,
           startDate: userData.startDate || "N/A",
           endDate: userData.endDate || "N/A",
-          status: userData.status || "",
+          billingDate:userData?.billingDate || "N/A",
+          status: userData.subscriptionStatus || "",
           memberLimitCount: userData.memberLimitCount || 0,
           currentMemberCount: userData.currentMemberCount || 0,
         };

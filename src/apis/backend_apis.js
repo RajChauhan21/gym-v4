@@ -61,6 +61,19 @@ export async function saveGymDetails(gymData) {
   }
 }
 
+export async function renewMemberShip(form) {
+  try {
+    // Await the post request directly
+    const response = await constant.post("/member/renew-membership", form);
+    console.log("Renew Data Response:", response);
+    return response;
+  } catch (error) {
+    // Re-throw the error so your handleSave catch block can handle the UI toast
+    console.error("API Error in renew response:", error.response || error);
+    return error.response;
+  }
+}
+
 export async function saveOwnerDetails(ownerData) {
   try {
     // Await the post request directly
@@ -106,6 +119,50 @@ export async function getAllMembers(
   }
 }
 
+export async function getAllMembersCountByFilters(ownerId, filters = {}) {
+  // Clean filters: Remove keys with empty strings or null values
+  const cleanFilters = Object.fromEntries(
+    Object.entries(filters).filter(
+      ([_, value]) => value !== "" && value !== null && value !== undefined,
+    ),
+  );
+
+  try {
+    const response = await constant.get("/owner/getMembersCountOfOwner", {
+      params: {
+        q: ownerId,
+        ...cleanFilters, // Spreads name, dueAmount, joinedFrom, etc.
+      },
+    });
+    return response;
+  } catch (error) {
+    console.error("API Error in getAllMembersCount:", error.response || error);
+    return error.response;
+  }
+}
+
+export async function getAllPaymentsCountByFilters(ownerId, filters = {}) {
+  // Clean filters: Remove keys with empty strings or null values
+  const cleanFilters = Object.fromEntries(
+    Object.entries(filters).filter(
+      ([_, value]) => value !== "" && value !== null && value !== undefined,
+    ),
+  );
+
+  try {
+    const response = await constant.get("/pay/getFilteredCountOfPayments", {
+      params: {
+        q: ownerId,
+        ...cleanFilters, // Spreads name, dueAmount, joinedFrom, etc.
+      },
+    });
+    return response;
+  } catch (error) {
+    console.error("API Error in getAllPaymentsCount:", error.response || error);
+    return error.response;
+  }
+}
+
 export async function addMember(member) {
   try {
     const response = await constant.post("/member/update", member);
@@ -130,11 +187,11 @@ export async function addPlan(plan) {
 
 export async function getAllPlans(gymId) {
   try {
-    console.log("gymId",gymId);
-    const response = await constant.get("/member-ship/getAll",{
-      params:{
-        q:gymId
-      }
+    console.log("gymId", gymId);
+    const response = await constant.get("/member-ship/getAll", {
+      params: {
+        q: gymId,
+      },
     });
     console.log("Get all plans Response:", response);
     return response;
@@ -149,6 +206,23 @@ export async function getActiveSubscriptionOfOwner(ownerId) {
     const response = await constant.get("/owner/active-subscription", {
       params: {
         q: ownerId,
+      },
+    });
+    console.log("Get active subscription Response:", response);
+    return response;
+  } catch (error) {
+    console.error("API Error in active subscription:", error.response || error);
+    return error.response;
+  }
+}
+
+export async function changeMemberActiveStatus(action, memberId, ownerId) {
+  try {
+    const response = await constant.get("/member/makeMemberActiveOrInactive", {
+      params: {
+        a: action,
+        q: memberId,
+        o: ownerId,
       },
     });
     console.log("Get active subscription Response:", response);
@@ -220,18 +294,19 @@ export async function getRevenueOverview(ownerId, days) {
   }
 }
 
-export async function getActiveMembers(ownerId) {
+export async function getActiveMembers(ownerId, isActive) {
   try {
     const response = await constant.get("/member/getActiveMembers", {
       params: {
         o: ownerId,
+        a: isActive,
       },
     });
     console.log("Get active member Response:", response);
-    return response.data;
+    return response;
   } catch (error) {
     console.error("API Error in active member:", error.response || error);
-    return error.response;
+    return error;
   }
 }
 
@@ -247,6 +322,26 @@ export async function getMembersJoinedCurrentMonth(ownerId) {
   } catch (error) {
     console.error(
       "API Error in members joined this month:",
+      error.response || error,
+    );
+    return error.response;
+  }
+}
+
+export async function getMembersOnMemberShipId(memberShipId, gymId, ownerId) {
+  try {
+    const response = await constant.get("/member/findByMemberShipId", {
+      params: {
+        m: memberShipId,
+        g: gymId,
+        o: ownerId,
+      },
+    });
+    console.log("Get members count by membership id:", response);
+    return response;
+  } catch (error) {
+    console.error(
+      "API Error in Get members count by membership id:",
       error.response || error,
     );
     return error.response;
@@ -445,6 +540,23 @@ export async function getAllSubscriptionPlans() {
   }
 }
 
+export async function verifySubscriptionPayment(paymentDetails) {
+  try {
+    const response = await constant.post(
+      "/razorpay/verify-subscription-payment",
+      paymentDetails,
+    );
+    console.log("Verify razorpay subscription Response:", response);
+    return response;
+  } catch (error) {
+    console.error(
+      "API Error in razorpay subscription:",
+      error.response || error,
+    );
+    return error.response;
+  }
+}
+
 export async function createRazorpaySubscription(ownerId, planId) {
   try {
     const response = await constant.post(
@@ -595,3 +707,58 @@ export async function uploadImageForGym(id, file) {
     return error.response;
   }
 }
+
+export async function cancelSubscription(ownerId) {
+  try {
+    const response = await constant.get("/razorpay/cancel-subscription", {
+      params: {
+        o: ownerId,
+      },
+    });
+    console.log("cancel subscription response:", response);
+    return response;
+  } catch (error) {
+    error.response || error;
+  }
+}
+
+export const exportMembers = async (ownerId, filters = {}) => {
+  const cleanFilters = Object.fromEntries(
+    Object.entries(filters).filter(
+      ([_, value]) => value !== "" && value !== null && value !== undefined,
+    ),
+  );
+  try {
+    const response = await constant.get("owner/export-members", {
+      params: {
+        q: ownerId,
+        ...cleanFilters,
+      },
+      responseType: "blob",
+    });
+    return response;
+  } catch (errror) {
+    return errror;
+  }
+};
+
+
+export const exportPayments = async (ownerId, filters = {}) => {
+  const cleanFilters = Object.fromEntries(
+    Object.entries(filters).filter(
+      ([_, value]) => value !== "" && value !== null && value !== undefined,
+    ),
+  );
+  try {
+    const response = await constant.get("owner/export-payments", {
+      params: {
+        q: ownerId,
+        ...cleanFilters,
+      },
+      responseType: "blob",
+    });
+    return response;
+  } catch (errror) {
+    return errror;
+  }
+};

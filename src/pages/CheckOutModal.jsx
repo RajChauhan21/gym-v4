@@ -7,10 +7,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { createRazorpaySubscription } from "../apis/backend_apis";
+import {
+  createRazorpaySubscription,
+  verifySubscriptionPayment, getActiveSubscriptionOfOwner
+} from "../apis/backend_apis";
 import { useState } from "react";
 import { useProfile } from "../contexts/ProfileContext";
 import { Loader } from "lucide-react";
+import PaymentSuccessModal from "./PaymentSuccessModal";
+import PaymentFailedModal from "./PaymentFailedModal";
 
 export default function CheckOutModal({ open, setOpen, plan }) {
   if (!plan) return null;
@@ -19,6 +24,11 @@ export default function CheckOutModal({ open, setOpen, plan }) {
   const total = plan.price + gstAmount;
   const [loading, setLoading] = useState(false);
   const { profile } = useProfile();
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [failureModalOpen, setFailureModalOpen] = useState(false);
+
+  const [paymentDetails, setPaymentDetails] = useState(null);
+  const [failureReason, setFailureReason] = useState("");
 
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
@@ -30,81 +40,64 @@ export default function CheckOutModal({ open, setOpen, plan }) {
     });
   };
 
-  // const handlePayment = async () => {
-  //   // 1. Call backend to create Razorpay order
-  //   // const res = await fetch("/api/payment/create-order", {
-  //   //   method: "POST",
-  //   //   headers: { "Content-Type": "application/json" },
-  //   //   body: JSON.stringify({ amount: total }),
-  //   // });
+  const activeSubscription = async () => {
+    setLoadActiveSubs(true);
+    try {
+      const response = await getActiveSubscriptionOfOwner(profile.ownerId);
+      if (response.status === 201 || response.status === 202) {
+        setProfile((prev) => {
+          // 1. Map backend fields to the correct local state keys
+          const updatedProfile = {
+            ...prev,
+            planName: response.data.name || "No Active Plan",
+            price: response.data.price || 0,
+            startDate: response.data.startDate || "N/A",
+            endDate: response.data.endDate || "N/A",
+            status: response.data.subscriptionStatus || "",
+            memberLimitCount:response.data.memberLimitCount || 0,
+          };
 
-  //   // const data = await res.json();
+          // 2. Update LocalStorage so it persists after refresh
+          const storedUser = localStorage.getItem("userProfile");
+          if (storedUser) {
+            const parsedUser = JSON.parse(storedUser);
 
-  //   const options = {
-  //     key: "rzp_test_SdGz0Kv1QdvBfQ",
-  //     amount: plan.amount,
-  //     currency: "INR",
-  //     name: "Gym SaaS",
-  //     description: `${plan.name} Plan`,
-  //     order_id: plan.name,
-  //     handler: async function (response) {
-  //       // 2. Verify payment on backend
-  //       // await fetch("/api/payment/verify", {
-  //       //   method: "POST",
-  //       //   headers: { "Content-Type": "application/json" },
-  //       //   body: JSON.stringify(response),
-  //       // });
+            // Map backend fields to the correct localStorage keys
+            parsedUser.planName = response.data.name || "No Active Plan";
+            parsedUser.price = response.data.price || 0;
+            parsedUser.startDate = response.data.startDate || "N/A";
+            parsedUser.endDate = response.data.endDate || "N/A";
+            parsedUser.status = response.data.subscriptionStatus || "";
 
-  //       toast.success("Payment Successful 🎉");
-  //       setOpen(false);
-  //     },
-  //     prefill: {
-  //       name: "Gym Owner",
-  //       email: "owner@example.com",
-  //     },
-  //     theme: {
-  //       color: "#6366f1",
-  //     },
-  //   };
+            localStorage.setItem("userProfile", JSON.stringify(parsedUser));
+          }
+          console.log(
+            "updated localstorage",
+            localStorage.getItem("userProfile"),
+          );
+          return updatedProfile;
+        });
 
-  //   const razor = new window.Razorpay(options);
-  //   razor.open();
-  // };
+        console.log("Active subscription details:", response.data);
+      } else if (response.status === 404) {
+        toast.error(
+          "Something went wrong while uploading image. Please try again later.",
+        );
+      } else if (response.status === 429) {
+        toast.error(
+          "You are performing actions too quickly. Please wait a few seconds and try again.",
+        );
+      }
+    } catch (error) {
+      console.error(
+        "API Error in active subscription:",
+        error.response || error,
+      );
+    } finally {
+      setLoadActiveSubs(false);
+    }
+  };
 
-  // const handlePayment = () => {
-  //   const options = {
-  //     key: "rzp_test_SdGz0Kv1QdvBfQ",
-
-  //     // ✅ amount in paise
-  //     amount: plan.price * 100,
-
-  //     currency: "INR",
-  //     name: "Gym SaaS",
-  //     description: `${plan.name} Plan`,
-
-  //     // ❌ REMOVE order_id completely
-  //     // order_id: plan.name,
-
-  //     handler: function (response) {
-  //       console.log("Payment Success:", response);
-
-  //       toast.success("Payment Successful 🎉");
-  //       setOpen(false);
-  //     },
-
-  //     prefill: {
-  //       name: "Gym Owner",
-  //       email: "owner@example.com",
-  //     },
-
-  //     theme: {
-  //       color: "#6366f1",
-  //     },
-  //   };
-
-  //   const razor = new window.Razorpay(options);
-  //   razor.open();
-  // };
   const handlePayment = async () => {
     try {
       setLoading(true);
@@ -122,7 +115,7 @@ export default function CheckOutModal({ open, setOpen, plan }) {
         plan.id,
       );
 
-      const subscriptionId = null;
+      let subscriptionId = null;
 
       if (response.status === 202 || response.data.statusCodeValue === 200) {
         subscriptionId = response.data;
@@ -151,12 +144,38 @@ export default function CheckOutModal({ open, setOpen, plan }) {
         name: "Gym SaaS",
         description: "Subscription Payment",
 
-        handler: function (response) {
-          // ⚠️ DO NOT trust this fully
-          console.log("Payment success (frontend):", response);
+        // handler: function (response) {
+        //   // ⚠️ DO NOT trust this fully
+        //   console.log("Payment success (frontend):", response);
 
-          // Just UX feedback
-          toast.success("Payment initiated successfully 🎉");
+        //   // Just UX feedback
+        //   toast.success("Payment initiated successfully 🎉");
+        // },
+
+        handler: async function (response) {
+          try {
+            const payload = {
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySubscriptionId: response.razorpay_subscription_id,
+              razorpaySignature: response.razorpay_signature,
+            };
+
+            const verifyResponse = await verifySubscriptionPayment(payload);
+
+            // Read the actual boolean value from the response data
+            const isVerified = verifyResponse.data;
+
+            // Open the success modal only if the boolean is explicitly true
+            if (isVerified == true) {
+              activeSubscription();
+              setSuccessModalOpen(true);
+            } else {
+              setFailureModalOpen(true);
+            }
+          } catch (error) {
+            console.error("Payment verification failed:", error);
+            setFailureModalOpen(true);
+          }
         },
 
         modal: {
@@ -194,7 +213,7 @@ export default function CheckOutModal({ open, setOpen, plan }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent
-        className="w-full max-w-md sm:max-w-lg p-6"
+        className="w-[90%]  max-w-md sm:max-w-lg p-6"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
@@ -247,12 +266,27 @@ export default function CheckOutModal({ open, setOpen, plan }) {
             )}
           </Button>
 
+
           {/* Trust */}
           <p className="text-xs text-center text-muted-foreground">
             Secure payments via Razorpay • Cancel anytime
           </p>
         </div>
       </DialogContent>
+
+      <PaymentSuccessModal
+        open={successModalOpen}
+        onOpenChange={setSuccessModalOpen}
+        planName={plan?.name}
+        amount={`₹${plan?.price}`}
+        renewalDate="Next billing cycle"
+      />
+
+      <PaymentFailedModal
+        open={failureModalOpen}
+        onOpenChange={setFailureModalOpen}
+        reason={failureReason}
+      />
     </Dialog>
   );
 }

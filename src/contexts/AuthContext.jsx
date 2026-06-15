@@ -61,6 +61,7 @@ export const AuthProvider = ({ children }) => {
               price: userData.price || 0,
               startDate: userData.startDate || "N/A",
               endDate: userData.endDate || "N/A",
+              billingDate:userData?.billingDate || "N/A",
               status: userData.status || "Active",
               memberLimitCount: userData.memberLimitCount || 12,
               currentMemberCount: userData.currentMemberCount || 10,

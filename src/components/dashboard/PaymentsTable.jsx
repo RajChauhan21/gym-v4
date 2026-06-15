@@ -25,13 +25,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { format, parseISO } from "date-fns";
-import { CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import Loader from "@/components/ui/Loader";
-import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import React from "react";
+import { format, addMonths, parseISO } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   TrendingUp,
   AlertCircle,
@@ -117,24 +117,27 @@ export default function PaymentsTable() {
   const fetchPlans = useGymStore((state) => state.fetchPlans);
   const [selectedPayment, setSelectedPayment] = useState(null); //for editing
   const [totalRecords, setTotalReccords] = useState(0);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [mobileDateFromOpen, setMobileDateFromOpen] = useState(false);
+  const [mobileDateToOpen, setMobileDateToOpen] = useState(false);
   const [filters, setFilters] = useState({
     name: "",
     amount: "",
+    dueAmount: "",
     plan: "",
     method: "",
-    from: "",
-    to: "",
+    fromDate: "",
+    toDate: "",
   });
 
   // ---------- REVENUE ----------
-
   const getRevenues = async () => {
     try {
       const response = await getRevenue(profile.ownerId);
 
       if (response.status === 202 || response.data.statusCodeValue === 200) {
-        setTotalRevenue(response.totalRevenue);
-        sethisMonthRevenue(response.currentMonthRevenue);
+        setTotalRevenue(response.data.totalRevenue);
+        sethisMonthRevenue(response.data.currentMonthRevenue);
       } else if (response.status === 404) {
         // toast.error(
         //   "Something went wrong while fetching plans. Please try again later.",
@@ -283,7 +286,9 @@ export default function PaymentsTable() {
   }, [query]);
 
   useEffect(() => {
-    fetchPlans();
+    if (profile?.gymId) {
+      fetchPlans(profile.gymId);
+    }
     fetchPayments();
   }, [currentPage, pageSize, sortBy, sortDir, profile?.ownerId, filters]);
 
@@ -316,10 +321,11 @@ export default function PaymentsTable() {
     setFilters({
       name: "",
       amount: "",
+      dueAmount: "",
       plan: "",
       method: "",
-      from: "",
-      to: "",
+      fromDate: "",
+      toDate: "",
     });
     setIsFilterOpen(false);
     setCurrentPage(0);
@@ -333,6 +339,7 @@ export default function PaymentsTable() {
         amount: selectedPayment ? selectedPayment.amount : "",
         method: selectedPayment ? selectedPayment.method : "",
         date: selectedPayment ? selectedPayment.paymentDate : "",
+        dueAmount: selectedPayment ? selectedPayment.dueAmount : "",
       });
       console.log("Editing payment:", selectedPayment);
       console.log("Editing payment member:", newPayment.name);
@@ -346,6 +353,7 @@ export default function PaymentsTable() {
     name: undefined,
     plan: "",
     amount: "",
+    dueAmount: "",
     method: "",
     date: "",
   });
@@ -406,9 +414,20 @@ export default function PaymentsTable() {
         toast.success("Payement recorded successfully");
         fetchPayments();
       } else if (response.status === 404) {
-        toast.error(
-          "Something went wrong while saving payment. Please try again later.",
-        );
+        if (
+          response.data &&
+          response.data.message &&
+          response.data.message == "100"
+        ) {
+          toast.error(
+            "You need an active plan to use this functionality. Please subscribe to a plan first.",
+          );
+          // Member already exists with the name
+        } else {
+          toast.error(
+            "Something went wrong while saving payment. Please try again later.",
+          );
+        }
       } else if (response.status === 429) {
         toast.error(
           "You are performing actions too quickly. Please wait a few seconds and try again.",
@@ -448,6 +467,8 @@ export default function PaymentsTable() {
       status: "Success",
     });
     setErrors({});
+    setOpenPayment(false);
+    setSelectedPayment(null);
   };
 
   const handleSort = (columnName) => {
@@ -470,10 +491,6 @@ export default function PaymentsTable() {
     // Reset to first page when sorting changes
     setCurrentPage(0);
   };
-
-  useEffect(() => {
-    setTimeout(() => setLoading(false), 1200);
-  }, []);
 
   // if (loading) {
   //   return <Loader text="Loading Payments...." />;
@@ -557,7 +574,7 @@ export default function PaymentsTable() {
                       />
 
                       <CommandList>
-                        <CommandEmpty>No member found.</CommandEmpty>
+                        <CommandEmpty>No members found.</CommandEmpty>
 
                         <CommandGroup>
                           {members.map((member) => (
@@ -617,14 +634,14 @@ export default function PaymentsTable() {
                     setNewPayment({ ...newPayment, method: value })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select method" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="w-full">
                     <SelectItem value="CASH">Cash</SelectItem>
                     <SelectItem value="UPI">UPI</SelectItem>
                     <SelectItem value="Card">Card</SelectItem>
-                    <SelectItem value="Bank">Bank Transfer</SelectItem>
+                    {/* <SelectItem value="Bank">Bank Transfer</SelectItem> */}
                   </SelectContent>
                 </Select>
                 <div className="min-h-[20px]">
@@ -634,16 +651,49 @@ export default function PaymentsTable() {
                 </div>
               </div>
 
-              {/* Date */}
               <div>
                 <Label className="mb-1">Date</Label>
-                <Input
-                  type="date"
-                  value={newPayment.date}
-                  onChange={(e) =>
-                    setNewPayment({ ...newPayment, date: e.target.value })
-                  }
-                />
+                <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal px-3", // Added padding
+                        !newPayment.date && "text-muted-foreground",
+                      )}
+                      disabled={loading}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />{" "}
+                      {/* shrink-0 prevents icon squashing */}
+                      <span className="truncate">
+                        {" "}
+                        {/* truncate prevents text going out of the field */}{" "}
+                        {newPayment.date
+                          ? format(parseISO(newPayment.date), "PPP")
+                          : "Pick a date"}
+                      </span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={
+                        newPayment.date ? parseISO(newPayment.date) : undefined
+                      }
+                      defaultMonth={
+                        newPayment.date ? parseISO(newPayment.date) : new Date()
+                      }
+                      onSelect={(date) => {
+                        setNewPayment({
+                          ...newPayment,
+                          date: date ? format(date, "yyyy-MM-dd") : "",
+                        });
+                        setIsCalendarOpen(false); // This closes the popover automatically
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
                 <div className="min-h-[20px]">
                   {errors?.date && (
                     <p className="text-red-500 text-sm">{errors.date}</p>
@@ -803,13 +853,46 @@ export default function PaymentsTable() {
               </Select>
             </div>
 
+            {/* Due Amount */}
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase text-muted-foreground">
+                Amount Paid
+              </Label>
+              <Input
+                type="number"
+                placeholder="Paid Amount..."
+                value={filters.amount}
+                onChange={(e) =>
+                  setFilters({ ...filters, amount: e.target.value })
+                }
+              />
+            </div>
+
+            {/* Paid Amount */}
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase text-muted-foreground">
+                Amount Due
+              </Label>
+              <Input
+                type="number"
+                placeholder="Paid Amount..."
+                value={filters.dueAmount}
+                onChange={(e) =>
+                  setFilters({ ...filters, dueAmount: e.target.value })
+                }
+              />
+            </div>
+
             {/* 4. Date Range */}
             {/* <div className="grid grid-cols-2 gap-4"> */}
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase text-muted-foreground">
                 From
               </Label>
-              <Popover>
+              <Popover
+                open={mobileDateFromOpen}
+                onOpenChange={setMobileDateFromOpen}
+              >
                 {" "}
                 {/* Changed Dialog to Popover */}
                 <PopoverTrigger asChild>
@@ -817,13 +900,13 @@ export default function PaymentsTable() {
                     variant={"outline"}
                     className={cn(
                       "w-full justify-start text-left font-normal px-3",
-                      !filters.from && "text-muted-foreground",
+                      !filters.fromDate && "text-muted-foreground",
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
                     <span className="truncate">
-                      {filters.from
-                        ? format(parseISO(filters.from), "PPP")
+                      {filters.fromDate
+                        ? format(parseISO(filters.fromDate), "PPP")
                         : "Pick a date"}
                     </span>
                   </Button>
@@ -832,14 +915,15 @@ export default function PaymentsTable() {
                   <Calendar
                     mode="single"
                     defaultMonth={
-                      filters.from ? parseISO(filters.from) : new Date()
+                      filters.fromDate ? parseISO(filters.fromDate) : new Date()
                     }
-                    selected={filters.from ? parseISO(filters.from) : undefined}
+                    selected={filters.fromDate ? parseISO(filters.fromDate) : undefined}
                     onSelect={(date) => {
                       setFilters((prev) => ({
                         ...prev,
-                        from: date ? format(date, "yyyy-MM-dd") : "",
+                        fromDate: date ? format(date, "yyyy-MM-dd") : "",
                       }));
+                      setMobileDateFromOpen(false);
                     }}
                     initialFocus
                   />
@@ -851,7 +935,10 @@ export default function PaymentsTable() {
               <Label className="text-xs font-bold uppercase text-muted-foreground">
                 To
               </Label>
-              <Popover>
+              <Popover
+                open={mobileDateToOpen}
+                onOpenChange={setMobileDateToOpen}
+              >
                 {" "}
                 {/* Changed Dialog to Popover */}
                 <PopoverTrigger asChild>
@@ -859,13 +946,13 @@ export default function PaymentsTable() {
                     variant={"outline"}
                     className={cn(
                       "w-full justify-start text-left font-normal px-3",
-                      !filters.to && "text-muted-foreground",
+                      !filters.toDate && "text-muted-foreground",
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
                     <span className="truncate">
-                      {filters.to
-                        ? format(parseISO(filters.to), "PPP")
+                      {filters.toDate
+                        ? format(parseISO(filters.toDate), "PPP")
                         : "Pick a date"}
                     </span>
                   </Button>
@@ -874,14 +961,15 @@ export default function PaymentsTable() {
                   <Calendar
                     mode="single"
                     defaultMonth={
-                      filters.to ? parseISO(filters.to) : new Date()
+                      filters.toDate ? parseISO(filters.toDate) : new Date()
                     }
-                    selected={filters.to ? parseISO(filters.to) : undefined}
+                    selected={filters.toDate ? parseISO(filters.toDate) : undefined}
                     onSelect={(date) => {
                       setFilters((prev) => ({
                         ...prev,
-                        to: date ? format(date, "yyyy-MM-dd") : "",
+                        toDate: date ? format(date, "yyyy-MM-dd") : "",
                       }));
+                      setMobileDateToOpen(false);
                     }}
                     initialFocus
                   />
@@ -906,6 +994,7 @@ export default function PaymentsTable() {
                   <SelectItem value="all">All Methods</SelectItem>
                   <SelectItem value="UPI">UPI</SelectItem>
                   <SelectItem value="CASH">CASH</SelectItem>
+                  <SelectItem value="Card">Card</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -985,6 +1074,7 @@ export default function PaymentsTable() {
                 <SelectItem value="all">All Methods</SelectItem>
                 <SelectItem value="UPI">UPI</SelectItem>
                 <SelectItem value="CASH">Cash</SelectItem>
+                <SelectItem value="Card">Card</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -992,14 +1082,29 @@ export default function PaymentsTable() {
           {/* 3. Due Amount */}
           <div className="space-y-1.5">
             <Label className="text-xs font-bold uppercase text-muted-foreground">
-              Due Amount
+              Amount Paid
             </Label>
             <Input
               type="number"
-              placeholder="Amount..."
+              placeholder="Paid Amount..."
               value={filters.amount}
               onChange={(e) =>
                 setFilters({ ...filters, amount: e.target.value })
+              }
+            />
+          </div>
+
+          {/* 4. Due Amount */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold uppercase text-muted-foreground">
+              Amount Due
+            </Label>
+            <Input
+              type="number"
+              placeholder="Due Amount..."
+              value={filters.dueAmount}
+              onChange={(e) =>
+                setFilters({ ...filters, dueAmount: e.target.value })
               }
             />
           </div>
@@ -1016,7 +1121,7 @@ export default function PaymentsTable() {
                   variant={"outline"}
                   className={cn(
                     "w-full justify-start text-left font-normal px-3", // Added padding
-                    !filters.from && "text-muted-foreground",
+                    !filters.fromDate && "text-muted-foreground",
                   )}
                   disabled={loading}
                 >
@@ -1025,8 +1130,8 @@ export default function PaymentsTable() {
                   <span className="truncate">
                     {" "}
                     {/* truncate prevents text going out of the field */}
-                    {filters.from
-                      ? format(parseISO(filters.from), "PPP")
+                    {filters.fromDate
+                      ? format(parseISO(filters.fromDate), "PPP")
                       : "Pick a date"}
                   </span>
                 </Button>
@@ -1034,14 +1139,14 @@ export default function PaymentsTable() {
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
-                  selected={filters.from ? parseISO(filters.from) : undefined}
+                  selected={filters.fromDate ? parseISO(filters.fromDate) : undefined}
                   defaultMonth={
-                    filters.from ? parseISO(filters.from) : new Date()
+                    filters.fromDate ? parseISO(filters.fromDate) : new Date()
                   }
                   onSelect={(date) => {
                     setFilters((prev) => ({
                       ...prev,
-                      from: date ? format(date, "yyyy-MM-dd") : "",
+                      fromDate: date ? format(date, "yyyy-MM-dd") : "",
                     }));
                     setDateFromOpen(false);
                   }}
@@ -1062,7 +1167,7 @@ export default function PaymentsTable() {
                   variant={"outline"}
                   className={cn(
                     "w-full justify-start text-left font-normal px-3", // Added padding
-                    !filters.to && "text-muted-foreground",
+                    !filters.toDate && "text-muted-foreground",
                   )}
                   disabled={loading}
                 >
@@ -1071,8 +1176,8 @@ export default function PaymentsTable() {
                   <span className="truncate">
                     {" "}
                     {/* truncate prevents text going out of the field */}
-                    {filters.to
-                      ? format(parseISO(filters.to), "PPP")
+                    {filters.toDate
+                      ? format(parseISO(filters.toDate), "PPP")
                       : "Pick a date"}
                   </span>
                 </Button>
@@ -1080,12 +1185,12 @@ export default function PaymentsTable() {
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
-                  selected={filters.to ? parseISO(filters.to) : undefined}
-                  defaultMonth={filters.to ? parseISO(filters.to) : new Date()}
+                  selected={filters.toDate ? parseISO(filters.toDate) : undefined}
+                  defaultMonth={filters.toDate ? parseISO(filters.toDate) : new Date()}
                   onSelect={(date) => {
                     setFilters((prev) => ({
                       ...prev,
-                      to: date ? format(date, "yyyy-MM-dd") : "",
+                      toDate: date ? format(date, "yyyy-MM-dd") : "",
                     }));
                     setDateToOpen(false);
                   }}
@@ -1095,14 +1200,19 @@ export default function PaymentsTable() {
             </Popover>
           </div>
 
-          {/* 7. Actions */}
-          <Button
-            onClick={resetFilters}
-            variant="outline"
-            className="w-full rounded-md"
-          >
-            Clear
-          </Button>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold uppercase text-muted-foreground">
+              CLear Filters
+            </Label>
+            {/* 7. Actions */}
+            <Button
+              onClick={resetFilters}
+              variant="outline"
+              className="w-full rounded-md"
+            >
+              Clear
+            </Button>
+          </div>
         </div>
       </Card>
 
@@ -1110,7 +1220,7 @@ export default function PaymentsTable() {
         <div className="relative overflow-auto h-[408px] no-scrollbar border rounded-lg">
           {" "}
           {/* Fixed height to prevent jumping */}
-          <Table>
+          <Table className="w-auto lg:table-fixed lg:w-full">
             {/* <TableHeader className="sticky top-0 z-30 bg-card"> */}
             <TableHeader className="sticky top-0 z-40">
               <TableRow className="hover:bg-transparent">
@@ -1118,7 +1228,7 @@ export default function PaymentsTable() {
                 {/* Prevents the row-level hover effect on headers */}
                 <TableHead
                   onClick={() => handleSort("memberName")}
-                  className="sticky left-0 top-0 z-50 min-w-[150px] text-white bg-zinc-950 select-none text-center border-b shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]"
+                  className="sticky left-0 top-0 z-50 px-4 min-w-[150px] text-white bg-zinc-950 select-none text-center"
                 >
                   <div className="inline-flex items-center justify-center gap-1 cursor-pointer">
                     <span>Name</span>
@@ -1135,13 +1245,14 @@ export default function PaymentsTable() {
                 {/* Apply the same bg and sticky top to ALL other headers */}
                 {[
                   { label: "Plan", key: "membershipName" },
-                  { label: "Amount", key: "amount" },
+                  { label: "Amount Paid", key: "amount" },
+                  { label: "Amount Due", key: "due" },
                   { label: "Date", key: "paymentDate" },
                 ].map((header) => (
                   <TableHead
                     key={header.key}
                     onClick={() => handleSort(header.key)}
-                    className="sticky top-0 z-40 bg-zinc-950 text-white text-center border-b cursor-pointer select-none"
+                    className="sticky top-0 z-40 px-4 bg-zinc-950 text-white text-center border-b cursor-pointer select-none"
                   >
                     <div className="inline-flex items-center justify-center gap-1">
                       <span>{header.label}</span>
@@ -1206,11 +1317,19 @@ export default function PaymentsTable() {
                       ₹{payment.amount}
                     </TableCell>
                     <TableCell className="text-center">
+                      ₹{payment.dueAmount}
+                    </TableCell>
+                    <TableCell className="text-center">
                       {payment.paymentDate}
                     </TableCell>
                     {/* <TableCell className="text-center">{payment.time}</TableCell> */}
                     <TableCell className="text-center">
-                      {payment.method}
+                      {/* {payment.method} */}
+                      <div className="inline-flex w-18 h-6 items-center justify-center rounded-md bg-black dark:bg-white px-2 shadow-sm">
+                        <span className="block w-full text-center truncate text-xs font-medium text-white dark:text-black">
+                          {payment.method || "N/A"}
+                        </span>
+                      </div>
                     </TableCell>
                     {/* ACTION DROPDOWN */}
                     <TableCell className="text-center">

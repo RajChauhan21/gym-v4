@@ -31,6 +31,7 @@ constant.interceptors.response.use(
 
                 // If refresh fails, call the failure callback (which will redirect to landing)
                 localStorage.removeItem("isLoggedIn");
+                localStorage.removeItem("userProfile");
                 if (window.location.pathname !== "/") {
                     window.location.href = "/";
                 }

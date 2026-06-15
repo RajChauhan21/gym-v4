@@ -12,10 +12,13 @@ import { useProfile } from "../contexts/ProfileContext";
 import { UpgradeModal } from "./UpgradeModal";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { cancelSubscription } from "../apis/backend_apis";
+import { toast } from "sonner";
 
 export function ManagePlanModal({ open, setOpen }) {
   const [openUpgrade, setOpenUpgrade] = useState(false);
-  const { profile } = useProfile();
+  const { profile, setProfile } = useProfile();
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const plan = {
     name: profile?.planName || "N/A",
@@ -33,6 +36,50 @@ export function ManagePlanModal({ open, setOpen }) {
           }), // Removed the extra curly braces here
     usage: profile?.currentMemberCount || 0,
     limit: profile?.memberLimitCount || 0,
+  };
+
+  const cancelSubs = async () => {
+    setLoading(true);
+    try {
+      const response = await cancelSubscription(profile.ownerId);
+      if (response.status === 202 || response.data.statusCodeValue === 202) {
+        if (response.data && response.data == "102") {
+          toast.error("No active subscription found to cancel.");
+        } else if (response.data && response.data == "202") {
+          const payload = {
+            ...profile,
+            status: "CANCELLED",
+          };
+          console.log("Updated gym profile payload:", payload);
+          setProfile(payload);
+          localStorage.setItem("userProfile", JSON.stringify(payload));
+          toast.success(
+            "Subscription cancelled. Your plan will remain active until the current billing period ends.",
+          );
+        }
+      } else if (
+        response.status === 404 ||
+        response.data.statusCodeValue === 202
+      ) {
+        if (response.data && response.data.message === "102") {
+          toast.error("No active subscription found to cancel.");
+        }
+        if (
+          response.data &&
+          response.data.message &&
+          response.data.message !== "100"
+        ) {
+          toast.error(
+            "Something went wrong while cancelling subscription. Please try again",
+          );
+          // Member already exists with the name
+        }
+      }
+    } catch (error) {
+      toast.error("Something went wrong");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const usagePercent = (plan.usage / plan.limit) * 100;
@@ -59,17 +106,49 @@ export function ManagePlanModal({ open, setOpen }) {
                 <h2 className="text-lg font-semibold">{plan.name}</h2>
                 <Badge
                   className={`capitalize ${
-                    plan.status === "Active"  || profile.status === "ACTIVE"
+                    plan.status === "Active" ||
+                    profile.status === "ACTIVE" ||
+                    profile.status === "PARTIALLY_ACTIVE"
                       ? "bg-blue-600 text-white dark:bg-blue-600 dark:text-white"
                       : "bg-red-600 text-white line-through"
                   }`}
                 >
-                  {plan.status || "Active"}
+                  {profile.status === "PARTIALLY_ACTIVE"
+                    ? "PARTIALLY ACTIVE"
+                    : "Active"}
                 </Badge>
               </div>
-
+              {/* 
               <p className="text-sm text-muted-foreground">
-                {plan.price} • Renews on {plan.renewDate || "N/A"}
+                {plan.price} • Renews on {profile.status === "PARTIALLY_ACTIVE" ? "N/A": plan.renewDate}
+              </p> */}
+              <p className="text-sm text-muted-foreground">
+                {plan.price} •{" "}
+                {profile?.status === "PARTIALLY_ACTIVE" ||
+                profile?.planName === "No Active Plan"
+                  ? "Your Last Date"
+                  : "Renews on"}{" "}
+                {profile?.status === "PARTIALLY_ACTIVE" ||
+                profile?.planName === "No Active Plan"
+                  ? profile?.billingDate &&
+                    !isNaN(new Date(profile.billingDate).getTime())
+                    ? new Date(profile.billingDate).toLocaleDateString(
+                        "en-GB",
+                        {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        },
+                      )
+                    : "N/A"
+                  : plan?.renewDate &&
+                      !isNaN(new Date(plan.renewDate).getTime())
+                    ? new Date(plan.renewDate).toLocaleDateString("en-GB", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })
+                    : "N/A"}
               </p>
 
               {/* Usage */}
@@ -94,8 +173,17 @@ export function ManagePlanModal({ open, setOpen }) {
             {/* <Button variant="outline" className="w-full">
               Switch to Yearly
             </Button> */}
-            <Button variant="destructive" className="w-full">
-              Cancel Subscription
+            <Button
+              variant="destructive"
+              className="w-full"
+              onClick={cancelSubs}
+              disabled={loading || profile.status === "PARTIALLY_ACTIVE"}
+            >
+              {loading
+                ? "Cancelling..."
+                : profile.status === "PARTIALLY_ACTIVE"
+                  ? "Already Cancelled"
+                  : "Cancel Subscription"}
             </Button>
           </div>
 

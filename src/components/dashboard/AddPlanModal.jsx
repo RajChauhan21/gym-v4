@@ -103,11 +103,22 @@ export default function AddPlanModal({
           response.data.message.includes("404")
         ) {
           toast.error("Please setup your gym profile before adding plans.");
-        } else if(response.data.message == "Plan already exists") {
+        } 
+        else if(response.data.message == "Plan already exists") {
           toast.error(
            response.data.message,
           );
         }
+        else if (
+            response.data &&
+            response.data.message &&
+            response.data.message === "100"
+          ) {
+            toast.error(
+              "You need an active plan to use this functionality. Please subscribe to a plan first.",
+            );
+            // Member already exists with the name
+          }
       } else if (response.status === 429) {
         toast.error(
           "You are performing actions too quickly. Please wait a few seconds and try again.",

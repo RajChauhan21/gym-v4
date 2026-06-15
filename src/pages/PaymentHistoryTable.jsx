@@ -135,7 +135,7 @@ export default function PaymentHistoryTable() {
       );
       console.log(currentPage);
       if (response.status === 202 || response.data.statusCodeValue === 202) {
-        setPayments(response.data.content);
+        setPayments(response.data.content || []);
         setTotalPages(response?.data?.page?.totalPages ?? 0);
         setTotalElements(response?.data?.page?.totalElements ?? 0);
         setPageSize(response.data.page.size);
@@ -148,9 +148,16 @@ export default function PaymentHistoryTable() {
           setCurrentPage(response?.data?.page?.number ?? 0);
         }
       } else if (response.status === 404) {
-        toast.error(
-          "Something went wrong while fetching payment history. Please try again later.",
-        );
+        if (
+          response.data &&
+          response.data.message &&
+          response.data.message !== "100"
+        ) {
+          toast.error(
+            "Something went wrong while fetching payments. Please try again",
+          );
+          // Member already exists with the name
+        }
       } else if (response.status === 429) {
         toast.error(
           "You are performing actions too quickly. Please wait a few seconds and try again.",
