@@ -5,6 +5,7 @@ import {
   CalendarIcon,
   CreditCard,
   Download,
+  FileSpreadsheet,
   SlidersHorizontal,
   Users,
   X,
@@ -98,9 +99,6 @@ export default function ExportReportDialog({
     if (filters.method === "all") {
       filters.method = "";
     }
-    // if (reportType === "payments") {
-    //   setDateType(null);
-    // }
     return {
       dueAmount: filters.dueAmount || null,
       fromDate: dateType == null ? filters.fromDate : null,
@@ -121,7 +119,7 @@ export default function ExportReportDialog({
 
   useEffect(() => {
     if (reportType === "members") {
-      getMembersCount();
+      getMembersCountFilter();
     } else if (reportType === "payments") {
       getPaymentsCount();
     }
@@ -173,7 +171,7 @@ export default function ExportReportDialog({
     filters.amount !== null;
   filters.method;
 
-  const getMembersCount = async () => {
+  const getMembersCountFilter = async () => {
     try {
       const apiFilters = formatApiFilters(filters, dateType);
       const response = await getAllMembersCountByFilters(
@@ -189,10 +187,9 @@ export default function ExportReportDialog({
       }
     } catch (error) {
       toast.error(
-        "Something went wrong while fetching count, please try exporting a while later",
+        "Something went wrong while fetching count, please try again a while later",
       );
     } finally {
-      setLoading(false);
     }
   };
 
@@ -230,22 +227,30 @@ export default function ExportReportDialog({
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
+        onCloseAutoFocus={() => {
+          resetFilters(); // Fires immediately after the modal closes and returns focus
+        }}
       >
         {/* ── Header ─────────────────────────────────────────────────── */}
         <DialogHeader className="border-b px-6 py-5 shrink-0">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Download className="h-5 w-5" />
-            Export Reports
+            Export Gym Data
           </DialogTitle>
-          <DialogPrimitive.Close
-            className="absolute right-4 top-4 opacity-70 hover:opacity-100 transition-opacity outline-none"
-            onClick={resetFilters} // Also clear form if they just close the modal
-          >
-            <X className="h-4 w-4" />
-            <span className="sr-only">Close</span>
+          <DialogPrimitive.Close asChild>
+            <button
+              type="button"
+              className="absolute right-4 top-4 opacity-70 hover:opacity-100 transition-opacity outline-none"
+              onClick={resetFilters}
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </button>
           </DialogPrimitive.Close>
+
           <DialogDescription>
-            Download your gym data in Excel format.
+            Download your gym data reports, including members, payments, and
+            other business records for easy tracking and analysis.
           </DialogDescription>
         </DialogHeader>
 
@@ -310,27 +315,28 @@ export default function ExportReportDialog({
           {/* {reportType === "members" && ( */}
           <div className="rounded-xl border bg-muted/20 p-4 space-y-4">
             {/* Section header */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">
+            <div className="flex items-center justify-between gap-4 w-full">
+              <div className="flex items-center gap-2 min-w-0 w-full sm:w-auto">
+                <SlidersHorizontal className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-sm font-medium whitespace-nowrap">
                   {reportType === "members"
                     ? "Member Filters"
                     : "Payment Filters"}
                 </span>
 
                 {hasActiveFilters && (
-                  <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                  <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary shrink-0 ml-auto sm:ml-0">
                     Active
                   </span>
                 )}
               </div>
+
               {hasActiveFilters && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={resetFilters}
-                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+                  className="hidden sm:flex h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1 shrink-0"
                 >
                   <X className="h-3 w-3" />
                   Clear all
@@ -583,17 +589,36 @@ export default function ExportReportDialog({
               </div>
 
               {/* Total search record count - FIXED LAYOUT */}
-              <div className="flex flex-col items-center justify-start gap-1.5">
+              <div className="flex flex-col items-center justify-start gap-1.5 w-full">
                 <Label className="text-xs font-bold uppercase text-center text-muted-foreground block w-full">
                   Records Found
                 </Label>
-                <div className="text-2xl font-bold dark:text-white flex justify-center items-center gap-1 h-10 w-full">
+                <div className="text-2xl font-bold dark:text-white flex justify-center items-center gap-4 h-10 w-full">
+                  {/* Only the dynamic Count is affected by loading state */}
                   {loading ? (
                     <Skeleton className="h-6 w-16 bg-slate-200 dark:bg-slate-800 rounded" />
                   ) : (
-                    <span className="text-sky-500">
+                    <span className="text-black dark:text-white">
                       {reportType === "members" ? count : paymentCount}
                     </span>
+                  )}
+
+                  {/* Vertical Separator - Independent and Mobile Only */}
+                  {hasActiveFilters && (
+                    <div className="h-5 w-[1px] bg-border sm:hidden shrink-0" />
+                  )}
+
+                  {/* Clear Button - Independent and Mobile Only */}
+                  {hasActiveFilters && (
+                    <Button
+                      // variant="ghost"
+                      size="sm"
+                      onClick={resetFilters}
+                      className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1 sm:hidden shrink-0 dark:bg-white bg-black dark:text-black text-white"
+                    >
+                      {/* <X className="h-3 w-3" /> */}
+                      Clear filters
+                    </Button>
                   )}
                 </div>
               </div>
@@ -601,21 +626,39 @@ export default function ExportReportDialog({
           </div>
 
           {/* Export Format */}
-          <div className="rounded-xl border bg-muted/30 p-4">
-            <p className="font-medium">Export Format</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Microsoft Excel (.xlsx)
-            </p>
+          <div className="rounded-xl border bg-muted/30 p-4 flex items-start gap-3">
+            <FileSpreadsheet className="h-9 w-9 text-green-600 shrink-0" />
+            <div>
+              <p className="font-medium text-sm leading-none">Export Format</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Microsoft Excel (.xlsx)
+              </p>
+            </div>
           </div>
         </div>
 
         {/* ── Footer ─────────────────────────────────────────────────── */}
-        <div className="border-t px-4 py-3 flex justify-end gap-2 shrink-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <div className="border-t px-4 py-3 flex flex-col sm:flex-row justify-end gap-2 shrink-0">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="w-full sm:w-auto order-2 sm:order-1"
+          >
             Cancel
           </Button>
-          <Button onClick={handleExport} disabled={exporting}>
-            {exporting ? "Preparing…" : "Export Report"}
+          <Button
+            onClick={handleExport}
+            disabled={
+              exporting ||
+              (reportType === "payments" ? paymentCount : count) <= 0
+            }
+            className="w-full sm:w-auto order-1 sm:order-2"
+          >
+            {exporting
+              ? "Preparing…"
+              : (reportType === "payments" ? paymentCount : count) <= 0
+                ? "No Data Available to Export"
+                : "Export Report"}
           </Button>
         </div>
       </DialogContent>

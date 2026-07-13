@@ -3,14 +3,15 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "../components/dashboard/AppSidebar";
 // import { AppSidebar } from "@/components/app-sidebar"
 import Topbar from "../components/dashboard/Topbar";
-import { SiteHeader } from "@/components/site-header"
+import { SiteHeader } from "@/components/site-header";
 // import { AppSidebar } from "@/components/app-sidebar"
-import { ChartAreaInteractive } from "@/components/chart-area-interactive"
-import { DataTable } from "@/components/data-table"
-import { SectionCards } from "@/components/section-cards"
-import data from '../data.json'
+import { ChartAreaInteractive } from "@/components/chart-area-interactive";
+import { DataTable } from "@/components/data-table";
+import { SectionCards } from "@/components/section-cards";
+import data from "../data.json";
 
 export function SideBarLayout() {
+  console.log("SideBarLayout render", performance.now());
   return (
     // <SidebarProvider>
     //   <AppSidebar />
@@ -28,7 +29,7 @@ export function SideBarLayout() {
         "--header-height": "calc(var(--spacing) * 12)",
       }}
     >
-      <AppSidebar/>
+      <AppSidebar />
       <SidebarInset>
         <SiteHeader />
         {/* <div className="flex flex-1 flex-col">

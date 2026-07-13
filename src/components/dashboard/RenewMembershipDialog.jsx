@@ -44,6 +44,7 @@ export default function RenewMembershipDialog({
     joinedDate: "",
     expiryDate: "",
     startDate: "",
+    totalPayable: 0,
   });
 
   // const [loading, setLoading] = useState(false);
@@ -52,6 +53,7 @@ export default function RenewMembershipDialog({
   const [isStartDateCalendarOpen, setIsStartDateCalendarOpen] = useState(false);
 
   const selectedPlan = plans.find((p) => p.name === form.plan);
+  // const totalPayable = (form.dueAmount || 0) + (selectedPlan?.price || 0);
 
   useEffect(() => {
     if (member) {
@@ -74,7 +76,11 @@ export default function RenewMembershipDialog({
   };
 
   const handleSubmit = () => {
-    onRenew?.(form);
+    const payload = {
+      ...form,
+      dueAmount: form.totalPayable,
+    };
+    onRenew?.(payload);
     setOpen(false);
   };
 
@@ -93,41 +99,100 @@ export default function RenewMembershipDialog({
     setErrors({});
   };
 
+  // useEffect(() => {
+  //   if (form.startDate && form.plan) {
+  //     const selectedPlan = plans.find((p) => p.name === form.plan);
+
+  //     if (selectedPlan) {
+  //       const startDate = new Date(form.startDate);
+  //       const expiryDate = addMonths(startDate, selectedPlan.validity);
+  //       const planPrice = selectedPlan.price || 0;
+
+  //       // setForm((prev) => ({
+  //       //   const totalPayable = (prev.dueAmount || 0) + planPrice;
+  //       //   ...prev,
+  //       //   expiryDate: format(expiryDate, "yyyy-MM-dd"),
+  //       // }));
+
+  //       setForm((prev) => {
+  //         const totalPayable = (prev.dueAmount || 0) + planPrice;
+  //         console.log(prev.dueAmount);
+  //         console.log(planPrice);
+  //         // ⚠️ GUARD: Only update state if values actually changed to prevent infinite loops
+  //         if (
+  //           prev.expiryDate === format(expiryDate, "yyyy-MM-dd") &&
+  //           prev.dueAmount === totalPayable
+  //         ) {
+  //           return prev;
+  //         }
+
+  //         return {
+  //           ...prev,
+  //           expiryDate: format(expiryDate, "yyyy-MM-dd"),
+  //           totalPayable: totalPayable, // Sets the total inside dueAmount
+  //         };
+  //       });
+  //     }
+  //   }
+  // }, [form.startDate, form.plan, plans]);
+
+  // useEffect(() => {
+  //   if (form.startDate && form.plan) {
+  //     const selectedPlan = plans.find((p) => p.name === form.plan);
+
+  //     if (selectedPlan) {
+  //       const startDate = new Date(form.startDate);
+  //       const expiryDate = format(
+  //         addMonths(startDate, selectedPlan.validity),
+  //         "yyyy-MM-dd",
+  //       );
+
+  //       setForm((prev) => {
+  //         if (prev.expiryDate === expiryDate) return prev;
+  //         return { ...prev, expiryDate };
+  //       });
+  //     }
+  //   }
+  // }, [form.startDate, form.plan, plans]);
+
   useEffect(() => {
-    if (form.startDate && form.plan) {
+    // ✅ Run if a plan is selected (even if startDate is not set yet)
+    if (form.plan) {
       const selectedPlan = plans.find((p) => p.name === form.plan);
 
       if (selectedPlan) {
-        const startDate = new Date(form.startDate);
-        const expiryDate = addMonths(startDate, selectedPlan.validity);
         const planPrice = selectedPlan.price || 0;
 
-        // setForm((prev) => ({
-        //   const totalPayable = (prev.dueAmount || 0) + planPrice;
-        //   ...prev,
-        //   expiryDate: format(expiryDate, "yyyy-MM-dd"),
-        // }));
+        // Calculate expiry date only if startDate is filled
+        let formattedExpiry = form.expiryDate;
+        if (form.startDate) {
+          const startDate = new Date(form.startDate);
+          formattedExpiry = format(
+            addMonths(startDate, selectedPlan.validity),
+            "yyyy-MM-dd",
+          );
+        }
 
         setForm((prev) => {
           const totalPayable = (prev.dueAmount || 0) + planPrice;
 
-          // ⚠️ GUARD: Only update state if values actually changed to prevent infinite loops
+          // ✅ FIX: Compare totalPayable against prev.totalPayable to prevent loops
           if (
-            prev.expiryDate === format(expiryDate, "yyyy-MM-dd") &&
-            prev.dueAmount === totalPayable
+            prev.expiryDate === formattedExpiry &&
+            prev.totalPayable === totalPayable
           ) {
-            return prev;
+            return prev; // Stop here if nothing changed
           }
 
           return {
             ...prev,
-            expiryDate: format(expiryDate, "yyyy-MM-dd"),
-            totalPayable: totalPayable, // Sets the total inside dueAmount
+            expiryDate: formattedExpiry,
+            totalPayable: totalPayable, // Updates instantly when plan dropdown changes
           };
         });
       }
     }
-  }, [form.startDate, form.plan, plans]);
+  }, [form.startDate, form.plan, plans]); // Watches both plan dropdown and start date
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

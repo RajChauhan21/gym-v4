@@ -44,7 +44,16 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { X, MoreVertical, Pencil, Trash2, MessageCircle } from "lucide-react";
+import {
+  X,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  MessageCircle,
+  Download,
+  Send,
+  Mail,
+} from "lucide-react";
 import {
   Select,
   SelectTrigger,
@@ -65,6 +74,7 @@ import { useGymStore } from "../../store/gymStore";
 import { toast } from "sonner";
 import {
   deletePaymentById,
+  downloadInvoice,
   getAllPayments,
   getRevenue,
   getTotalPaymentAmount,
@@ -85,8 +95,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useProfile } from "../../contexts/ProfileContext";
 
@@ -116,10 +129,12 @@ export default function PaymentsTable() {
   const [query, setQuery] = useState("");
   const fetchPlans = useGymStore((state) => state.fetchPlans);
   const [selectedPayment, setSelectedPayment] = useState(null); //for editing
+  const [openDropdownId, setOpenDropdownId] = useState(null);
   const [totalRecords, setTotalReccords] = useState(0);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [mobileDateFromOpen, setMobileDateFromOpen] = useState(false);
   const [mobileDateToOpen, setMobileDateToOpen] = useState(false);
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
   const [filters, setFilters] = useState({
     name: "",
     amount: "",
@@ -382,6 +397,56 @@ export default function PaymentsTable() {
     return newErrors;
   };
 
+  const sendReceiptEmail = (paymentId) => {
+    // Send receipt via email
+  };
+
+  const sendReceiptWhatsapp = (paymentId) => {
+    // Send receipt via WhatsApp
+  };
+
+  const getInvoice = async (paymentId) => {
+    setDownloadingInvoiceId(paymentId);
+    try {
+      const response = await downloadInvoice(paymentId, profile?.ownerId);
+
+      // Note: Use triple equals '===' for checking response status
+      if (response.status === 200) {
+        // 1. Convert the server response data into a browser blob
+        // Depending on your 'constant' instance setup, data might be directly in response or response.data
+        const blob = new Blob([response.data], { type: "application/pdf" });
+
+        // 2. Generate a secure, local download URL pointer for the blob data
+        const downloadUrl = window.URL.createObjectURL(blob);
+
+        // 3. Mount a hidden link anchor directly into the browser DOM
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.setAttribute("download", "invoice.pdf"); // Sets target download file name
+        document.body.appendChild(link);
+
+        // 4. Fire an automated click event to prompt the browser to save the file
+        link.click();
+
+        // 5. Clean up code nodes and release system memory allocation hooks
+        link.parentNode.removeChild(link);
+        window.URL.revokeObjectURL(downloadUrl);
+
+        toast.success("Invoice downloaded successfully!");
+      } else if (response.status === 404) {
+        toast.error(
+          "Something went wrong while downloading the invoice. Please try again later.",
+        );
+      }
+    } catch (error) {
+      console.error("PDF download action failed:", error);
+      toast.error("Could not download the file.");
+    } finally {
+      setDownloadingInvoiceId(null);
+      setOpenDropdownId(null);
+    }
+  };
+
   const handleAddPayment = async () => {
     setLoadingPayment(true);
     if (profile.planName === "No Active Plan") {
@@ -408,10 +473,15 @@ export default function PaymentsTable() {
         memberId: selectedPayment
           ? selectedPayment.memberId
           : members.find((m) => m.fullName === newPayment.name)?.memberId,
+        ownerId: profile?.ownerId,
       };
       const response = await savePayment(paymentObject);
       if (response.status === 202) {
-        toast.success("Payement recorded successfully");
+        if (selectedPayment) {
+          toast.success("Payment updated successfully");
+        } else {
+          toast.success("Payment recorded successfully");
+        }
         fetchPayments();
       } else if (response.status === 404) {
         if (
@@ -421,6 +491,15 @@ export default function PaymentsTable() {
         ) {
           toast.error(
             "You need an active plan to use this functionality. Please subscribe to a plan first.",
+          );
+          // Member already exists with the name
+        } else if (
+          response.data &&
+          response.data.message &&
+          response.data.message == "112"
+        ) {
+          toast.error(
+            "Payment amount cannot exceed the outstanding due amount.",
           );
           // Member already exists with the name
         } else {
@@ -917,7 +996,9 @@ export default function PaymentsTable() {
                     defaultMonth={
                       filters.fromDate ? parseISO(filters.fromDate) : new Date()
                     }
-                    selected={filters.fromDate ? parseISO(filters.fromDate) : undefined}
+                    selected={
+                      filters.fromDate ? parseISO(filters.fromDate) : undefined
+                    }
                     onSelect={(date) => {
                       setFilters((prev) => ({
                         ...prev,
@@ -963,7 +1044,9 @@ export default function PaymentsTable() {
                     defaultMonth={
                       filters.toDate ? parseISO(filters.toDate) : new Date()
                     }
-                    selected={filters.toDate ? parseISO(filters.toDate) : undefined}
+                    selected={
+                      filters.toDate ? parseISO(filters.toDate) : undefined
+                    }
                     onSelect={(date) => {
                       setFilters((prev) => ({
                         ...prev,
@@ -1139,7 +1222,9 @@ export default function PaymentsTable() {
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
-                  selected={filters.fromDate ? parseISO(filters.fromDate) : undefined}
+                  selected={
+                    filters.fromDate ? parseISO(filters.fromDate) : undefined
+                  }
                   defaultMonth={
                     filters.fromDate ? parseISO(filters.fromDate) : new Date()
                   }
@@ -1185,8 +1270,12 @@ export default function PaymentsTable() {
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
-                  selected={filters.toDate ? parseISO(filters.toDate) : undefined}
-                  defaultMonth={filters.toDate ? parseISO(filters.toDate) : new Date()}
+                  selected={
+                    filters.toDate ? parseISO(filters.toDate) : undefined
+                  }
+                  defaultMonth={
+                    filters.toDate ? parseISO(filters.toDate) : new Date()
+                  }
                   onSelect={(date) => {
                     setFilters((prev) => ({
                       ...prev,
@@ -1286,7 +1375,7 @@ export default function PaymentsTable() {
                       <Skeleton className="h-4 bg-slate-200 dark:bg-slate-800 rounded" />
                     </TableCell>
                     {/* Skeletons for other 7 columns */}
-                    {Array.from({ length: 7 }).map((_, j) => (
+                    {Array.from({ length: 8 }).map((_, j) => (
                       <TableCell key={j}>
                         <Skeleton className="mx-auto h-4 bg-slate-200 dark:bg-slate-800 rounded" />
                       </TableCell>
@@ -1317,7 +1406,7 @@ export default function PaymentsTable() {
                       ₹{payment.amount}
                     </TableCell>
                     <TableCell className="text-center">
-                      ₹{payment.dueAmount}
+                      ₹{payment.dueAmount || 0}
                     </TableCell>
                     <TableCell className="text-center">
                       {payment.paymentDate}
@@ -1332,8 +1421,13 @@ export default function PaymentsTable() {
                       </div>
                     </TableCell>
                     {/* ACTION DROPDOWN */}
-                    <TableCell className="text-center">
-                      <DropdownMenu>
+                    {/* <TableCell className="text-center">
+                      <DropdownMenu
+                        open={openDropdownId === payment.paymentId}
+                        onOpenChange={(open) => {
+                          setOpenDropdownId(open ? payment.paymentId : null);
+                        }}
+                      >
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="ghost"
@@ -1361,6 +1455,125 @@ export default function PaymentsTable() {
                           <DropdownMenuItem
                             onClick={() => deletePayment(payment)}
                             className="gap-2 cursor-pointer text-white-600"
+                          >
+                            <Trash2 className="size-4 text-red-500" />
+                            <span>Delete</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell> */}
+                    <TableCell className="text-center">
+                      <DropdownMenu
+                        open={openDropdownId === payment.paymentId}
+                        onOpenChange={(open) => {
+                          if (
+                            !open &&
+                            downloadingInvoiceId === payment.paymentId
+                          )
+                            return;
+                          setOpenDropdownId(open ? payment.paymentId : null);
+                        }}
+                      >
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-full"
+                            disabled={
+                              downloadingInvoiceId === payment.paymentId
+                            }
+                          >
+                            <MoreVertical className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+
+                        <DropdownMenuContent
+                          align="end"
+                          className="w-52 rounded-xl"
+                        >
+                          {/* Update */}
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedPayment(payment);
+                              setOpenPayment(true);
+                            }}
+                            className="gap-2 cursor-pointer"
+                            disabled={
+                              downloadingInvoiceId === payment.paymentId
+                            }
+                          >
+                            <Pencil className="size-4 text-blue-500" />
+                            <span>Update</span>
+                          </DropdownMenuItem>
+
+                          {/* Download Invoice */}
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.preventDefault();
+                              getInvoice(payment.paymentId);
+                            }}
+                            className="gap-2 cursor-pointer"
+                            disabled={
+                              downloadingInvoiceId === payment.paymentId
+                            }
+                          >
+                            {downloadingInvoiceId === payment.paymentId ? (
+                              <>
+                                <Loader2 className="size-4 animate-spin text-green-500" />
+                                <span>Downloading...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Download className="size-4 text-green-500" />
+                                <span>Download Invoice</span>
+                              </>
+                            )}
+                          </DropdownMenuItem>
+
+                          {/* Send Receipt Submenu */}
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger
+                              className="gap-2 cursor-pointer"
+                              disabled={
+                                downloadingInvoiceId === payment.paymentId
+                              }
+                            >
+                              <Send className="size-4 text-purple-500" />
+                              <span>Send Receipt</span>
+                            </DropdownMenuSubTrigger>
+
+                            <DropdownMenuSubContent className="w-40 rounded-xl">
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  sendReceiptEmail(payment.paymentId)
+                                }
+                                className="gap-2 cursor-pointer"
+                              >
+                                <Mail className="size-4 text-blue-500" />
+                                <span>Email</span>
+                              </DropdownMenuItem>
+
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  sendReceiptWhatsapp(payment.paymentId)
+                                }
+                                className="gap-2 cursor-pointer"
+                              >
+                                <MessageCircle className="size-4 text-green-500" />
+                                <span>WhatsApp</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
+
+                          <DropdownMenuSeparator />
+
+                          {/* Delete */}
+                          <DropdownMenuItem
+                            onClick={() => deletePayment(payment)}
+                            className="gap-2 cursor-pointer"
+                            disabled={
+                              downloadingInvoiceId === payment.paymentId
+                            }
                           >
                             <Trash2 className="size-4 text-red-500" />
                             <span>Delete</span>

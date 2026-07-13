@@ -4,7 +4,7 @@ import Loader from "@/components/ui/Loader";
 
 const ProtectedRoute = () => {
   const { isAuthenticated, loading } = useAuth();
-
+  console.log("ProtectedRoute render", performance.now());
   // Show nothing or a shadcn skeleton while checking the cookie
   // 2. WAIT while state is null (still checking)
   if (isAuthenticated === null) {

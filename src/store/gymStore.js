@@ -3,6 +3,7 @@ import {
   getAllMembers,
   getAllPayments,
   getAllPlans,
+  getAllSources,
 } from "../apis/backend_apis";
 
 export const useGymStore = create((set) => ({
@@ -10,6 +11,7 @@ export const useGymStore = create((set) => ({
   members: [],
   payments: [],
   plans: [],
+  sources: [],
 
   fetchMembers: async (ownerId) => {
     try {
@@ -69,10 +71,38 @@ export const useGymStore = create((set) => ({
     }
   },
 
+  fetchSources: async (ownerId) => {
+    try {
+      const response = await getAllSources(ownerId); // Your API utility
+
+      if (response.status === 202 || response.data.statusCodeValue === 202) {
+        set({ sources: response.data });
+      } else if (response.status === 404) {
+        // toast.error(
+        //   "Something went wrong while fetching payments. Please try again later.",
+        // );
+        set({ sources: [] });
+      } else if (response.status === 429) {
+        // toast.Error(
+        //   "You are performing actions too quickly. Please wait a few seconds and try again.",
+        // );
+        set({ sources: [] });
+      }
+    } catch (error) {
+      console.error("Failed to fetch:", error);
+      set({ sources: [] });
+    }
+  },
+
   // ACTIONS
   addMember: (member) =>
     set((state) => ({
       members: [...state.members, member],
+    })),
+
+  addSource: (source) =>
+    set((state) => ({
+      sources: [...state.sources, source],
     })),
 
   addPayment: (payment) =>
@@ -86,6 +116,7 @@ export const useGymStore = create((set) => ({
     })),
 
   setMembers: (members) => set({ members }),
+  setSources: (sources) => set({ sources }),
   setPayments: (payments) => set({ payments }),
   setPlans: (plans) => set({ plans }),
 }));

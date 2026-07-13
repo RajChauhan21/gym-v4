@@ -111,12 +111,16 @@ export default function MembersTable() {
   const [selectedRenewalMember, setSelectedRenewalMember] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [renewLoading, setRenewLoading] = useState(false);
+  const fetchSources = useGymStore((state) => state.fetchSources);
+  const sources = useGymStore((state) => state.sources);
+
   const [filters, setFilters] = useState({
     name: "",
     dueAmount: "",
     fromDate: "", // Matches @Param "joinedFrom"
     toDate: "", // Matches @Param "joinedTo"
     plan: "",
+    source: null,
     isActive: null,
   });
 
@@ -238,6 +242,7 @@ export default function MembersTable() {
       startFrom: dateType === "start" ? filters.fromDate : null,
       startTo: dateType === "start" ? filters.toDate : null,
       plan: filters.plan,
+      source: filters.source,
       isActive: filters.isActive !== null ? activeFilter : null,
     };
     try {
@@ -299,6 +304,7 @@ export default function MembersTable() {
   useEffect(() => {
     getAllCount();
     getActiveMembersCount();
+    fetchSources(profile?.ownerId);
   }, []);
 
   useEffect(() => {
@@ -364,6 +370,7 @@ export default function MembersTable() {
       dueAmount: "",
       fromDate: "",
       toDate: "",
+      source: null,
       plan: "",
       isActive: null,
     });
@@ -1011,6 +1018,39 @@ export default function MembersTable() {
             </div>
           </div>
 
+          {/* 3. Source Filter */}
+          <div className="space-y-1.5 w-full">
+            <Label className="text-xs font-bold uppercase text-muted-foreground">
+              Sources
+            </Label>
+            <Select
+              // 1. Fallback to "all" string so the dropdown shows the correct active item
+              value={filters.source ? String(filters.source) : "all"}
+              onValueChange={(val) =>
+                // 2. Map "all" to null, and convert numbers-as-strings back to numbers for your backend
+                setFilters({
+                  ...filters,
+                  source: val === "all" ? null : Number(val),
+                })
+              }
+            >
+              <SelectTrigger className="w-full">
+                {/* 3. Removed hardcoded span. Let SelectValue naturally show the chosen item name */}
+                <SelectValue placeholder="All Sources" />
+              </SelectTrigger>
+              <SelectContent className="max-w-[250px]">
+                <SelectItem value="all">All Sources</SelectItem>
+                {sources &&
+                  sources.map((s) => (
+                    // 4. Converted s.id to String. Used s.id as the key instead of array index.
+                    <SelectItem key={s.id} value={String(s.id)}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <DialogFooter>
             <Button onClick={resetFilters} className="w-full rounded-full">
               Clear Filters
@@ -1066,7 +1106,40 @@ export default function MembersTable() {
             </Select>
           </div>
 
-          {/* 3. Due Amount */}
+          {/* 3. Source Filter */}
+          <div className="space-y-1.5 w-full">
+            <Label className="text-xs font-bold uppercase text-muted-foreground">
+              Sources
+            </Label>
+            <Select
+              // 1. Fallback to "all" string so the dropdown shows the correct active item
+              value={filters.source ? String(filters.source) : "all"}
+              onValueChange={(val) =>
+                // 2. Map "all" to null, and convert numbers-as-strings back to numbers for your backend
+                setFilters({
+                  ...filters,
+                  source: val === "all" ? null : Number(val),
+                })
+              }
+            >
+              <SelectTrigger className="w-full">
+                {/* 3. Removed hardcoded span. Let SelectValue naturally show the chosen item name */}
+                <SelectValue placeholder="All Sources" />
+              </SelectTrigger>
+              <SelectContent className="max-w-[250px]">
+                <SelectItem value="all">All Sources</SelectItem>
+                {sources &&
+                  sources.map((s) => (
+                    // 4. Converted s.id to String. Used s.id as the key instead of array index.
+                    <SelectItem key={s.id} value={String(s.id)}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* 4. Due Amount */}
           <div className="space-y-1.5 w-full">
             <Label className="text-xs font-bold uppercase text-muted-foreground">
               Due Amount
@@ -1099,7 +1172,7 @@ export default function MembersTable() {
             </Select>
           </div>
 
-          {/* Is Active filter */}
+          {/* 5.Is Active filter */}
           <div className="space-y-1.5 w-full">
             <Label className="text-xs font-bold uppercase text-muted-foreground">
               Active Members
@@ -1127,7 +1200,7 @@ export default function MembersTable() {
             </Select>
           </div>
 
-          {/* 5. Date From */}
+          {/* 6. Date From */}
 
           <div className="space-y-1.5 w-full">
             <Label className="text-xs font-bold uppercase text-muted-foreground">
@@ -1176,7 +1249,7 @@ export default function MembersTable() {
             </Popover>
           </div>
 
-          {/* 6. Date To */}
+          {/* 7. Date To */}
           <div className="space-y-1.5 w-full">
             <Label className="text-xs font-bold uppercase text-muted-foreground">
               Date To
@@ -1224,7 +1297,7 @@ export default function MembersTable() {
             </Popover>
           </div>
 
-          {/* 7. Actions */}
+          {/* 8. Actions */}
           <div className="space-y-1.5 w-full">
             <Label className="text-xs font-bold uppercase text-muted-foreground">
               Clear Filters
@@ -1265,8 +1338,8 @@ export default function MembersTable() {
 
                 {/* OTHER HEADERS */}
                 {[
-                  { label: "Phone", key: "phone" },
                   { label: "Plan", key: "plan" },
+                  { label: "Source", key: "source" },
                   { label: "Joined", key: "joined" },
                   { label: "Start Date", key: "startDate" },
                   { label: "Expiry Date", key: "expiry" },
@@ -1331,16 +1404,15 @@ export default function MembersTable() {
                     >
                       {member.name}
                     </TableCell>
-
-                    <TableCell className="text-center px-4 font-mono text-sm bg-card">
-                      {member.phone}
-                    </TableCell>
                     <TableCell className="text-center px-4 bg-card">
                       <div className="inline-flex w-18 h-6 items-center justify-center rounded-md bg-black dark:bg-white px-2 shadow-sm">
                         <span className="block w-full text-center truncate text-xs font-medium text-white dark:text-black">
                           {member.plan || "N/A"}
                         </span>
                       </div>
+                    </TableCell>
+                    <TableCell className="text-center px-4 font-bold text-sm bg-card">
+                      {member.source || "N/A"}
                     </TableCell>
                     <TableCell className="text-center px-4 text-muted-foreground bg-card whitespace-nowrap">
                       {member.joined}

@@ -8,6 +8,7 @@ import {
   History,
   FileSpreadsheet,
   FileSpreadsheetIcon,
+  Route,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import {
@@ -36,7 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import ExportReportDialog from "../../pages/ExportReportDialog";
 
-import { LogOut, UserPen } from "lucide-react";
+import { LogOut, UserPen, LayoutTemplate } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronsUpDown, Dumbbell } from "lucide-react";
 import { useProfile } from "../../contexts/ProfileContext";
@@ -44,10 +45,11 @@ import { useAuth } from "../../contexts/AuthContext";
 import { Button } from "../ui/button";
 import { exportMembers, exportPayments } from "../../apis/backend_apis";
 import { useEffect, useState } from "react";
+import ExportSubscriptionData from "../../pages/ExportSubscriptionData";
 
 export function AppSidebar() {
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
-
+  const [openSubscription, setOpenSubscription] = useState(false);
   const [reportType, setReportType] = useState("members");
 
   const [exporting, setExporting] = useState(false);
@@ -59,13 +61,25 @@ export function AppSidebar() {
       icon: LayoutDashboard,
       act: "overview",
     },
+    {
+      title: "Sources",
+      url: "/sources",
+      icon: Route,
+      act: "overview",
+    },
     { title: "Members", url: "/members", icon: Users, act: "members" },
+    {
+      title: "Invoice Templates",
+      url: "/invoice-templates",
+      icon: LayoutTemplate,
+      act: "members",
+    },
     { title: "Payments", url: "/payments", icon: CreditCard, act: "members" },
     { title: "Plans", url: "/plans", icon: Package, act: "members" },
     { title: "Settings", url: "/settings", icon: Settings, act: "Owner" },
     { title: "Pricing", url: "/pricing", icon: Currency, act: "Owner" },
     {
-      title: "History & Invoices",
+      title: "Billing History",
       url: "/paymentHistory",
       icon: History,
       act: "Owner",
@@ -74,6 +88,11 @@ export function AppSidebar() {
       title: "Data Exports",
       icon: FileSpreadsheetIcon,
       act: "members",
+    },
+    {
+      title: "Export Billing Reports",
+      icon: FileSpreadsheetIcon,
+      act: "Owner",
     },
   ];
 
@@ -181,7 +200,10 @@ export function AppSidebar() {
                       >
                         <Link
                           to={item.url}
-                          onClick={() => setOpenMobile(false)}
+                          onClick={() => {
+                            console.log("Clicked Sources", performance.now());
+                            setOpenMobile(false);
+                          }}
                         >
                           <item.icon />
                           <span>{item.title}</span>
@@ -191,7 +213,7 @@ export function AppSidebar() {
                   ))}
               </SidebarMenu>
             </SidebarGroupContent>
-            <SidebarGroupLabel>Members</SidebarGroupLabel>
+            <SidebarGroupLabel>Operations</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {items
@@ -205,24 +227,6 @@ export function AppSidebar() {
                     const tooltipContent = isPremiumLocked
                       ? "Upgrade to Max Pro to unlock Data Exports"
                       : item.title;
-
-                    // <SidebarMenuItem key={item.title}>
-                    //   <SidebarMenuButton
-                    //     asChild
-                    //     isActive={location.pathname === item.url}
-                    //     tooltip={item.title}
-                    //     className="transition-colors data-[active=true]:bg-black data-[active=true]:text-white dark:data-[active=true]:bg-white dark:data-[active=true]:text-black"
-                    //   >
-                    //     <Link
-                    //       to={item.url}
-                    //       onClick={() => setOpenMobile(false)}
-                    //     >
-                    //       <item.icon />
-                    //       <span>{item.title}</span>
-                    //     </Link>
-                    //   </SidebarMenuButton>
-                    // </SidebarMenuItem>
-
                     return (
                       <SidebarMenuItem key={item.title}>
                         {isExport ? (
@@ -240,6 +244,7 @@ export function AppSidebar() {
                               onClick={() => {
                                 if (isPremiumLocked) return;
                                 handleMobileClose();
+                                // setOpenSubscription(true);
                                 setExportDialogOpen(true);
                               }}
                               /* FIXED pointer-events: forced pointer-events-auto so Shadcn/Radix tooltip can track mouse position */
@@ -293,9 +298,9 @@ export function AppSidebar() {
                   })}
               </SidebarMenu>
             </SidebarGroupContent>
-            <SidebarGroupLabel>Owner</SidebarGroupLabel>
+            <SidebarGroupLabel>Accounts</SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu>
+              {/* <SidebarMenu>
                 {items
                   .filter((item) => item.act === "Owner")
                   .map((item) => (
@@ -316,6 +321,88 @@ export function AppSidebar() {
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}
+              </SidebarMenu> */}
+              <SidebarMenu>
+                {items
+                  .filter((item) => item.act === "Owner")
+                  .map((item) => {
+                    const isExport = item.title === "Export Billing Reports";
+                    const isPremiumLocked =
+                      isExport && profile?.planName !== "Max Pro";
+
+                    // FIXED: Fallback to regular item title if feature is NOT premium locked
+                    const tooltipContent = isPremiumLocked
+                      ? "Upgrade to Max Pro to unlock Data Exports"
+                      : item.title;
+                    return (
+                      <SidebarMenuItem key={item.title}>
+                        {isExport ? (
+                          <span
+                            title={isPremiumLocked ? tooltipContent : undefined}
+                            className={
+                              isPremiumLocked
+                                ? "w-full block cursor-not-allowed"
+                                : "w-full block"
+                            }
+                          >
+                            <SidebarMenuButton
+                              tooltip={tooltipContent}
+                              disabled={isPremiumLocked}
+                              onClick={() => {
+                                if (isPremiumLocked) return;
+                                handleMobileClose();
+                                setOpenSubscription(true);
+                              }}
+                              className="w-full transition-colors pointer-events-auto data-[disabled=true]:opacity-50 data-[disabled=true]:hover:bg-transparent"
+                            >
+                              <div className="flex items-center justify-between w-full gap-2">
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                  <item.icon
+                                    className={`h-4 w-4 shrink-0 ${
+                                      isPremiumLocked
+                                        ? "text-muted-foreground/70"
+                                        : ""
+                                    }`}
+                                  />
+
+                                  <span
+                                    className={`truncate ${
+                                      isPremiumLocked
+                                        ? "text-muted-foreground/70"
+                                        : ""
+                                    }`}
+                                  >
+                                    {item.title}
+                                  </span>
+                                </div>
+
+                                {isPremiumLocked && (
+                                  <span className="shrink-0 text-[10px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded bg-amber-500 text-black dark:bg-amber-400">
+                                    Max Pro
+                                  </span>
+                                )}
+                              </div>
+                            </SidebarMenuButton>
+                          </span>
+                        ) : (
+                          <SidebarMenuButton
+                            asChild
+                            isActive={location.pathname === item.url}
+                            tooltip={item.title}
+                            className="transition-colors data-[active=true]:bg-black data-[active=true]:text-white dark:data-[active=true]:bg-white dark:data-[active=true]:text-black"
+                          >
+                            <Link
+                              to={item.url}
+                              onClick={() => setOpenMobile(false)}
+                            >
+                              <item.icon />
+                              <span>{item.title}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        )}
+                      </SidebarMenuItem>
+                    );
+                  })}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -411,6 +498,11 @@ export function AppSidebar() {
         setReportType={setReportType}
         exporting={exporting}
         onExport={handleExport}
+      />
+
+      <ExportSubscriptionData
+        open={openSubscription}
+        onOpenChange={setOpenSubscription}
       />
     </>
   );

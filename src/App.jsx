@@ -18,6 +18,8 @@ import ProtectedRoute from "./auth/ProtectedRoute";
 import PricingPage from "./pages/PricingPage";
 import PaymentHistoryTable from "./pages/PaymentHistoryTable";
 import { ProfileProvider } from "./contexts/ProfileContext";
+import SourcesPage from "./pages/SourcesPage";
+import InvoiceTemplatesPage from "./pages/InvoiceTemplatesPage";
 
 function App() {
   const { dark, toggleDark } = useTheme();
@@ -35,10 +37,12 @@ function App() {
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/members" element={<Members />} />
                 <Route path="/payments" element={<Payments />} />
+                <Route path="/sources" element={<SourcesPage />} />
                 <Route path="/plans" element={<Plans />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/pricing" element={<PricingPage />} />
                 <Route path="/paymentHistory" element={<PaymentHistoryTable />} />
+                <Route path="/invoice-templates" element={<InvoiceTemplatesPage />} />
               </Route>
             </Route>
           </Routes>

@@ -15,8 +15,8 @@ import {
 
 const categoryLabels: Record<string, string> = {
   overview: "Overview",
-  members: "Members",
-  Owner: "Owner",
+  members: "Operations",
+  Owner: "Accounts",
 };
 
 export function SiteHeader() {
@@ -27,6 +27,11 @@ export function SiteHeader() {
     {
       title: "Dashboard",
       url: "/dashboard",
+      act: "overview",
+    },
+     {
+      title: "Sources",
+      url: "/sources",
       act: "overview",
     },
     { title: "Members", url: "/members", act: "members" },

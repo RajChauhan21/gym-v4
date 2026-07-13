@@ -44,6 +44,8 @@ export default function AddMemberDialog({
   setActiveMembersCount,
 }) {
   const plans = useGymStore((state) => state.plans);
+  const sources = useGymStore((state) => state.sources);
+  const fetchSources = useGymStore((state) => state.fetchSources);
   const [errors, setErrors] = useState({});
   // const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -59,6 +61,7 @@ export default function AddMemberDialog({
     amount: "",
     address: "",
     email: "",
+    source: "",
     joiningDate: null,
     expiryDate: null,
     startDate: null,
@@ -99,6 +102,9 @@ export default function AddMemberDialog({
 
   useEffect(() => {
     if (editingMember) {
+      const matchedSource = sources?.find(
+        (s) => s.name.toLowerCase() === editingMember.source?.toLowerCase(),
+      );
       setForm({
         name: editingMember.name,
         plan: editingMember.plan,
@@ -106,6 +112,7 @@ export default function AddMemberDialog({
         email: editingMember.email || "abc4757@gmail.com",
         address: editingMember.address || "12",
         amount: editingMember.due || 0,
+        source: matchedSource ? matchedSource.id : null,
         joiningDate: editingMember.joined || null,
         expiryDate: editingMember.expiry || null,
         startDate: editingMember.startDate || null,
@@ -131,6 +138,7 @@ export default function AddMemberDialog({
     amount: "",
     address: "",
     email: "",
+    source: "",
     expiryDate: null,
     joiningDate: null,
     startDate: null,
@@ -147,6 +155,10 @@ export default function AddMemberDialog({
   useEffect(() => {
     validate();
   }, [form]);
+
+  useEffect(() => {
+    fetchSources(profile?.ownerId);
+  }, []);
 
   const validate = () => {
     let newErrors = {};
@@ -192,6 +204,12 @@ export default function AddMemberDialog({
       newErrors.joiningDate = "Joining date required";
     }
 
+    if (profile.planName === "Max Pro") {
+      if (!form.source && sources) {
+        newErrors.source = "Source required";
+      }
+    }
+
     if (!form.startDate) {
       newErrors.startDate = "Start date required";
     }
@@ -233,6 +251,7 @@ export default function AddMemberDialog({
         email: form.email || "",
         phone: form.phone || "",
         address: form.address || "",
+        sourceId: form.source || null,
         joined: form.joiningDate || null,
         expiry: form.expiryDate || null,
         startDate: form.startDate || null,
@@ -425,6 +444,7 @@ export default function AddMemberDialog({
             </div>
           </div>
 
+          {/* Membership start date */}
           <div className="space-y-1">
             <Label>Membership Start Date</Label>
             <Popover
@@ -502,6 +522,7 @@ export default function AddMemberDialog({
             </div>
           </div>
 
+          {/* Pacakge */}
           <div>
             <Label className="mb-1 block">Package</Label>
             <Select
@@ -577,22 +598,38 @@ export default function AddMemberDialog({
             </div>
           </div>
 
-          {/* <div>
-            <Label className="mb-1 block">Amount</Label>
-            <Input
-              disabled={loading}
-              type="number"
-              placeholder="Enter amount"
-              value={form.amount}
-              onChange={(e) => setForm({ ...form, amount: e.target.value })}
-              onKeyDown={allowOnlyNumbers}
-            />
-            <div className="min-h-[20px]">
-              {errors?.amount && (
-                <p className="text-red-500 text-sm">{errors.amount}</p>
-              )}
+          {/* Source */}
+          {profile.planName === "Max Pro" && (
+            <div>
+              <Label className="mb-1 block">Source</Label>
+              <Select
+                disabled={loading}
+                // 1. Convert the selected string ID back to a Number for your form state
+                onValueChange={(value) =>
+                  setForm({ ...form, source: Number(value) })
+                }
+                // 2. Safely cast the number ID to a string so Shadcn can match and display the active label
+                value={form.source ? String(form.source) : ""}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a source" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sources.map((s) => (
+                    // 3. Converted s.id to String and swapped array index with unique s.id for the key
+                    <SelectItem key={s.id} value={String(s.id)}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="min-h-[20px]">
+                {errors?.source && (
+                  <p className="text-red-500 text-sm">{errors.source}</p>
+                )}
+              </div>
             </div>
-          </div> */}
+          )}
         </div>
 
         {/* Footer: Stays at bottom of content or bottom of modal */}

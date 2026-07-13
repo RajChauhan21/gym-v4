@@ -14,6 +14,7 @@ import {
   CreditCard,
   Clock,
   TimerIcon,
+  Route,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -170,14 +171,21 @@ export function MemberDetailsModal({ member, open, onOpenChange }) {
             <DetailItem
               icon={<MapPin className="size-4 text-primary" />}
               label="Home Address"
-              value={member.address || "No address on file"}
+              value={member.address || "Not Provided"}
               isLongText
             />
 
             <DetailItem
               icon={<TimerIcon className="size-4 text-primary" />}
               label="Joined"
-              value={member.joined || "No address on file"}
+              value={member.joined || "N/A"}
+              isLongText
+            />
+
+            <DetailItem
+              icon={<Route className="size-4 text-primary" />}
+              label="Source"
+              value={member.source || "N/A"}
               isLongText
             />
           </div>

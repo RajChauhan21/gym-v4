@@ -742,7 +742,6 @@ export const exportMembers = async (ownerId, filters = {}) => {
   }
 };
 
-
 export const exportPayments = async (ownerId, filters = {}) => {
   const cleanFilters = Object.fromEntries(
     Object.entries(filters).filter(
@@ -762,3 +761,190 @@ export const exportPayments = async (ownerId, filters = {}) => {
     return errror;
   }
 };
+
+export const exportSubcriptions = async (ownerId, filters = {}) => {
+  const cleanFilters = Object.fromEntries(
+    Object.entries(filters).filter(
+      ([_, value]) => value !== "" && value !== null && value !== undefined,
+    ),
+  );
+  try {
+    const response = await constant.get("owner/export-subscription", {
+      params: {
+        q: ownerId,
+        ...cleanFilters,
+      },
+      responseType: "blob",
+    });
+    return response;
+  } catch (errror) {
+    return errror;
+  }
+};
+
+export async function getPaymentHistory(ownerId, filters = {}) {
+  // Clean filters: Remove keys with empty strings or null values
+  const cleanFilters = Object.fromEntries(
+    Object.entries(filters).filter(
+      ([_, value]) => value !== "" && value !== null && value !== undefined,
+    ),
+  );
+
+  try {
+    const response = await constant.get(
+      "/owner/getPaymentHistoryCountByOwner",
+      {
+        params: {
+          q: ownerId,
+          ...cleanFilters, // Spreads name, dueAmount, joinedFrom, etc.
+        },
+      },
+    );
+    return response;
+  } catch (error) {
+    console.error("API Error in getAllMembersCount:", error.response || error);
+    return error.response;
+  }
+}
+
+export async function getAllSources(ownerId) {
+  try {
+    const response = await constant.get("/member-source/getAll", {
+      params: {
+        q: ownerId,
+      },
+    });
+    console.log("get all sources response:", response);
+    return response;
+  } catch (error) {
+    error.response || error;
+  }
+}
+
+export async function getMembersCount(sourceId) {
+  try {
+    const response = await constant.get("/member-source/count-member-source", {
+      params: {
+        q: sourceId,
+      },
+    });
+    console.log("get members count by source id response:", response);
+    return response;
+  } catch (error) {
+    error.response || error;
+  }
+}
+
+export async function saveSourceDetails(source) {
+  try {
+    // Await the post request directly
+    const response = await constant.post("/member-source/save", source);
+    console.log("Source Data Response:", response);
+    return response;
+  } catch (error) {
+    // Re-throw the error so your handleSave catch block can handle the UI toast
+    console.error("API Error in saveSourceDetails:", error.response || error);
+    return error.response;
+  }
+}
+
+export async function updateSourceDetails(source) {
+  try {
+    // Await the post request directly
+    const response = await constant.post("/member-source/update", source);
+    console.log("Update Source Data Response:", response);
+    return response;
+  } catch (error) {
+    // Re-throw the error so your handleSave catch block can handle the UI toast
+    console.error("API Error in updateSourceDetails:", error.response || error);
+    return error.response;
+  }
+}
+
+export async function deleteSource(sourceId) {
+  try {
+    const response = await constant.get("/member-source/delete", {
+      params: {
+        q: sourceId,
+      },
+    });
+    console.log("delete source response:", response);
+    return response;
+  } catch (error) {
+    error.response || error;
+  }
+}
+
+export async function getSourceAnalytics(ownerId) {
+  try {
+    const response = await constant.get("/member-source/get-source-analytics", {
+      params: {
+        q: ownerId,
+      },
+    });
+    console.log("get source analytics response:", response);
+    return response;
+  } catch (error) {
+    error.response || error;
+  }
+}
+
+export async function downloadInvoice(paymentId, ownerId) {
+  try {
+    const response = await constant.get("/member/invoice/pdf", {
+      params: {
+        p: paymentId,
+        o:ownerId
+      },
+      responseType: "blob", // CRITICAL: This tells the request library to handle raw binary data
+    });
+    console.log("download member invoice response:", response);
+    return response;
+  } catch (error) {
+    throw error.response || error;
+  }
+}
+
+export async function previewTemplate(templateName) {
+  try {
+    const response = await constant.get(
+      "/invoice/template-preview/" + templateName,
+    );
+    console.log("template preview response:", response);
+    return response;
+  } catch (error) {
+    throw error.response || error;
+  }
+}
+
+export async function getAllTemplates(ownerId) {
+  try {
+    const response = await constant.get(
+      "/invoice/template-preview/preview-all",
+      {
+        params: {
+          o: ownerId,
+        },
+      },
+    );
+    console.log("all template preview response:", response);
+    return response;
+  } catch (error) {
+    throw error.response || error;
+  }
+}
+
+export async function selectTemplate(ownerId, templateId) {
+  try {
+    const response = await constant.get("/owner/select-template", {
+      params: {
+        o: ownerId,
+        t: templateId,
+      },
+    });
+    console.log("select template response:", response);
+    return response;
+  } catch (error) {
+    throw error.response || error;
+  }
+}

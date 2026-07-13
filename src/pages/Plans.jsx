@@ -66,6 +66,7 @@ export default function Plans() {
         }
 
         console.log("Fetched plans data:", response.data);
+        console.log(plans);
       } catch (err) {
         console.error("Initial load failed:", err);
       } finally {
@@ -197,7 +198,7 @@ export default function Plans() {
                       <CardTitle className="text-xl font-bold">
                         {plan.name}
                       </CardTitle>
-                      <Package className="size-5 text-muted-foreground opacity-20" />
+                      <Package className="size-5 text-black dark:text-white" />
                     </div>
                   </CardHeader>
 
