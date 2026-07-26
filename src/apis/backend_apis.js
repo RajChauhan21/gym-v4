@@ -894,7 +894,7 @@ export async function downloadInvoice(paymentId, ownerId) {
     const response = await constant.get("/member/invoice/pdf", {
       params: {
         p: paymentId,
-        o:ownerId
+        o: ownerId,
       },
       responseType: "blob", // CRITICAL: This tells the request library to handle raw binary data
     });
@@ -948,3 +948,36 @@ export async function selectTemplate(ownerId, templateId) {
     throw error.response || error;
   }
 }
+
+export const importMembers = async (file, ownerId) => {
+  const formData = new FormData();
+
+  formData.append("file", file);
+
+  // Appended ownerId as a query parameter '?o=' to match the backend @RequestParam("o")
+  const response = await constant.post(
+    `/owner/members/import?o=${ownerId}`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+      withCredentials: true,
+    },
+  );
+
+  return response;
+};
+
+export const downloadMemberImportTemplate = async () => {
+  try {
+    const response = await constant.get("/owner/download-template", {
+      responseType: "blob",
+    });
+    console.log("download sample excel response:", response);
+    return response;
+  } catch (error) {
+    console.error("Failed to download member import template:", error);
+    throw error; // Changed from 'return error' to correctly trigger catch blocks upstream
+  }
+};

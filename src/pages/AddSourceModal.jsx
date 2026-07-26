@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Route, Plus, Loader2 } from "lucide-react";
+import { Route, Plus, Loader2, X } from "lucide-react";
 
 import {
   Dialog,
@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 
 const SUGGESTED_SOURCES = [
   "Instagram",
@@ -61,7 +62,12 @@ export function AddSourceModal({
       open={open}
       onOpenChange={(val) => (!val ? handleClose() : onOpenChange?.(val))}
     >
-      <DialogContent className="sm:max-w-md gap-0 overflow-hidden p-0">
+      <DialogContent
+        className="sm:max-w-md gap-0 overflow-hidden p-0"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         {/* Header */}
         <DialogHeader className="border-b px-6 py-5">
           <div className="flex items-start gap-4">
@@ -73,6 +79,14 @@ export function AddSourceModal({
               <DialogTitle className="text-xl font-semibold tracking-tight">
                 {editingSource ? "Update Source" : "Add Source"}
               </DialogTitle>
+              <DialogPrimitive.Close
+                disabled={loading}
+                className="absolute right-4 top-4 opacity-70 hover:opacity-100 transition-opacity outline-none"
+                onClick={handleClose} // Also clear form if they just close the modal
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </DialogPrimitive.Close>
               <DialogDescription className="text-sm text-muted-foreground">
                 {editingSource
                   ? "Update the source name."
@@ -88,7 +102,7 @@ export function AddSourceModal({
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <Label htmlFor="source-name" className="text-sm font-medium">
-                Source Name
+                Source Name<span className="text-red-500">*</span>
               </Label>
               <span className="text-xs text-muted-foreground">
                 {name.length}/{MAX_CHARS}
@@ -154,7 +168,7 @@ export function AddSourceModal({
             variant="ghost"
             onClick={handleClose}
             disabled={loading}
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto mb-2"
           >
             Cancel
           </Button>
@@ -180,7 +194,7 @@ export function AddSourceModal({
           <Button
             onClick={handleSubmit}
             disabled={loading || !name.trim()}
-            className="w-full sm:w-auto min-w-[130px]"
+            className="w-full sm:w-auto min-w-[130px] mb-2"
           >
             {loading
               ? editingSource

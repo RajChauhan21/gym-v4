@@ -15,8 +15,10 @@ import {
   Clock,
   TimerIcon,
   Route,
+  X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 
 export function MemberDetailsModal({ member, open, onOpenChange }) {
   if (!member) return null;
@@ -117,6 +119,13 @@ export function MemberDetailsModal({ member, open, onOpenChange }) {
               <DialogTitle className="text-xl font-bold truncate">
                 {member.name}
               </DialogTitle>
+              <DialogPrimitive.Close
+                className="absolute right-4 top-4 opacity-70 hover:opacity-100 transition-opacity outline-none"
+                onClick={onOpenChange} // Also clear form if they just close the modal
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </DialogPrimitive.Close>
               <div className="flex flex-wrap gap-2 mt-1">
                 <Badge
                   variant="outline"
@@ -124,7 +133,8 @@ export function MemberDetailsModal({ member, open, onOpenChange }) {
                 >
                   {member.plan} Plan
                 </Badge>
-                <Badge variant="outline"
+                <Badge
+                  variant="outline"
                   className={`max-w-[120px] truncate bg-background text-center ${getExpiryTextColor(member.expiry)}`}
                   title={getExpiryText(member.expiry)} // Shows full text on hover
                 >

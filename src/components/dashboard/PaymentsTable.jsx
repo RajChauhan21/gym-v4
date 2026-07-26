@@ -374,27 +374,63 @@ export default function PaymentsTable() {
   });
 
   const validate = () => {
-    let newErrors = {};
+    const errors = {};
+
+    Object.keys(newPayment).forEach((field) => {
+      const error = validateField(field, newPayment[field]);
+
+      if (error) {
+        errors[field] = error;
+      }
+    });
+    return errors;
+  };
+
+  const handleFieldValidation = (field, value) => {
+    const error = validateField(field, value);
+
+    console.log({
+      field,
+      value,
+      error,
+    });
+
+    setErrors((prev) => {
+      const updated = { ...prev };
+      if (error) {
+        updated[field] = error;
+      } else {
+        delete updated[field];
+      }
+      return updated;
+    });
+  };
+
+  const validateField = (name, value) => {
     const textRegex = /^[a-zA-Z\s'.-]+$/;
 
-    if (newPayment.name === null) {
-      newErrors.name = "member name required";
-    } else if (!textRegex.test(newPayment.name)) {
-      newErrors.name = "Member name should only contain letters";
-    }
+    switch (name) {
+      case "name":
+        if (!value || !value.trim()) return "Member name required";
+        if (!textRegex.test(value))
+          return "Member name should only contain letters";
+        return "";
 
-    if (newPayment.amount === null || newPayment.amount === "") {
-      newErrors.amount = "Amount required";
-    }
+      case "amount":
+        if (!value) return "Amount required";
+        return "";
 
-    if (!newPayment.method.trim()) {
-      newErrors.method = "Method required";
-    }
+      case "method":
+        if (!value) return "Method required";
+        return "";
 
-    if (!newPayment.date) {
-      newErrors.date = "Date required";
+      case "date":
+        if (!value) return "Date required";
+        return "";
+
+      default:
+        return "";
     }
-    return newErrors;
   };
 
   const sendReceiptEmail = (paymentId) => {
@@ -629,7 +665,7 @@ export default function PaymentsTable() {
             <div className="space-y-4">
               {/* Member Name */}
               <div>
-                <Label className="mb-1">Member</Label>
+                <Label className="mb-1">Member<span className="text-red-500">*</span></Label>
 
                 <Popover open={memberOpen} onOpenChange={setMemberOpen}>
                   <PopoverTrigger asChild>
@@ -666,7 +702,7 @@ export default function PaymentsTable() {
                                   name: member.fullName,
                                   plan: member.planName || "",
                                 }));
-
+                                handleFieldValidation("name", member.fullName);
                                 setMemberOpen(false);
                               }}
                             >
@@ -688,14 +724,21 @@ export default function PaymentsTable() {
 
               {/* Amount */}
               <div>
-                <Label className="mb-1">Amount</Label>
+                <Label className="mb-1">Amount<span className="text-red-500">*</span></Label>
                 <Input
                   type="number"
                   placeholder="Enter amount"
                   value={newPayment.amount}
-                  onChange={(e) =>
-                    setNewPayment({ ...newPayment, amount: e.target.value })
-                  }
+                  onChange={(e) => {
+                    const value = e.target.value;
+
+                    setNewPayment((prev) => ({
+                      ...prev,
+                      amount: value,
+                    }));
+
+                    handleFieldValidation("amount", value);
+                  }}
                 />
                 <div className="min-h-[20px]">
                   {errors?.amount && (
@@ -706,12 +749,17 @@ export default function PaymentsTable() {
 
               {/* Payment Method */}
               <div>
-                <Label className="mb-1">Payment Method</Label>
+                <Label className="mb-1">Payment Method<span className="text-red-500">*</span></Label>
                 <Select
                   value={newPayment.method}
-                  onValueChange={(value) =>
-                    setNewPayment({ ...newPayment, method: value })
-                  }
+                  onValueChange={(value) => {
+                    setNewPayment((prev) => ({
+                      ...prev,
+                      method: value,
+                    }));
+
+                    handleFieldValidation("method", value);
+                  }}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select method" />
@@ -731,7 +779,7 @@ export default function PaymentsTable() {
               </div>
 
               <div>
-                <Label className="mb-1">Date</Label>
+                <Label className="mb-1">Date<span className="text-red-500">*</span></Label>
                 <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                   <PopoverTrigger asChild>
                     <Button
@@ -763,11 +811,16 @@ export default function PaymentsTable() {
                         newPayment.date ? parseISO(newPayment.date) : new Date()
                       }
                       onSelect={(date) => {
-                        setNewPayment({
-                          ...newPayment,
-                          date: date ? format(date, "yyyy-MM-dd") : "",
-                        });
-                        setIsCalendarOpen(false); // This closes the popover automatically
+                        const value = date ? format(date, "yyyy-MM-dd") : "";
+
+                        setNewPayment((prev) => ({
+                          ...prev,
+                          date: value,
+                        }));
+
+                        handleFieldValidation("date", value);
+
+                        setIsCalendarOpen(false);
                       }}
                       initialFocus
                     />
@@ -1368,14 +1421,14 @@ export default function PaymentsTable() {
             <TableBody>
               {loading ? (
                 /* LOADING STATE: Skeleton Rows */
-                Array.from({ length: 10 }).map((_, i) => (
+                Array.from({ length: 11 }).map((_, i) => (
                   <TableRow key={i}>
                     {/* Skeleton for Sticky Name */}
                     <TableCell className="sticky left-0 bg-card pl-6">
-                      <Skeleton className="h-4 bg-slate-200 dark:bg-slate-800 rounded" />
+                      <Skeleton className="h-4  bg-slate-200 dark:bg-slate-800 rounded" />
                     </TableCell>
                     {/* Skeletons for other 7 columns */}
-                    {Array.from({ length: 8 }).map((_, j) => (
+                    {Array.from({ length: 6 }).map((_, j) => (
                       <TableCell key={j}>
                         <Skeleton className="mx-auto h-4 bg-slate-200 dark:bg-slate-800 rounded" />
                       </TableCell>

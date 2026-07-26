@@ -9,6 +9,7 @@ import {
   Maximize2,
   ExternalLink,
   Check,
+  X,
 } from "lucide-react";
 import PreviewFrame from "./PreviewFrame";
 
@@ -25,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 
 import { Separator } from "@/components/ui/separator";
 import { previewTemplate } from "../apis/backend_apis";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 
 export default function PreviewDialog({
   open,
@@ -56,6 +58,15 @@ export default function PreviewDialog({
               <DialogTitle className="text-xl sm:text-2xl">
                 {template.name}
               </DialogTitle>
+              <DialogPrimitive.Close
+                className="absolute right-4 top-4 opacity-70 hover:opacity-100 transition-opacity outline-none"
+                disabled={isActive || loading}
+                onClick={onOpenChange} // Also clear form if they just close the modal
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </DialogPrimitive.Close>
+
               <p className="mt-2 text-sm sm:text-base text-muted-foreground">
                 {template.description}
               </p>

@@ -1,4 +1,4 @@
-import { useState, useEffect, memo } from "react";
+import { useState, useEffect, memo, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -41,7 +41,9 @@ export default function AddMemberDialog({
   setOpen,
   editingMember,
   setEditingMember,
-  setActiveMembersCount,
+  fetchActiveMemberCount,
+  fetchAllMemberCount,
+  fetchAllMembers,
 }) {
   const plans = useGymStore((state) => state.plans);
   const sources = useGymStore((state) => state.sources);
@@ -67,36 +69,79 @@ export default function AddMemberDialog({
     startDate: null,
   });
 
-  const getActiveMembersCount = async () => {
-    try {
-      const response = await getActiveMembers(profile.ownerId, 1);
-      if (response.status === 202 || response.data.statusCodeValue === 202) {
-        setActiveMembersCount(response.data || 0);
-      } else if (response.status === 404) {
-      } else if (response.status === 429) {
-      }
-    } catch (error) {
-    } finally {
+  const fieldRefs = {
+    name: useRef(null),
+    joiningDate: useRef(null),
+    startDate: useRef(null),
+    plan: useRef(null),
+    phone: useRef(null),
+    email: useRef(null),
+    address: useRef(null),
+    source: useRef(null),
+  };
+
+  const focusFirstError = (validationErrors) => {
+    const firstErrorField = Object.keys(validationErrors)[0];
+
+    const element = fieldRefs[firstErrorField]?.current;
+
+    if (!element) return;
+
+    element.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+
+    // Only works for actual input/button refs, not wrapper divs
+    if (typeof element.focus === "function") {
+      element.focus();
     }
   };
 
   const fetchMembers = useGymStore((state) => state.fetchMembers);
 
+  // useEffect(() => {
+  //   if (form.startDate && form.plan) {
+  //     // Find the selected plan object to get its validity months
+  //     const selectedPlan = plans.find((p) => p.name === form.plan);
+
+  //     if (selectedPlan) {
+  //       const startDate = new Date(form.startDate);
+  //       const expiryDate = addMonths(startDate, selectedPlan.validity);
+
+  //       // Format to yyyy-MM-dd for Java LocalDate compatibility
+  //       setForm((prev) => ({
+  //         ...prev,
+  //         expiryDate: format(expiryDate, "yyyy-MM-dd"),
+  //       }));
+  //     }
+  //   }
+  // }, [form.startDate, form.plan, plans]);
+
   useEffect(() => {
     if (form.startDate && form.plan) {
-      // Find the selected plan object to get its validity months
       const selectedPlan = plans.find((p) => p.name === form.plan);
 
       if (selectedPlan) {
         const startDate = new Date(form.startDate);
         const expiryDate = addMonths(startDate, selectedPlan.validity);
 
-        // Format to yyyy-MM-dd for Java LocalDate compatibility
+        const value = format(expiryDate, "yyyy-MM-dd");
+
         setForm((prev) => ({
           ...prev,
-          expiryDate: format(expiryDate, "yyyy-MM-dd"),
+          expiryDate: value,
         }));
+
+        handleFieldValidation("expiryDate", value);
       }
+    } else {
+      setForm((prev) => ({
+        ...prev,
+        expiryDate: "",
+      }));
+
+      handleFieldValidation("expiryDate", "");
     }
   }, [form.startDate, form.plan, plans]);
 
@@ -124,12 +169,6 @@ export default function AddMemberDialog({
     }
   }, [editingMember]);
 
-  const calculateExpiry = (months) => {
-    const date = new Date();
-    date.setMonth(date.getMonth() + Number(months));
-    return date.toISOString().split("T")[0];
-  };
-
   const initialFormState = {
     name: "",
     phone: "",
@@ -152,76 +191,89 @@ export default function AddMemberDialog({
     }
   };
 
-  useEffect(() => {
-    validate();
-  }, [form]);
+  const handleFieldValidation = (field, value) => {
+    const error = validateField(field, value);
 
+    setErrors((prev) => {
+      const updated = { ...prev };
+
+      if (error) {
+        updated[field] = error;
+      } else {
+        delete updated[field];
+      }
+
+      return updated;
+    });
+  };
+
+  const validateField = (name, value) => {
+    const textRegex = /^[a-zA-Z\s'.-]+$/;
+    const addressRegex = /^[a-zA-Z0-9\s,.'#/-]+$/;
+    const phoneRegex = /^(?:\+91|91|0)?\s*[6-9]\d{9}$/;
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+    switch (name) {
+      case "name":
+        if (!value.trim()) return "Member name required";
+        if (!textRegex.test(value))
+          return "Member name should only contain letters";
+        if (value.trim().length > 15) return "Maximum 15 letters allowed";
+        return "";
+
+      case "address":
+        if (!value.trim()) return "Address required";
+        if (!addressRegex.test(value))
+          return "Invalid characters found in address";
+        return "";
+
+      case "phone":
+        if (!value) return "Phone number is required";
+        if (!phoneRegex.test(value.replace(/[\s()-]/g, "")))
+          return "Enter a valid 10 digit Indian phone number";
+        return "";
+
+      case "email":
+        if (!value.trim()) return "Email required";
+        if (!emailRegex.test(value)) return "Invalid email format";
+        return "";
+
+      case "joiningDate":
+        if (!value) return "Joining date required";
+        return "";
+
+      case "startDate":
+        if (!value) return "Start date required";
+        return "";
+
+      case "plan":
+        if (!value) return "Plan required";
+        return "";
+
+      // case "expiryDate":
+      //   if (!value) return "Expiry date required";
+      //   return "";
+
+      default:
+        return "";
+    }
+  };
   useEffect(() => {
     fetchSources(profile?.ownerId);
   }, []);
 
   const validate = () => {
-    let newErrors = {};
+    const errors = {};
 
-    // Text-only validation (Allows letters, spaces, and basic punctuation like hyphens/apostrophes)
-    const textRegex = /^[a-zA-Z\s'.-]+$/;
+    Object.keys(form).forEach((field) => {
+      const error = validateField(field, form[field]);
 
-    if (!form.name.trim()) {
-      newErrors.name = "member name required";
-    } else if (!textRegex.test(form.name)) {
-      newErrors.name = "Member name should only contain letters";
-    } else if (form.name.trim().length > 10) {
-      newErrors.name = "Maximum 10 letters allowed";
-    }
-
-    // Address: Allows letters, numbers, spaces, and common separators (/, #, -)
-    const addressRegex = /^[a-zA-Z0-9\s,.'#/-]+$/;
-    if (!form.address.trim()) {
-      newErrors.address = "Address required";
-    } else if (!addressRegex.test(form.address)) {
-      newErrors.address = "Invalid characters found in address";
-    }
-
-    // Phone Validation
-    const phoneRegex = /^\+?[1-9]\d{9,14}$/;
-
-    if (!form.phone) {
-      newErrors.phone = "Phone number is required";
-    } else if (!phoneRegex.test(form.phone.replace(/[\s()-]/g, ""))) {
-      // We strip spaces, dashes, and brackets before testing the regex
-      newErrors.phone = "Enter a valid international phone number";
-    }
-
-    // Strict Email Validation
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!form.email.trim()) {
-      newErrors.email = "Email required";
-    } else if (form.email && !emailRegex.test(form.email)) {
-      newErrors.email = "Invalid email format";
-    }
-
-    if (!form.joiningDate) {
-      newErrors.joiningDate = "Joining date required";
-    }
-
-    if (profile.planName === "Max Pro") {
-      if (!form.source && sources) {
-        newErrors.source = "Source required";
+      if (error) {
+        errors[field] = error;
       }
-    }
+    });
 
-    if (!form.startDate) {
-      newErrors.startDate = "Start date required";
-    }
-
-    if (!form.expiryDate) {
-      newErrors.expiryDate = "Expiry date required";
-    }
-
-    if (!form.plan) {
-      newErrors.plan = "Plan required";
-    }
-    return newErrors;
+    return errors;
   };
 
   const handleSubmit = async () => {
@@ -237,6 +289,7 @@ export default function AddMemberDialog({
     const validation = validate();
     if (Object.keys(validation).length > 0) {
       setErrors(validation);
+      focusFirstError(validation);
       setLoading(false);
       return;
     }
@@ -306,7 +359,9 @@ export default function AddMemberDialog({
       setOpen(false);
       setLoading(false);
       editingMember ? setEditingMember(null) : null; // Clear editing state after update
-      getActiveMembersCount();
+      fetchActiveMemberCount();
+      fetchAllMemberCount();
+      fetchAllMembers();
     }
   };
 
@@ -351,6 +406,7 @@ export default function AddMemberDialog({
             {editingMember ? "Update Member" : "Add New Member"}
           </DialogTitle>
           <DialogPrimitive.Close
+            disabled={loading}
             className="absolute right-4 top-4 opacity-70 hover:opacity-100 transition-opacity outline-none"
             onClick={resetForm} // Also clear form if they just close the modal
           >
@@ -359,7 +415,7 @@ export default function AddMemberDialog({
           </DialogPrimitive.Close>
         </DialogHeader>
 
-        {errorCount > 0 && (
+        {/* {errorCount > 0 && (
           <div className="mx-6 mt-4 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-900/50 dark:bg-red-950/30">
             <p className="mb-2 text-sm font-medium text-red-700 dark:text-red-400">
               Please fill/fix {errorCount} field{errorCount > 1 ? "s" : ""}{" "}
@@ -372,17 +428,29 @@ export default function AddMemberDialog({
               ))}
             </ul>
           </div>
-        )}
+        )} */}
 
         {/* Body: Scrollable only when content exceeds max-height */}
         <div className="overflow-y-auto p-6 space-y-4 no-scrollbar">
           <div>
-            <Label className="mb-1 block">Name</Label>
+            <Label className="mb-1 block">
+              Name <span className="text-red-500">*</span>
+            </Label>
             <Input
+              ref={fieldRefs.name}
               type="text"
               disabled={loading}
               placeholder="Enter name"
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value;
+
+                setForm((prev) => ({
+                  ...prev,
+                  name: value,
+                }));
+
+                handleFieldValidation("name", value);
+              }}
               value={form.name}
               onKeyDown={allowOnlyText}
             />
@@ -395,10 +463,13 @@ export default function AddMemberDialog({
           </div>
 
           <div className="space-y-1">
-            <Label>Date of Joining</Label>
+            <Label>
+              Date of Joining <span className="text-red-500">*</span>
+            </Label>
             <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
               <PopoverTrigger asChild>
                 <Button
+                  ref={fieldRefs.joiningDate}
                   variant={"outline"}
                   className={cn(
                     "w-full justify-start text-left font-normal px-3", // Added padding
@@ -427,11 +498,13 @@ export default function AddMemberDialog({
                     form.joiningDate ? parseISO(form.joiningDate) : new Date()
                   }
                   onSelect={(date) => {
-                    setForm({
-                      ...form,
-                      joiningDate: date ? format(date, "yyyy-MM-dd") : "",
-                    });
-                    setIsCalendarOpen(false); // This closes the popover automatically
+                    const value = date ? format(date, "yyyy-MM-dd") : "";
+                    setForm((prev) => ({
+                      ...prev,
+                      joiningDate: value,
+                    }));
+                    handleFieldValidation("joiningDate", value);
+                    setIsCalendarOpen(false);
                   }}
                   initialFocus
                 />
@@ -446,13 +519,16 @@ export default function AddMemberDialog({
 
           {/* Membership start date */}
           <div className="space-y-1">
-            <Label>Membership Start Date</Label>
+            <Label>
+              Membership Start Date <span className="text-red-500">*</span>
+            </Label>
             <Popover
               open={isStartDateCalendarOpen}
               onOpenChange={setIsStartDateCalendarOpen}
             >
               <PopoverTrigger asChild>
                 <Button
+                  ref={fieldRefs.startDate}
                   variant={"outline"}
                   className={cn(
                     "w-full justify-start text-left font-normal px-3", // Added padding
@@ -481,11 +557,16 @@ export default function AddMemberDialog({
                     form.startDate ? parseISO(form.startDate) : new Date()
                   }
                   onSelect={(date) => {
-                    setForm({
-                      ...form,
-                      startDate: date ? format(date, "yyyy-MM-dd") : "",
-                    });
-                    setIsStartDateCalendarOpen(false); // This closes the popover automatically
+                    const value = date ? format(date, "yyyy-MM-dd") : "";
+
+                    setForm((prev) => ({
+                      ...prev,
+                      startDate: value,
+                    }));
+
+                    handleFieldValidation("startDate", value);
+
+                    setIsStartDateCalendarOpen(false);
                   }}
                   initialFocus
                 />
@@ -498,9 +579,48 @@ export default function AddMemberDialog({
             </div>
           </div>
 
+          {/* Pacakge */}
+          <div>
+            <Label className="mb-1 block">
+              Package <span className="text-red-500">*</span>
+            </Label>
+            <Select
+              disabled={loading}
+              onValueChange={(value) => {
+                setForm((prev) => ({
+                  ...prev,
+                  plan: value,
+                }));
+
+                handleFieldValidation("plan", value);
+              }}
+              value={form.plan ? String(form.plan).trim() : ""}
+            >
+              <SelectTrigger className="w-full" ref={fieldRefs.plan}>
+                <SelectValue placeholder="Select a plan" />
+              </SelectTrigger>
+              <SelectContent>
+                {plans.map((plan, idx) => (
+                  <SelectItem key={idx} value={String(plan.name).trim()}>
+                    {/* {plan.name} ({plan.duration} Month
+                    {plan.duration > 1 ? "s" : ""}) - ₹{plan.price} */}
+                    {plan.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="min-h-[20px]">
+              {errors?.plan && (
+                <p className="text-red-500 text-sm">{errors.plan}</p>
+              )}
+            </div>
+          </div>
+
           {/* Expiry Date (Read Only / Auto-populated) */}
           <div className="space-y-1">
-            <Label>Membership End Date</Label>
+            <Label>
+              Membership End Date <span className="text-red-500">*</span>
+            </Label>
             <div className="relative">
               <Input
                 type="text"
@@ -522,40 +642,22 @@ export default function AddMemberDialog({
             </div>
           </div>
 
-          {/* Pacakge */}
-          <div>
-            <Label className="mb-1 block">Package</Label>
-            <Select
-              disabled={loading}
-              onValueChange={(value) => setForm({ ...form, plan: value })}
-              value={form.plan ? String(form.plan).trim() : ""}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select a plan" />
-              </SelectTrigger>
-              <SelectContent>
-                {plans.map((plan, idx) => (
-                  <SelectItem key={idx} value={String(plan.name).trim()}>
-                    {/* {plan.name} ({plan.duration} Month
-                    {plan.duration > 1 ? "s" : ""}) - ₹{plan.price} */}
-                    {plan.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="min-h-[20px]">
-              {errors?.plan && (
-                <p className="text-red-500 text-sm">{errors.plan}</p>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <Label className="mb-1 block">Phone Number</Label>
+          <div ref={fieldRefs.phone}>
+            <Label className="mb-1 block">
+              Phone Number <span className="text-red-500">*</span>
+            </Label>
             <PhoneNumberInput
+              // ref={fieldRefs.phone}
               disabled={loading}
               value={form.phone}
-              onChange={(value) => setForm({ ...form, phone: value })}
+              onChange={(value) => {
+                setForm((prev) => ({
+                  ...prev,
+                  phone: value,
+                }));
+
+                handleFieldValidation("phone", value);
+              }}
             />
             <div className="min-h-[20px]">
               {errors?.phone && (
@@ -565,13 +667,25 @@ export default function AddMemberDialog({
           </div>
 
           <div>
-            <Label className="mb-1 block">Email</Label>
+            <Label className="mb-1 block">
+              Email <span className="text-red-500">*</span>
+            </Label>
             <Input
+              ref={fieldRefs.email}
               type="email"
               disabled={loading}
               placeholder="Enter email"
               value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value;
+
+                setForm((prev) => ({
+                  ...prev,
+                  email: value,
+                }));
+
+                handleFieldValidation("email", value);
+              }}
             />
             {/* Placeholder for error messages to prevent layout jumping */}
             <div className="min-h-[20px]">
@@ -582,13 +696,23 @@ export default function AddMemberDialog({
           </div>
 
           <div>
-            <Label className="mb-1 block">Address</Label>
+            <Label className="mb-1 block">
+              Address<span className="text-red-500">*</span>
+            </Label>
             <Input
+              ref={fieldRefs.address}
               type="text"
               disabled={loading}
               placeholder="Enter address"
               value={form.address}
-              onChange={(e) => setForm({ ...form, address: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value;
+                setForm((prev) => ({
+                  ...prev,
+                  address: value,
+                }));
+                handleFieldValidation("address", value);
+              }}
             />
             {/* Placeholder for error messages to prevent layout jumping */}
             <div className="min-h-[20px]">
@@ -599,37 +723,36 @@ export default function AddMemberDialog({
           </div>
 
           {/* Source */}
-          {profile.planName === "Max Pro" && (
-            <div>
-              <Label className="mb-1 block">Source</Label>
-              <Select
-                disabled={loading}
-                // 1. Convert the selected string ID back to a Number for your form state
-                onValueChange={(value) =>
-                  setForm({ ...form, source: Number(value) })
-                }
-                // 2. Safely cast the number ID to a string so Shadcn can match and display the active label
-                value={form.source ? String(form.source) : ""}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a source" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sources.map((s) => (
-                    // 3. Converted s.id to String and swapped array index with unique s.id for the key
-                    <SelectItem key={s.id} value={String(s.id)}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="min-h-[20px]">
-                {errors?.source && (
-                  <p className="text-red-500 text-sm">{errors.source}</p>
-                )}
-              </div>
+
+          <div>
+            <Label className="mb-1 block">Source</Label>
+            <Select
+              disabled={loading}
+              // 1. Convert the selected string ID back to a Number for your form state
+              onValueChange={(value) =>
+                setForm({ ...form, source: Number(value) })
+              }
+              // 2. Safely cast the number ID to a string so Shadcn can match and display the active label
+              value={form.source ? String(form.source) : ""}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a source" />
+              </SelectTrigger>
+              <SelectContent>
+                {sources.map((s) => (
+                  // 3. Converted s.id to String and swapped array index with unique s.id for the key
+                  <SelectItem key={s.id} value={String(s.id)}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="min-h-[20px]">
+              {errors?.source && (
+                <p className="text-red-500 text-sm">{errors.source}</p>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
         {/* Footer: Stays at bottom of content or bottom of modal */}

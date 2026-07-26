@@ -193,12 +193,17 @@ export default function SourcesPage() {
       if (
         response.data &&
         response.data.message &&
-        response.data.message == "limit"
+        response.data.message == "120"
       ) {
-        toast.error(
-          "You’ve reached the maximum limit of 7 sources. Delete an existing source to add a new one.",
-        );
+        toast.error("No valid plan found, check your subscription");
         // Member already exists with the name
+      }
+
+      if (response?.data?.message === "7" || response?.data?.message === "5") {
+        const message = response?.data?.message;
+        toast.error(
+          `You’ve reached the maximum limit of ${message} sources. Delete an existing source to add a new one.`,
+        );
       }
     } catch (error) {
     } finally {
@@ -591,7 +596,7 @@ export default function SourcesPage() {
           ) : (
             <>
               {/* Chart OR Empty State Conditional */}
-              {profile?.planName === "Max Pro" && sourceAnalytics.length > 0 ? (
+              {sourceAnalytics.length > 0 ? (
                 <Suspense
                   fallback={
                     <div className="space-y-5">
@@ -717,7 +722,7 @@ export default function SourcesPage() {
                           <Skeleton className="h-4 bg-slate-200 dark:bg-slate-800 rounded" />
                         </TableCell>
                         {/* Skeletons for other 7 columns */}
-                        {Array.from({ length: 4 }).map((_, j) => (
+                        {Array.from({ length: 3 }).map((_, j) => (
                           <TableCell key={j}>
                             <Skeleton className="mx-auto h-4 bg-slate-200 dark:bg-slate-800 rounded" />
                           </TableCell>

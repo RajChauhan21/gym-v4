@@ -15,8 +15,11 @@ import {
   ArrowDown,
   AlertTriangle,
   CalendarClock,
+  FileSpreadsheet,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -89,15 +92,18 @@ import {
   getAllDuesOfMembers,
   getAllMembers,
   getAllMembersCount,
+  importMembers,
   renewMemberShip,
 } from "../../apis/backend_apis";
 import { toast } from "sonner";
 import RenewMembershipDialog from "./RenewMembershipDialog";
+import ImportMembersDialog from "../../pages/member_imports/ImportMembersDialog";
 export default function MembersTable() {
   const [currentPage, setCurrentPage] = useState(0); // backend uses 0-based
   const [dateToOpen, setDateToOpen] = useState(false);
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const [dateFromOpen, setDateFromOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [mobileDateFromOpen, setMobileDateFromOpen] = useState(false);
   const [mobileDateToOpen, setMobileDateToOpen] = useState(false);
   const [totalPages, setTotalPages] = useState(0);
@@ -113,6 +119,9 @@ export default function MembersTable() {
   const [renewLoading, setRenewLoading] = useState(false);
   const fetchSources = useGymStore((state) => state.fetchSources);
   const sources = useGymStore((state) => state.sources);
+  const [selectedFile, setSelectedFile] = useState(null);
+  // const [loading, setLoading] = useState(false);
+  const [importResult, setImportResult] = useState(null);
 
   const [filters, setFilters] = useState({
     name: "",
@@ -123,6 +132,40 @@ export default function MembersTable() {
     source: null,
     isActive: null,
   });
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+
+    if (!file) {
+      return;
+    }
+
+    setSelectedFile(file);
+  };
+
+  const handleImport = async () => {
+    if (!selectedFile) {
+      toast.error("Please select an Excel file.");
+
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const response = await importMembers(selectedFile);
+
+      setImportResult(response);
+
+      toast.success("Members imported successfully.");
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message || "Failed to import members.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const sendWhatsAppReminder = (member) => {
     const message = `Hello ${member.name}, your gym payment of ₹${member.dueAmount} is pending. Please pay before ${member.expiry}.`;
@@ -270,8 +313,8 @@ export default function MembersTable() {
         } else {
           setCurrentPage(response.data.page.number);
         }
-        getAllCount();
-        fetchTotalDues();
+        // getAllCount();
+        // fetchTotalDues();
         console.log("Fetched members:", response.data);
       } else if (response.status === 404) {
         if (
@@ -305,11 +348,14 @@ export default function MembersTable() {
     getAllCount();
     getActiveMembersCount();
     fetchSources(profile?.ownerId);
+    getAllCount();
+    fetchTotalDues();
+    fetchPlans(profile?.gymId);
   }, []);
 
   useEffect(() => {
     fetchAndPopulate();
-    fetchPlans(profile.gymId);
+    // fetchPlans(profile.gymId);
     // Empty array [] ensures this runs exactly once on mount
   }, [
     currentPage,
@@ -479,6 +525,7 @@ export default function MembersTable() {
       if (response.status === 202) {
         toast.success(response.data || "Member deleted");
         fetchAndPopulate();
+        getActiveMembers();
       } else if (response.status === 404) {
         toast.error(
           "Something went wrong while deleting a member. Please try again later.",
@@ -559,13 +606,52 @@ export default function MembersTable() {
   return (
     <div className="p-3">
       <h2 className="text-xl font-semibold mb-4 dark:text-white">Members</h2>
-      <AddMemberDialog
-        open={isModalOpen}
-        setOpen={setIsModalOpen}
-        editingMember={selectedMember}
-        setEditingMember={setSelectedMember}
-        setActiveMembersCount={setActiveMembersCount}
-      />
+      {/* <Button
+        className="mx-2 dark:bg-white dark:text-black bg-black text-white flex items-center gap-2"
+        variant="outline"
+        onClick={() => {
+          if (profile.planName === "No Active Plan") {
+            // 1. Show the error toast
+            toast.error(
+              "You need an active plan to import members. Please subscribe to a plan first.",
+            );
+          } else {
+            // 2. Open the modal if they have a plan
+            setImportDialogOpen(true);
+          }
+        }}
+      >
+        <FileSpreadsheet className="h-4 w-4" />
+        Import
+      </Button> */}
+      <div className="flex items-center gap-2">
+        {/* Replace this placeholder with your actual Add Member Trigger Button */}
+        <AddMemberDialog
+          open={isModalOpen}
+          setOpen={setIsModalOpen}
+          editingMember={selectedMember}
+          setEditingMember={setSelectedMember}
+          fetchActiveMemberCount={getActiveMembersCount}
+          fetchAllMemberCount={getAllCount}
+          fetchAllMembers={fetchAndPopulate}
+        />
+
+        <Button
+          className="mx-2 mb-4 dark:bg-white dark:text-black bg-black text-white flex items-center gap-2"
+          onClick={() => {
+            if (profile.planName === "No Active Plan") {
+              toast.error(
+                "You need an active plan to import members. Please subscribe to a plan first.",
+              );
+            } else {
+              setImportDialogOpen(true);
+            }
+          }}
+        >
+          <FileSpreadsheet className="h-4 w-4" />
+          Import
+        </Button>
+      </div>
       <RenewMembershipDialog
         open={renewOpen}
         setOpen={setRenewOpen}
@@ -828,6 +914,13 @@ export default function MembersTable() {
         <DialogContent className="w-[92%] max-w-md rounded-2xl p-6">
           <DialogHeader>
             <DialogTitle>Search Members</DialogTitle>
+            <DialogPrimitive.Close
+              className="absolute right-4 top-4 opacity-70 hover:opacity-100 transition-opacity outline-none"
+              onClick={setIsFilterOpen} // Also clear form if they just close the modal
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </DialogPrimitive.Close>
             <h6 className="text-red-600 font-semibold">
               Filter works automatically, just select the values
             </h6>
@@ -1377,14 +1470,14 @@ export default function MembersTable() {
             <TableBody>
               {loading ? (
                 /* LOADING STATE: Skeleton Rows */
-                Array.from({ length: 10 }).map((_, i) => (
+                Array.from({ length: 12 }).map((_, i) => (
                   <TableRow key={i}>
                     {/* Skeleton for Sticky Name */}
                     <TableCell className="sticky left-0 bg-card pl-6">
                       <Skeleton className="h-4 bg-slate-200 dark:bg-slate-800 rounded" />
                     </TableCell>
                     {/* Skeletons for other 7 columns */}
-                    {Array.from({ length: 7 }).map((_, j) => (
+                    {Array.from({ length: 8 }).map((_, j) => (
                       <TableCell key={j}>
                         <Skeleton className="mx-auto h-4 bg-slate-200 dark:bg-slate-800 rounded" />
                       </TableCell>
@@ -1704,6 +1797,11 @@ export default function MembersTable() {
         member={viewingMember}
         open={!!viewingMember}
         onOpenChange={() => setViewingMember(null)}
+      />
+
+      <ImportMembersDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
       />
     </div>
   );

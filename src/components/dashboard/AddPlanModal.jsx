@@ -50,20 +50,60 @@ export default function AddPlanModal({
     }
   }, [open, editPlan]);
 
-  const validate = () => {
-    const newErrors = {};
-    if (!form.name || !/^[A-Za-z\s]+$/.test(form.name)) {
-      newErrors.name = "Only letters allowed";
-    } else if (form.name.trim().length > 10) {
-      newErrors.name = "Maximum 10 letters allowed";
+  const validateField = (name, value) => {
+    const textRegex = /^[a-zA-Z\s'.-]+$/;
+
+    switch (name) {
+      case "name":
+        if (!value.trim()) return "Plan name required";
+        if (value.trim().length > 10) return "Maximum 10 letters allowed";
+        if (!textRegex.test(value))
+          return "Plan name should only contain letters";
+        return "";
+
+      case "validity":
+        if (!value) return "Validity required";
+        if (isNaN(value)) return "Enter a valid number";
+        return "";
+
+      case "price":
+        if (!value) return "Amount required";
+        if (isNaN(value)) return "Enter a valid amount";
+        return "";
+
+      default:
+        return "";
     }
-    if (!form.validity || isNaN(form.validity))
-      newErrors.validity = "Enter a valid number";
-    if (!form.price || isNaN(form.price))
-      newErrors.price = "Enter a valid amount";
-    setErrors(newErrors);
-    setLoading(false);
-    return Object.keys(newErrors).length === 0;
+  };
+
+  const validate = () => {
+    const errors = {};
+
+    Object.keys(form).forEach((field) => {
+      const error = validateField(field, form[field]);
+
+      if (error) {
+        errors[field] = error;
+      }
+    });
+
+    return errors;
+  };
+
+  const handleFieldValidation = (field, value) => {
+    const error = validateField(field, value);
+
+    setErrors((prev) => {
+      const updated = { ...prev };
+
+      if (error) {
+        updated[field] = error;
+      } else {
+        delete updated[field];
+      }
+
+      return updated;
+    });
   };
 
   const handleSubmit = async () => {
@@ -76,7 +116,13 @@ export default function AddPlanModal({
       setLoading(false);
       return;
     }
-    if (!validate()) return;
+    // if (!validate()) return;
+    const validation = validate();
+    if (Object.keys(validation).length > 0) {
+      setErrors(validation);
+      setLoading(false);
+      return;
+    }
 
     try {
       const plan = {
@@ -103,22 +149,18 @@ export default function AddPlanModal({
           response.data.message.includes("404")
         ) {
           toast.error("Please setup your gym profile before adding plans.");
-        } 
-        else if(response.data.message == "Plan already exists") {
+        } else if (response.data.message == "Plan already exists") {
+          toast.error(response.data.message);
+        } else if (
+          response.data &&
+          response.data.message &&
+          response.data.message === "100"
+        ) {
           toast.error(
-           response.data.message,
+            "You need an active plan to use this functionality. Please subscribe to a plan first.",
           );
+          // Member already exists with the name
         }
-        else if (
-            response.data &&
-            response.data.message &&
-            response.data.message === "100"
-          ) {
-            toast.error(
-              "You need an active plan to use this functionality. Please subscribe to a plan first.",
-            );
-            // Member already exists with the name
-          }
       } else if (response.status === 429) {
         toast.error(
           "You are performing actions too quickly. Please wait a few seconds and try again.",
@@ -180,6 +222,7 @@ export default function AddPlanModal({
         <DialogHeader className="p-6 border-b">
           <DialogTitle>{editPlan ? "Edit Plan" : "Add New Plan"}</DialogTitle>
           <DialogPrimitive.Close
+            disabled={loading}
             className="absolute right-4 top-4 opacity-70 hover:opacity-100 transition-opacity outline-none"
             onClick={handleClose} // Also clear form if they just close the modal
           >
@@ -191,13 +234,25 @@ export default function AddPlanModal({
         {/* Scrollable Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           <div className="space-y-1">
-            <Label className="mb-1">Plan Name</Label>
+            <Label className="mb-1">
+              Plan Name<span className="text-red-500">*</span>
+            </Label>
             <Input
               type="text"
               disabled={loading}
               placeholder="Gold / Silver / Platinum"
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              // onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value;
+
+                setForm((prev) => ({
+                  ...prev,
+                  name: value,
+                }));
+
+                handleFieldValidation("name", value);
+              }}
               onKeyDown={allowOnlyText}
             />
             <div className="min-h-[20px]">
@@ -208,13 +263,25 @@ export default function AddPlanModal({
           </div>
 
           <div className="space-y-1">
-            <Label className="mb-1">validity (months)</Label>
+            <Label className="mb-1">
+              Validity (months)<span className="text-red-500">*</span>
+            </Label>
             <Input
               disabled={loading}
               type="number"
               placeholder="1 / 3 / 6 / 12"
               value={form.validity}
-              onChange={(e) => setForm({ ...form, validity: e.target.value })}
+              // onChange={(e) => setForm({ ...form, validity: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value;
+
+                setForm((prev) => ({
+                  ...prev,
+                  validity: value,
+                }));
+
+                handleFieldValidation("validity", value);
+              }}
               onKeyDown={allowOnlyNumbers}
             />
             <div className="min-h-[20px]">
@@ -225,13 +292,25 @@ export default function AddPlanModal({
           </div>
 
           <div className="space-y-1">
-            <Label className="mb-1">Price</Label>
+            <Label className="mb-1">
+              Price<span className="text-red-500">*</span>
+            </Label>
             <Input
               disabled={loading}
               type="number"
               placeholder="Enter price"
               value={form.price}
-              onChange={(e) => setForm({ ...form, price: e.target.value })}
+              // onChange={(e) => setForm({ ...form, price: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value;
+
+                setForm((prev) => ({
+                  ...prev,
+                  price: value,
+                }));
+
+                handleFieldValidation("price", value);
+              }}
               onKeyDown={allowOnlyNumbers}
             />
             <div className="min-h-[20px]">
