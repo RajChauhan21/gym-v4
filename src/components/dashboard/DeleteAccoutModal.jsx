@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Trash2, AlertOctagon } from "lucide-react";
+import { Trash2, AlertOctagon, X } from "lucide-react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
   Dialog,
   DialogContent,
@@ -68,6 +69,20 @@ export function DeleteAccountModal() {
             <DialogTitle className="text-2xl font-bold text-red-600">
               Permanent Action
             </DialogTitle>
+            <DialogPrimitive.Close asChild>
+              <button
+                disabled={isDeleting}
+                type="button"
+                className="absolute right-4 top-4 opacity-70 hover:opacity-100 transition-opacity outline-none"
+                onClick={(val) => {
+                  if (!val) resetAndClose();
+                  setOpen(val);
+                }}
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </button>
+            </DialogPrimitive.Close>
 
             <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-3 leading-relaxed">
               This will permanently delete all your gym data, membership

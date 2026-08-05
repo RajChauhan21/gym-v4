@@ -1,7 +1,8 @@
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Crown, Calendar, ArrowRight } from "lucide-react";
+import { CheckCircle2, Crown, Calendar, ArrowRight, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 
 export default function PaymentSuccessModal({
   open,
@@ -19,6 +20,26 @@ export default function PaymentSuccessModal({
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
+        {/* <DialogPrimitive.Close
+          // disabled={uploading || downloadingTemplate}
+          className="absolute right-4 top-4 z-[9999] rounded bg-red-500 p-2 text-white"
+          onClick={onOpenChange} // Also clear form if they just close the modal
+        >
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </DialogPrimitive.Close> */}
+
+        <DialogPrimitive.Close asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-2 top-1 z-50 h-8 w-8"
+            onClick={onOpenChange}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </DialogPrimitive.Close>
+
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 via-background to-emerald-500/10" />
 

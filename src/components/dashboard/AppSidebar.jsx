@@ -46,6 +46,8 @@ import { Button } from "../ui/button";
 import { exportMembers, exportPayments } from "../../apis/backend_apis";
 import { useEffect, useState } from "react";
 import ExportSubscriptionData from "../../pages/ExportSubscriptionData";
+import { downloadExcel } from "../../utils/downloadExcel";
+import { toast } from "sonner";
 
 export function AppSidebar() {
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
@@ -120,29 +122,26 @@ export function AppSidebar() {
     try {
       if (reportType === "members") {
         res = await exportMembers(profile?.ownerId, filters);
+        console.log(res.data instanceof Blob);
+        console.log(res.data.type);
+        console.log(res.data.size);
+        downloadExcel(res.data, "members-data.xlsx");
       } else if (reportType === "payments") {
         res = await exportPayments(profile?.ownerId, filters);
+        console.log(res.data instanceof Blob);
+        console.log(res.data.type);
+        console.log(res.data.size);
+        downloadExcel(res.data, "payments-data.xlsx");
       }
-
-      const blob = new Blob([res.data], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      });
-
-      const url = window.URL.createObjectURL(blob);
-
-      const link = document.createElement("a");
-      link.href = url;
-      const fileName = `${reportType === "members" ? "members" : "payments"}-report.xlsx`;
-      link.setAttribute("download", fileName);
-
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
     } catch (err) {
-      console.error("Export failed:", err);
-
-      // IMPORTANT: do NOT trigger download here
-      alert("Export failed: Unauthorized or session expired");
+      // console.error("Export failed:", err);
+      if (err.response?.status === 429) {
+        toast.error(
+          "You are performing actions too quickly. Please wait a few seconds and try again.",
+        );
+      } else {
+        toast.error("Unable to download report.");
+      }
     } finally {
       setExporting(false);
     }

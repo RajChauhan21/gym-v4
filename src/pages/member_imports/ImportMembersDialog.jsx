@@ -151,7 +151,7 @@ export default function ImportMembersDialog({
               selectedFile={selectedFile}
               onFileSelect={selectFile}
               onRemove={removeFile}
-              disabled={uploading}
+              disabled={uploading || downloadingTemplate}
             />
           </div>
 

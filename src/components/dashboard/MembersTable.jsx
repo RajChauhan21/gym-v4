@@ -16,6 +16,8 @@ import {
   AlertTriangle,
   CalendarClock,
   FileSpreadsheet,
+  Snowflake,
+  CalendarPlus2,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
@@ -98,6 +100,8 @@ import {
 import { toast } from "sonner";
 import RenewMembershipDialog from "./RenewMembershipDialog";
 import ImportMembersDialog from "../../pages/member_imports/ImportMembersDialog";
+import MembershipFreezeExtensionModalV2 from "../../pages/membership_adjustments/MembershipFreezeExtensionModalV2";
+
 export default function MembersTable() {
   const [currentPage, setCurrentPage] = useState(0); // backend uses 0-based
   const [dateToOpen, setDateToOpen] = useState(false);
@@ -122,6 +126,26 @@ export default function MembersTable() {
   const [selectedFile, setSelectedFile] = useState(null);
   // const [loading, setLoading] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [open, setOpen] = useState(false);
+  const members = useGymStore((state) => state.members);
+  const plans = useGymStore((state) => state.plans);
+  const setMembers = useGymStore((state) => state.setMembers);
+  const [totalMemberLoading, setTotalMemberLoading] = useState(false);
+  const [pendingDuesLoading, setPendingDuesLoading] = useState(false);
+  const [totalDueAmountLoading, setTotalDueAmountLoading] = useState(false);
+  // setMembers(membersObject);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [viewingMember, setViewingMember] = useState(null);
+  const fetchPlans = useGymStore((state) => state.fetchPlans);
+
+  const [membershipAdjustment, setMembershipAdjustment] = useState({
+    open: false,
+    mode: "freeze",
+    member: null,
+  });
 
   const [filters, setFilters] = useState({
     name: "",
@@ -274,7 +298,7 @@ export default function MembersTable() {
   const fetchAndPopulate = async (retries = 3) => {
     setLoading(true);
     const activeFilter =
-      filters.isActive === "all" ? null : filters.isActive == "1" ? 1 : 0;
+      filters.isActive === "all" ? null : filters.isActive == "1" ? 1 : filters.isActive == "2" ? 2 : filters.isActive == "3" ? 3 : 0;
     const apiFilters = {
       name: filters.name || null,
       dueAmount: filters.dueAmount || null,
@@ -373,28 +397,12 @@ export default function MembersTable() {
   //   setCurrentPage(1);
   // }, [searchTerm, filterPlan, status, expiryFrom, expiryTo]);
 
-  const [open, setOpen] = useState(false);
-  const members = useGymStore((state) => state.members);
-  const plans = useGymStore((state) => state.plans);
-  const setMembers = useGymStore((state) => state.setMembers);
-  const [totalMemberLoading, setTotalMemberLoading] = useState(false);
-  const [pendingDuesLoading, setPendingDuesLoading] = useState(false);
-  const [totalDueAmountLoading, setTotalDueAmountLoading] = useState(false);
-  // setMembers(membersObject);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const totalMembers = totalCount;
-  const pendingPayments = dueMembersCount;
-
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedMember, setSelectedMember] = useState(null);
-  const [viewingMember, setViewingMember] = useState(null);
-  const fetchPlans = useGymStore((state) => state.fetchPlans);
-
   // const displayStart = safeTotal === 0 ? 0 : safePage * safeSize + 1;
   // const displayEnd = Math.min((safePage + 1) * safeSize, safeTotal);
 
   const safeTotalPages = totalPages === 0 ? 1 : totalPages;
   const displayStart = totalElements === 0 ? 0 : currentPage * pageSize + 1;
+  const pendingPayments = dueMembersCount;
 
   const displayEnd =
     totalElements === 0
@@ -481,8 +489,33 @@ export default function MembersTable() {
 
   function getExpiryBg(isActive) {
     // Constant backgrounds: Red for expired/today, Blue for future
-    if (isActive == 0) return "bg-red-500";
-    return "bg-sky-500";
+    switch (isActive) {
+      case 0:
+        return "bg-red-500"; // Inactive
+      case 1:
+        return "bg-emerald-500"; // Active
+      case 2:
+        return "bg-cyan-500"; // Frozen
+      case 3:
+        return "bg-yellow-500"; // Extended
+      default:
+        return "bg-gray-500";
+    }
+  }
+
+  function getStatusText(isActive) {
+    switch (isActive) {
+      case 0:
+        return "Inactive";
+      case 1:
+        return "Active";
+      case 2:
+        return "Frozen";
+      case 3:
+        return "Extended";
+      default:
+        return "Unknown";
+    }
   }
 
   const [loading, setLoading] = useState(true);
@@ -542,9 +575,11 @@ export default function MembersTable() {
     }
   };
 
-  useEffect(() => {
-    setTimeout(() => setLoading(false), 1200);
-  }, []);
+  // useEffect(() => {
+  //   setTimeout(() => setLoading(false), 1200);
+  // }, []);
+
+  const totalMembers = totalCount;
 
   const activePercentage =
     totalMembers > 0
@@ -603,6 +638,32 @@ export default function MembersTable() {
   //   return <Loader text="Loading Members...." />;
   // }
 
+  const openMembershipAdjustment = (member, mode) => {
+    setMembershipAdjustment({
+      open: true,
+      mode,
+      member,
+    });
+  };
+
+  const closeMembershipAdjustment = () => {
+    setMembershipAdjustment({
+      open: false,
+      mode: "freeze",
+      member: null,
+    });
+  };
+
+  const handleMembershipAdjustment = async (data) => {
+    console.log(data);
+
+    closeMembershipAdjustment();
+
+    // Later:
+    // await membershipService.adjustMembership(data);
+    // fetchMembers();
+  };
+
   return (
     <div className="p-3">
       <h2 className="text-xl font-semibold mb-4 dark:text-white">Members</h2>
@@ -660,7 +721,6 @@ export default function MembersTable() {
         onRenew={handleRenew}
         loading={renewLoading}
       />
-
       {/* --- QUICK STATS CARDS --- */}
       {profile?.planName === "Max Pro" ? (
         /* --- RENDERED IF PLAN IS MAX PRO --- */
@@ -898,7 +958,6 @@ export default function MembersTable() {
           </div>
         </div>
       )}
-
       {/* Mobile Search filters */}
       <Dialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>
         <DialogTrigger asChild>
@@ -1078,6 +1137,8 @@ export default function MembersTable() {
                   <SelectItem value="all">All Members</SelectItem>
                   <SelectItem value="1">Active</SelectItem>
                   <SelectItem value="0">Inactive</SelectItem>
+                  <SelectItem value="2">Frozen</SelectItem>
+                  <SelectItem value="3">Extended</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1151,7 +1212,6 @@ export default function MembersTable() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       {/* Pc Filter logic */}
       <Card className="hidden md:block p-4 bg-card border shadow-sm mb-2 mt-2">
         {/* <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 items-end"> */}
@@ -1289,6 +1349,8 @@ export default function MembersTable() {
                 <SelectItem value="all">All Members</SelectItem>
                 <SelectItem value="1">Active</SelectItem>
                 <SelectItem value="0">Inactive</SelectItem>
+                <SelectItem value="2">Frozen</SelectItem>
+                <SelectItem value="3">Extended</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1405,7 +1467,6 @@ export default function MembersTable() {
           </div>
         </div>
       </Card>
-
       <div className="bg-card dark:bg-zinc-950 text-card-foreground rounded-xl shadow border dark:border-gray-800 p-3 md:p-8">
         <div className="relative overflow-auto h-[450px] no-scrollbar border rounded-lg">
           <Table className="w-auto lg:table-fixed lg:w-full">
@@ -1536,7 +1597,8 @@ export default function MembersTable() {
                         className={`inline-flex w-24 h-6 items-center justify-center rounded-md px-2 shadow-sm ${getExpiryBg(member.isActive)}`}
                       >
                         <span className="block w-full text-center truncate text-[10px] font-bold text-white dark:text-black uppercase">
-                          {member.isActive == 1 ? "Active" : "Inactive"}
+                          {/* {member.isActive == 1 ? "Active" : "Inactive"} */}
+                          {getStatusText(member.isActive)}
                         </span>
                       </div>
                     </TableCell>
@@ -1595,7 +1657,21 @@ export default function MembersTable() {
                             <CalendarClock className="size-4 text-blue-500" />
                             <span>Renew</span>
                           </DropdownMenuItem>
-
+                          <DropdownMenuItem
+                            className="gap-2 cursor-pointer"
+                            onClick={() => {
+                              if (member.isActive === 1) {
+                                openMembershipAdjustment(member, "freeze");
+                              } else {
+                                toast.error(
+                                  "You can only freeze active memberships",
+                                );
+                              }
+                            }}
+                          >
+                            <Snowflake className="size-4 text-cyan-500" />
+                            <span>Freeze/Extend Membership</span>
+                          </DropdownMenuItem>
                           {member.dueAmount > 0 && (
                             <DropdownMenuItem
                               onClick={() => {
@@ -1735,7 +1811,6 @@ export default function MembersTable() {
           </Table>
         </div>
       </div>
-
       {/* 3. Pagination Controls */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-4">
         {/* Left Side: Info Text */}
@@ -1798,7 +1873,19 @@ export default function MembersTable() {
         open={!!viewingMember}
         onOpenChange={() => setViewingMember(null)}
       />
+      
+      <MembershipFreezeExtensionModalV2
+        open={membershipAdjustment.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeMembershipAdjustment();
+          }
+        }}
+        member={membershipAdjustment.member}
+        onSuccess={handleMembershipAdjustment}
+      />
 
+      {/* </MembershipFreezeExtensionModal> */}
       <ImportMembersDialog
         open={importDialogOpen}
         onOpenChange={setImportDialogOpen}

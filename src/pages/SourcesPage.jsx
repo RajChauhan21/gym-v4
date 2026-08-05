@@ -12,6 +12,7 @@ import {
   BarChart3,
   Database,
   MoreVertical,
+  TrendingDown,
 } from "lucide-react";
 // import Chart from "react-apexcharts";
 import { lazy, Suspense } from "react";
@@ -147,6 +148,10 @@ export default function SourcesPage() {
 
   const topSource = [...sourceAnalytics].sort(
     (a, b) => b.totalMembers - a.totalMembers,
+  )[0];
+
+  const lowSource = [...sourceAnalytics].sort(
+    (a, b) => a.totalMembers - b.totalMembers,
   )[0];
 
   const activeSources = mockSources.filter((s) => s.status === "Active").length;
@@ -481,15 +486,15 @@ export default function SourcesPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Top Source</p>
 
-                <p className="font-semibold text-lg mt-1">
+                {/* <p className="font-semibold text-lg mt-1">
                   {loading ? (
                     <Skeleton className="h-8 w-24 mt-1 bg-slate-200 dark:bg-slate-800 rounded" />
                   ) : (
                     sources.name
                   )}
-                </p>
+                </p> */}
 
-                <p className="text-sm text-bold-foreground">
+                <p className="text-sm font-bold">
                   {loading ? (
                     <Skeleton className="h-8 w-24 mt-1 bg-slate-200 dark:bg-slate-800 rounded" />
                   ) : topSource ? (
@@ -497,6 +502,11 @@ export default function SourcesPage() {
                   ) : (
                     "No Sources"
                   )}
+                </p>
+
+                <p className="mt-1 text-xs text-muted-foreground max-w-[220px]">
+                  This source is bringing you the most members. Keep investing in 
+                  what's working.
                 </p>
               </div>
 
@@ -527,7 +537,7 @@ export default function SourcesPage() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg">
+        {/* <Card className="shadow-lg">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -543,6 +553,33 @@ export default function SourcesPage() {
               </div>
 
               <Users className="h-10 w-10 text-blue-600" />
+            </div>
+          </CardContent>
+        </Card> */}
+
+        <Card className="shadow-lg">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Lowest Source</p>
+
+                <p className="text-sm font-bold">
+                  {loading ? (
+                    <Skeleton className="h-8 w-24 mt-1 bg-slate-200 dark:bg-slate-800 rounded" />
+                  ) : lowSource ? (
+                    lowSource?.name
+                  ) : (
+                    "No Sources"
+                  )}
+                </p>
+
+                <p className="mt-1 text-xs text-muted-foreground max-w-[220px]">
+                  Review why this source is underperforming and optimize your
+                  marketing efforts.
+                </p>
+              </div>
+
+              <TrendingDown className="h-10 w-10 text-rose-500" />
             </div>
           </CardContent>
         </Card>

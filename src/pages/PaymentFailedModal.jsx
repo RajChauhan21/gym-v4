@@ -1,6 +1,7 @@
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, RefreshCcw, CreditCard } from "lucide-react";
+import { AlertTriangle, RefreshCcw, CreditCard, X } from "lucide-react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 
 export default function PaymentFailedModal({
   open,
@@ -16,6 +17,16 @@ export default function PaymentFailedModal({
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
+        <DialogPrimitive.Close asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-2 top-1 z-50 h-8 w-8"
+            onClick={onOpenChange}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </DialogPrimitive.Close>
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 via-background to-orange-500/10" />
 

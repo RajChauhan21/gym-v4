@@ -9,6 +9,7 @@ import {
 } from "../../apis/backend_apis";
 
 import { useProfile } from "../../contexts/ProfileContext";
+import { downloadExcel } from "../../utils/downloadExcel";
 
 export default function useMemberImport() {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -47,7 +48,6 @@ export default function useMemberImport() {
   // Upload Excel
   //--------------------------------------------
 
-
   const uploadMembers = async () => {
     if (!selectedFile) {
       toast.error("Please choose an Excel file.");
@@ -74,12 +74,28 @@ export default function useMemberImport() {
       if (status === 404) {
         const msg = errorData?.message; // Optional chaining prevents crashes
 
-        if (msg === "500" || msg === "250") {
+        if (msg === "200" || msg === "150") {
           toast.error(
             `Your plan allows importing up to ${msg} members per file.`,
           );
-        } else {
-          toast.error("Resource not found.");
+        } else if (msg === "202") {
+          toast.error("Uploaded file is not a valid Excel (.xlsx) file.");
+        } else if (msg === "203") {
+          toast.error("Please upload an Excel file.");
+        } else if (msg === "204") {
+          toast.error("Only Excel (.xlsx) files are supported.");
+        } else if (msg === "empty") {
+          toast.error("The uploaded Excel file contains no member data.");
+        } else if (msg === "unable") {
+          toast.error("Unable to read data in Excel file.");
+        } else if (msg === "not save") {
+          toast.error("Failed to save imported members.");
+        }
+        else if (msg === "missing") {
+          toast.error("Some columns are missing from excel file");
+        }
+         else {
+          toast.error(msg);
         }
       } else if (status === 429) {
         toast.error(
@@ -105,29 +121,7 @@ export default function useMemberImport() {
       const response = await downloadMemberImportTemplate();
 
       if (response.status == 200) {
-        const blob = new Blob(
-          [response.data],
-
-          {
-            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          },
-        );
-
-        const url = window.URL.createObjectURL(blob);
-
-        const link = document.createElement("a");
-
-        link.href = url;
-
-        link.download = "Member_Import_Template.xlsx";
-
-        document.body.appendChild(link);
-
-        link.click();
-
-        document.body.removeChild(link);
-
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        downloadExcel(response.data, "member-import-template.xlsx");
       } else if (response.status === 429) {
         toast.error(
           "You are performing actions too quickly. Please wait a few seconds and try again.",
@@ -135,8 +129,14 @@ export default function useMemberImport() {
       } else {
         toast.error("Unable to download template.");
       }
-    } catch {
-      toast.error("Unable to download template.");
+    } catch (err) {
+      if (err.response?.status === 429) {
+        toast.error(
+          "You are performing actions too quickly. Please wait a few seconds and try again.",
+        );
+      } else {
+        toast.error("Unable to download template.");
+      }
     } finally {
       setDownloadingTemplate(false);
     }

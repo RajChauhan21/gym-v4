@@ -207,6 +207,7 @@ export default function RenewMembershipDialog({
           <DialogTitle>Renew Membership</DialogTitle>
 
           <DialogPrimitive.Close
+          disabled={loading}
             className="absolute right-4 top-4 opacity-70 hover:opacity-100 transition-opacity"
             onClick={resetForm}
           >

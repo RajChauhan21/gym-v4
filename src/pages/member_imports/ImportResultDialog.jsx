@@ -5,6 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 
 import { Separator } from "@/components/ui/separator";
 
@@ -25,9 +26,7 @@ export default function ImportResultDialog({
   onOpenChange,
 
   result,
-
-  onRetry,
-
+  downloadingErrors,
   onDownloadErrors,
 }) {
   if (!result) return null;
@@ -128,6 +127,17 @@ export default function ImportResultDialog({
                 >
                   Import Members
                 </DialogTitle>
+                <DialogPrimitive.Close asChild>
+                  <button
+                    disabled={downloadingErrors}
+                    type="button"
+                    className="absolute right-4 top-4 opacity-70 hover:opacity-100 transition-opacity outline-none"
+                    onClick={onOpenChange}
+                  >
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Close</span>
+                  </button>
+                </DialogPrimitive.Close>
 
                 <DialogDescription className="mt-1">
                   Review imported members and resolve any validation issues

@@ -41,6 +41,7 @@ import { exportSubcriptions, getPaymentHistory } from "../apis/backend_apis";
 import { toast } from "sonner";
 import { useProfile } from "../contexts/ProfileContext";
 import { Skeleton } from "@/components/ui/skeleton";
+import { downloadExcel } from "../utils/downloadExcel";
 
 export default function ExportSubscriptionData({
   open,
@@ -117,19 +118,7 @@ export default function ExportSubscriptionData({
     };
     try {
       const res = await exportSubcriptions(profile?.ownerId, apiFilters);
-      const blob = new Blob([res.data], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      });
-
-      const url = window.URL.createObjectURL(blob);
-
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "subscriptions-report.xlsx");
-
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      downloadExcel(res.data, "subscriptions-report.xlsx");
     } catch (error) {
       toast.error("Something went wong");
     } finally {
@@ -190,6 +179,7 @@ export default function ExportSubscriptionData({
 
           <DialogPrimitive.Close
             className="absolute right-4 top-4 opacity-70 hover:opacity-100 transition-opacity outline-none"
+            disabled={loading}
             onClick={() => {
               if (resetFilters) resetFilters();
               onOpenChange(false);
@@ -248,6 +238,7 @@ export default function ExportSubscriptionData({
                   Amount
                 </Label>
                 <Input
+                  disabled={loading}
                   type="number"
                   placeholder="amount..."
                   value={filters.amount}
@@ -263,6 +254,7 @@ export default function ExportSubscriptionData({
                   Status
                 </Label>
                 <Select
+                  disabled={loading}
                   value={filters.status}
                   onValueChange={(val) =>
                     setFilters({
@@ -287,6 +279,7 @@ export default function ExportSubscriptionData({
                   Method
                 </Label>
                 <Select
+                  disabled={loading}
                   value={filters.method || ""}
                   onValueChange={(val) =>
                     setFilters({ ...filters, method: val })
@@ -439,18 +432,7 @@ export default function ExportSubscriptionData({
               </div>
 
               {/* Total search record count - FIXED LAYOUT */}
-              {/* <div className="flex flex-col items-center justify-start gap-1.5">
-                <Label className="text-xs font-bold uppercase text-center text-muted-foreground block w-full">
-                  Records Found
-                </Label>
-                <div className="text-2xl font-bold dark:text-white flex justify-center items-center gap-1 h-10 w-full">
-                  {loading ? (
-                    <Skeleton className="h-6 w-16 bg-slate-200 dark:bg-slate-800 rounded" />
-                  ) : (
-                    <span className="text-sky-500">{count}</span>
-                  )}
-                </div>
-              </div> */}
+            
               <div className="flex flex-col items-center justify-start gap-1.5 w-full">
                 <Label className="text-xs font-bold uppercase text-center text-muted-foreground block w-full">
                   Records Found
@@ -527,6 +509,7 @@ export default function ExportSubscriptionData({
         <div className="border-t px-6 py-4 bg-background shrink-0">
           <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
             <Button
+              disabled={loading}
               variant="outline"
               onClick={() => onOpenChange(false)}
               className="sm:w-auto w-full"

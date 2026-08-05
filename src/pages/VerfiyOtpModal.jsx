@@ -9,8 +9,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { Loader2, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+
 import { sendOtp, verifyOtp } from "../apis/backend_apis";
 
 export default function VerifyOtpModal({
@@ -110,6 +112,22 @@ export default function VerifyOtpModal({
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
+        <DialogPrimitive.Close asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-4 top-4 z-50 h-8 w-8 bg-white dark:bg-black hover:bg-black hover:text-white"
+            onClick={(val) => {
+              if (!val) {
+                resetModalState();
+              }
+
+              onOpenChange(val);
+            }}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </DialogPrimitive.Close>
         {/* Header */}
         <div className="bg-gradient-to-r from-black to-zinc-800 text-white p-6">
           <div className="flex items-center gap-3">

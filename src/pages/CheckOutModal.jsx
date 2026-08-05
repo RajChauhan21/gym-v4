@@ -5,15 +5,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import {
   createRazorpaySubscription,
-  verifySubscriptionPayment, getActiveSubscriptionOfOwner
+  verifySubscriptionPayment,
+  getActiveSubscriptionOfOwner,
 } from "../apis/backend_apis";
 import { useState } from "react";
 import { useProfile } from "../contexts/ProfileContext";
-import { Loader } from "lucide-react";
+import { Loader, X } from "lucide-react";
 import PaymentSuccessModal from "./PaymentSuccessModal";
 import PaymentFailedModal from "./PaymentFailedModal";
 
@@ -54,7 +56,7 @@ export default function CheckOutModal({ open, setOpen, plan }) {
             startDate: response.data.startDate || "N/A",
             endDate: response.data.endDate || "N/A",
             status: response.data.subscriptionStatus || "",
-            memberLimitCount:response.data.memberLimitCount || 0,
+            memberLimitCount: response.data.memberLimitCount || 0,
           };
 
           // 2. Update LocalStorage so it persists after refresh
@@ -222,6 +224,17 @@ export default function CheckOutModal({ open, setOpen, plan }) {
           <DialogTitle className="text-xl font-bold text-center">
             Checkout
           </DialogTitle>
+          <DialogPrimitive.Close asChild>
+            <button
+              disabled={loading}
+              type="button"
+              className="absolute right-4 top-4 opacity-70 hover:opacity-100 transition-opacity outline-none"
+              onClick={setOpen}
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </button>
+          </DialogPrimitive.Close>
         </DialogHeader>
 
         <div className="space-y-4 mt-4">
@@ -266,12 +279,33 @@ export default function CheckOutModal({ open, setOpen, plan }) {
             )}
           </Button>
 
-
           {/* Trust */}
           <p className="text-xs text-center text-muted-foreground">
             Secure payments via Razorpay • Cancel anytime
           </p>
         </div>
+        <Button
+          variant="outline"
+          onClick={() => {
+            setFailureModalOpen(true);
+          }}
+          // disabled={downloadingTem/plate || uploading}
+          className="w-full sm:w-auto"
+        >
+          {/* <X className="mr-2 h-4 w-4" /> */}
+          Failure
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => {
+            setSuccessModalOpen(true);
+          }}
+          // disabled={downloadingTem/plate || uploading}
+          className="w-full sm:w-auto"
+        >
+          {/* <X className="mr-2 h-4 w-4" /> */}
+          Success
+        </Button>
       </DialogContent>
 
       <PaymentSuccessModal

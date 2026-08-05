@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import { Search } from "lucide-react";
+import { Search, CheckCircle2 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 
@@ -28,9 +28,7 @@ export default function ErrorList({ errors = [] }) {
           return true;
         }
 
-        return error.errors.some((msg) =>
-          msg.toLowerCase().includes(keyword),
-        );
+        return error.errors.some((msg) => msg.toLowerCase().includes(keyword));
       });
     }
 
@@ -144,7 +142,8 @@ export default function ErrorList({ errors = [] }) {
                                     gap-3
                                 "
           >
-            <img src="/empty.svg" alt="No Errors" className="h-24" />
+            {/* <img src="/empty.svg" alt="No Errors" className="h-24" /> */}
+            <CheckCircle2 className="h-24 w-24 text-green-500" />
 
             <h3
               className="

@@ -738,7 +738,7 @@ export const exportMembers = async (ownerId, filters = {}) => {
     });
     return response;
   } catch (errror) {
-    return errror;
+    throw errror;
   }
 };
 
@@ -758,7 +758,7 @@ export const exportPayments = async (ownerId, filters = {}) => {
     });
     return response;
   } catch (errror) {
-    return errror;
+    throw errror;
   }
 };
 
@@ -981,3 +981,19 @@ export const downloadMemberImportTemplate = async () => {
     throw error; // Changed from 'return error' to correctly trigger catch blocks upstream
   }
 };
+
+export async function saveMemberShipAdjustment(payload) {
+  try {
+    // Await the post request directly
+    const response = await constant.post("/member-ship-adjust/save", payload);
+    console.log("Save Membership Adjust Response:", response);
+    return response;
+  } catch (error) {
+    // Re-throw the error so your handleSave catch block can handle the UI toast
+    console.error(
+      "API Error in saveMemberShipAdjustment:",
+      error.response || error,
+    );
+    throw error;
+  }
+}

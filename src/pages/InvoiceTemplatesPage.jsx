@@ -141,6 +141,7 @@ export default function InvoiceTemplatesPage() {
       if (response.status === 202 || response.data.statusCodeValue === 200) {
         if (response.data == "success") {
           toast.success("Template selected successfully.");
+          fetchAllTemplates();
         }
       } else if (response.status === 404) {
         // toast.error(
@@ -169,6 +170,7 @@ export default function InvoiceTemplatesPage() {
       if (response.status === 202) {
         setTemplates(response.data);
       } else if (response.status === 404) {
+        toast.error("Something went wrong fetching templates");
       } else if (response.status === 429) {
       }
     } catch (error) {
@@ -176,6 +178,9 @@ export default function InvoiceTemplatesPage() {
       setLoading(false);
     }
   };
+  const ownerTemplateName = templates.find(
+    (t) => t.ownerTemplateId === 1,
+  )?.name;
 
   useEffect(() => {
     filteredTemplates;
@@ -228,7 +233,7 @@ export default function InvoiceTemplatesPage() {
             <div>
               <Badge className="mb-3">Currently Active</Badge>
 
-              <h2 className="text-xl font-semibold">Elite Premium</h2>
+              <h2 className="text-xl font-semibold">{ownerTemplateName || "Loading..."}</h2>
 
               <p className="mt-2 text-sm text-muted-foreground">
                 Every receipt generated will use this template.
@@ -314,7 +319,7 @@ export default function InvoiceTemplatesPage() {
                 <TemplateCard
                   key={template.id}
                   template={template}
-                  active={template.id === selectedTemplate}
+                  active={template.ownerTemplateId === 1}
                   onPreview={() => setPreviewTemplate(template)}
                   onSelect={() => chooseTemplate(template.id)}
                   loading={loading}

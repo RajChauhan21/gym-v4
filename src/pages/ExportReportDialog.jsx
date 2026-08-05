@@ -239,6 +239,7 @@ export default function ExportReportDialog({
           </DialogTitle>
           <DialogPrimitive.Close asChild>
             <button
+            disabled={exporting || loading}
               type="button"
               className="absolute right-4 top-4 opacity-70 hover:opacity-100 transition-opacity outline-none"
               onClick={resetFilters}

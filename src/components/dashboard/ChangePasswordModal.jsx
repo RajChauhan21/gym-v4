@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Eye, EyeOff, Lock } from "lucide-react";
+import { Eye, EyeOff, Lock, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -8,6 +8,7 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -102,6 +103,16 @@ export function ChangePasswordModal({ open, onOpenChange }) {
             <Lock className="w-5 h-5 text-blue-600" />
             Update Password
           </DialogTitle>
+          <DialogPrimitive.Close asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-4 top-4 z-50 h-8 w-8"
+              onClick={onOpenChange}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </DialogPrimitive.Close>
         </DialogHeader>
 
         <div className="grid gap-5 py-4">

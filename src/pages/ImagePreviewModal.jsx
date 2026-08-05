@@ -1,6 +1,10 @@
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import Loader from "@/components/ui/Loader";
 import { useEffect, useState } from "react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
 
 export function ImagePreviewModal({
   open,
@@ -19,13 +23,23 @@ export function ImagePreviewModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="w-800px border-0 bg-transparent p-0 shadow-none"
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
+        // onPointerDownOutside={(e) => e.preventDefault()}
+        // onInteractOutside={(e) => e.preventDefault()}
+        // onEscapeKeyDown={(e) => e.preventDefault()}
       >
+        <DialogPrimitive.Close asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-2 top-1 z-50 h-8 w-8"
+            onClick={onOpenChange}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </DialogPrimitive.Close>
         <div className="overflow-hidden w-full rounded-2xl bg-background">
           {/* IMAGE */}
-          
+
           <div className="relative aspect-square w-full overflow-hidden bg-muted flex items-center justify-center">
             {/* SPINNER: Shows only when isLoading is true */}
             {isLoading && (

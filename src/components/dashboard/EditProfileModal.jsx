@@ -9,10 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { allowOnlyText, allowOnlyNumbers } from "../../lib/inputValidator";
 import { PhoneNumberInput } from "@/components/ui/phone-input";
 import { saveGymDetails, saveOwnerDetails } from "../../apis/backend_apis";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 
 export default function EditProfileModal({
   open,
@@ -65,62 +66,92 @@ export default function EditProfileModal({
     }
   }, []);
 
+  const handleFieldValidation = (field, value) => {
+    const error = validateField(field, value);
+
+    setErrors((prev) => {
+      const updated = { ...prev };
+
+      if (error) {
+        updated[field] = error;
+      } else {
+        delete updated[field];
+      }
+
+      return updated;
+    });
+  };
+
   const validate = () => {
-    let newErrors = {};
+    const errors = {};
 
-    // Text-only validation (Allows letters, spaces, and basic punctuation like hyphens/apostrophes)
+    Object.keys(form).forEach((field) => {
+      const error = validateField(field, form[field]);
+
+      if (error) {
+        errors[field] = error;
+      }
+    });
+
+    return errors;
+  };
+
+  const validateField = (name, value) => {
     const textRegex = /^[a-zA-Z\s'.-]+$/;
-
-    if (editType === "gym" && !form.gymName.trim()) {
-      newErrors.gymName = "Gym name required";
-    } else if (!textRegex.test(form.gymName)) {
-      newErrors.gymName = "Gym name should only contain letters";
-    }
-
-    if (editType === "owner" && !form.owner.trim()) {
-      newErrors.owner = "Owner name required";
-    } else if (!textRegex.test(form.owner)) {
-      newErrors.owner = "Owner name should only contain letters";
-    }
-
-    // Address: Allows letters, numbers, spaces, and common separators (/, #, -)
     const addressRegex = /^[a-zA-Z0-9\s,.'#/-]+$/;
-    if (editType === "gym" && !form.address.trim()) {
-      newErrors.address = "Location required";
-    } else if (!addressRegex.test(form.address)) {
-      newErrors.address = "Invalid characters found in location";
-    }
-
-    // Phone Validation
-    if ((editType === "owner" && !form.phone) || !form.phone.trim()) {
-      newErrors.phone = "Phone number is required";
-    } else {
-      // react-phone-number-input values usually start with '+'
-      // A valid E.164 number is typically between 10 and 15 digits (including country code)
-      const cleanPhone = form.phone.replace(/\D/g, ""); // Remove everything except digits
-
-      if (cleanPhone.length < 10 || cleanPhone.length > 15) {
-        newErrors.phone =
-          "Enter a valid international phone number (e.g., +91...)";
-      }
-    }
-
-    // Strict Email Validation
+    const phoneRegex = /^(?:\+91|91|0)?\s*[6-9]\d{9}$/;
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (editType === "owner" && form.email && !emailRegex.test(form.email)) {
-      newErrors.email = "Invalid email format";
-    }
+    const urlPattern =
+      /^(https?:\/\/)?(www\.)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,6}(\/.*)?$/;
 
-    // Website Validation (Supports http, https, or starting with www)
-    if (editType === "gym" && form.website.trim()) {
-      const urlPattern =
-        /^(https?:\/\/)?(www\.)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,6}(\/.*)?$/;
-      if (!urlPattern.test(form.website.trim())) {
-        newErrors.website = "Enter a valid website (e.g., www.gym.com)";
-      }
-    }
+    switch (name) {
+      case "gymName":
+        if (editType === "gym" && !value.trim()) return "Gym name required";
+        if (editType === "gym" && !textRegex.test(value))
+          return "Gym name should only contain letters";
+        if (editType === "gym" && value.trim().length > 20)
+          return "Maximum 20 letters allowed";
+        return "";
 
-    return newErrors;
+      case "address":
+        if (editType === "gym" && !value.trim()) return "Address required";
+        if (editType === "gym" && !addressRegex.test(value))
+          return "Invalid characters found in address";
+        if (editType === "gym" && value.trim().length > 20)
+          return "Maximum 20 letters allowed";
+        return "";
+
+      // case "website":
+      //   if (editType === "gym" && value.trim().length > 20)
+      //     return "Maximum 20 letters allowed";
+      //   return "";
+
+      case "owner":
+        if (editType === "owner" && !value.trim()) return "Owner name required";
+        if (editType === "owner" && !textRegex.test(value))
+          return "Owner name should only contain letters";
+        if (editType === "owner" && value.trim().length > 20)
+          return "Maximum 20 letters allowed";
+        return "";
+
+      case "phone":
+        if (editType === "owner" && !value) return "Phone number is required";
+        if (
+          editType === "owner" &&
+          !phoneRegex.test(value.replace(/[\s()-]/g, ""))
+        )
+          return "Enter a valid 10 digit Indian phone number";
+        return "";
+
+      case "email":
+        if (editType === "owner" && !value.trim()) return "Email required";
+        if (editType === "owner" && !emailRegex.test(value))
+          return "Invalid email format";
+        return "";
+
+      default:
+        return "";
+    }
   };
 
   const handleGymSave = async () => {
@@ -275,6 +306,17 @@ export default function EditProfileModal({
           <DialogTitle>
             {editType === "gym" ? "Edit Gym Profile" : "Edit Owner Profile"}
           </DialogTitle>
+          <DialogPrimitive.Close asChild>
+            <button
+              disabled={loading}
+              type="button"
+              className="absolute right-4 top-4 opacity-70 hover:opacity-100 transition-opacity outline-none"
+              onClick={setOpen}
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </button>
+          </DialogPrimitive.Close>
         </DialogHeader>
 
         {/* FORM */}
@@ -282,11 +324,22 @@ export default function EditProfileModal({
           {/* Gym Name */}
           {editType == "gym" && (
             <div>
-              <Label className="mb-3">Gym Name</Label>
+              <Label className="mb-3">
+                Gym Name<span className="text-red-500">*</span>
+              </Label>
               <Input
                 disabled={loading}
                 value={form.gymName}
-                onChange={(e) => setForm({ ...form, gymName: e.target.value })}
+                onChange={(e) => {
+                  const value = e.target.value;
+
+                  setForm((prev) => ({
+                    ...prev,
+                    gymName: value,
+                  }));
+
+                  handleFieldValidation("gymName", value);
+                }}
               />
               <p className="text-red-500 text-xs min-h-[16px]">
                 {errors.gymName}
@@ -297,11 +350,22 @@ export default function EditProfileModal({
           {/* Owner */}
           {editType == "owner" && (
             <div>
-              <Label className="mb-3">Owner</Label>
+              <Label className="mb-3">
+                Owner<span className="text-red-500">*</span>
+              </Label>
               <Input
                 disabled={loading}
                 value={form.owner}
-                onChange={(e) => setForm({ ...form, owner: e.target.value })}
+                onChange={(e) => {
+                  const value = e.target.value;
+
+                  setForm((prev) => ({
+                    ...prev,
+                    owner: value,
+                  }));
+
+                  handleFieldValidation("owner", value);
+                }}
               />
               <p className="text-red-500 text-xs min-h-[16px]">
                 {errors.owner}
@@ -312,11 +376,20 @@ export default function EditProfileModal({
           {/* Phone */}
           {editType == "owner" && (
             <div>
-              <Label className="mb-3">Phone</Label>
+              <Label className="mb-3">
+                Phone<span className="text-red-500">*</span>
+              </Label>
               <PhoneNumberInput
                 disabled={loading}
                 value={form.phone}
-                onChange={(value) => setForm({ ...form, phone: value })}
+                onChange={(value) => {
+                  setForm((prev) => ({
+                    ...prev,
+                    phone: value,
+                  }));
+
+                  handleFieldValidation("phone", value);
+                }}
               />
               <p className="text-red-500 text-xs min-h-[16px]">
                 {errors.phone}
@@ -327,11 +400,22 @@ export default function EditProfileModal({
           {/* Address */}
           {editType == "gym" && (
             <div>
-              <Label className="mb-3">Address/Location</Label>
+              <Label className="mb-3">
+                Address/Location<span className="text-red-500">*</span>
+              </Label>
               <Input
                 disabled={loading}
                 value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
+                onChange={(e) => {
+                  const value = e.target.value;
+
+                  setForm((prev) => ({
+                    ...prev,
+                    address: value,
+                  }));
+
+                  handleFieldValidation("address", value);
+                }}
               />
               <p className="text-red-500 text-xs min-h-[16px]">
                 {errors.address}
@@ -342,12 +426,23 @@ export default function EditProfileModal({
           {/* Email */}
           {editType == "owner" && (
             <div>
-              <Label className="mb-3">Email</Label>
+              <Label className="mb-3">
+                Email<span className="text-red-500">*</span>
+              </Label>
               <Input
                 disabled={loading}
                 type="email"
                 value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                onChange={(e) => {
+                  const value = e.target.value;
+
+                  setForm((prev) => ({
+                    ...prev,
+                    email: value,
+                  }));
+
+                  handleFieldValidation("email", value);
+                }}
               />
               <p className="text-red-500 text-xs min-h-[16px]">
                 {errors.email}
@@ -358,12 +453,21 @@ export default function EditProfileModal({
           {/* Website */}
           {editType == "gym" && (
             <div>
-              <Label className="mb-3">Website (Optional)</Label>
+              <Label className="mb-3">Website</Label>
               <Input
                 disabled={loading}
                 placeholder="www.yourgym.com"
                 value={form.website}
-                onChange={(e) => setForm({ ...form, website: e.target.value })}
+                onChange={(e) => {
+                  const value = e.target.value;
+
+                  setForm((prev) => ({
+                    ...prev,
+                    website: value,
+                  }));
+
+                  // handleFieldValidation("website", value);
+                }}
               />
               <p className="text-red-500 text-xs min-h-[16px]">
                 {errors.website}

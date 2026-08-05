@@ -15,7 +15,7 @@ import {
   Clock,
   TimerIcon,
   Route,
-  X
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
@@ -59,8 +59,33 @@ export function MemberDetailsModal({ member, open, onOpenChange }) {
 
   function getExpiryBg(isActive) {
     // Constant backgrounds: Red for expired/today, Blue for future
-    if (isActive == 0) return "bg-red-600";
-    return "bg-sky-600";
+    switch (isActive) {
+      case 0:
+        return "bg-red-500"; // Inactive
+      case 1:
+        return "bg-emerald-500"; // Active
+      case 2:
+        return "bg-cyan-500"; // Frozen
+      case 3:
+        return "bg-yellow-500"; // Extended
+      default:
+        return "bg-gray-500";
+    }
+  }
+
+  function getStatusText(isActive) {
+    switch (isActive) {
+      case 0:
+        return "Inactive";
+      case 1:
+        return "Active";
+      case 2:
+        return "Frozen";
+      case 3:
+        return "Extended";
+      default:
+        return "Unknown";
+    }
   }
 
   function getExpiryText(expiryDate) {
@@ -153,7 +178,7 @@ export function MemberDetailsModal({ member, open, onOpenChange }) {
                   className={`inline-flex w-24 h-5 items-center justify-center rounded-xl px-2 shadow-sm ${getExpiryBg(member.isActive)}`}
                 >
                   <span className="block w-full text-center truncate text-[10px] font-bold text-white dark:text-black uppercase">
-                    {member.isActive == 1 ? "Active" : "Inactive"}
+                    {getStatusText(member.isActive)}
                   </span>
                 </Badge>
               </div>

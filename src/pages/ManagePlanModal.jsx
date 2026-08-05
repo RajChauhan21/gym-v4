@@ -5,6 +5,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -14,6 +15,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cancelSubscription } from "../apis/backend_apis";
 import { toast } from "sonner";
+import { X } from "lucide-react";
 
 export function ManagePlanModal({ open, setOpen }) {
   const [openUpgrade, setOpenUpgrade] = useState(false);
@@ -96,6 +98,18 @@ export function ManagePlanModal({ open, setOpen }) {
           <DialogTitle className="text-xl sm:text-2xl font-bold text-center">
             Manage Your Plan
           </DialogTitle>
+
+          <DialogPrimitive.Close asChild>
+            <button
+              disabled={loading}
+              type="button"
+              className="absolute right-4 top-4 opacity-70 hover:opacity-100 transition-opacity outline-none"
+              onClick={setOpen}
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </button>
+          </DialogPrimitive.Close>
         </DialogHeader>
 
         <div className="space-y-4 mt-2">
