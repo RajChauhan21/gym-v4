@@ -18,6 +18,7 @@ import {
   FileSpreadsheet,
   Snowflake,
   CalendarPlus2,
+  History,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
@@ -101,8 +102,12 @@ import { toast } from "sonner";
 import RenewMembershipDialog from "./RenewMembershipDialog";
 import ImportMembersDialog from "../../pages/member_imports/ImportMembersDialog";
 import MembershipFreezeExtensionModalV2 from "../../pages/membership_adjustments/MembershipFreezeExtensionModalV2";
+import MembershipHistoryModal from "../../pages/membership_adjustments/MembershipHistoryModal";
+import MembershipAdjustmentHistoryModalV2 from "../../pages/membership_adjustments/MembershipAdjustmentHistoryModalV2";
 
 export default function MembersTable() {
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [selectedHistoryMember, setSelectedHistoryMember] = useState(null);
   const [currentPage, setCurrentPage] = useState(0); // backend uses 0-based
   const [dateToOpen, setDateToOpen] = useState(false);
   const [openDropdownId, setOpenDropdownId] = useState(null);
@@ -295,23 +300,42 @@ export default function MembersTable() {
     }
   };
 
-  const fetchAndPopulate = async (retries = 3) => {
+  const fetchAndPopulate = async (
+    retries = 3,
+    filterValues = filters,
+    filterDateType = dateType,
+  ) => {
     setLoading(true);
+
     const activeFilter =
-      filters.isActive === "all" ? null : filters.isActive == "1" ? 1 : filters.isActive == "2" ? 2 : filters.isActive == "3" ? 3 : 0;
+      filterValues.isActive === "all"
+        ? null
+        : filterValues.isActive == "1"
+          ? 1
+          : filterValues.isActive == "2"
+            ? 2
+            : filterValues.isActive == "3"
+              ? 3
+              : 0;
+
     const apiFilters = {
-      name: filters.name || null,
-      dueAmount: filters.dueAmount || null,
-      joinedFrom: dateType === "joined" ? filters.fromDate : null,
-      joinedTo: dateType === "joined" ? filters.toDate : null,
-      expiryFrom: dateType === "expiry" ? filters.fromDate : null,
-      expiryTo: dateType === "expiry" ? filters.toDate : null,
-      startFrom: dateType === "start" ? filters.fromDate : null,
-      startTo: dateType === "start" ? filters.toDate : null,
-      plan: filters.plan,
-      source: filters.source,
-      isActive: filters.isActive !== null ? activeFilter : null,
+      name: filterValues.name || null,
+      dueAmount: filterValues.dueAmount || null,
+
+      joinedFrom: filterDateType === "joined" ? filterValues.fromDate : null,
+      joinedTo: filterDateType === "joined" ? filterValues.toDate : null,
+
+      expiryFrom: filterDateType === "expiry" ? filterValues.fromDate : null,
+      expiryTo: filterDateType === "expiry" ? filterValues.toDate : null,
+
+      startFrom: filterDateType === "start" ? filterValues.fromDate : null,
+      startTo: filterDateType === "start" ? filterValues.toDate : null,
+
+      plan: filterValues.plan,
+      source: filterValues.source,
+      isActive: filterValues.isActive !== null ? activeFilter : null,
     };
+
     try {
       const response = await getAllMembers(
         profile.ownerId,
@@ -321,14 +345,16 @@ export default function MembersTable() {
         sortDir,
         apiFilters,
       );
+
       if (response.status === 202 || response.data.statusCodeValue === 200) {
-        console.log("API Response:", response);
         setMembers(
           Array.isArray(response.data.content) ? response.data.content : [],
         );
+
         setTotalPages(response.data.page.totalPages);
         setTotalElements(response.data.page.totalElements);
         setPageSize(response.data.page.size);
+
         if (
           currentPage >= response.data.totalPages &&
           response.data.totalPages > 0
@@ -337,9 +363,6 @@ export default function MembersTable() {
         } else {
           setCurrentPage(response.data.page.number);
         }
-        // getAllCount();
-        // fetchTotalDues();
-        console.log("Fetched members:", response.data);
       } else if (response.status === 404) {
         if (
           response.data &&
@@ -356,12 +379,15 @@ export default function MembersTable() {
         );
       }
     } catch (err) {
-      // If it's a rate limit (429) and we have retries left
       if (err.response?.status === 429 && retries > 0) {
         toast.error(`Rate limited. Retrying in 2 seconds... (${retries} left)`);
-        setTimeout(() => fetchAndPopulate(retries - 1), 2000);
+
+        setTimeout(
+          () => fetchAndPopulate(retries - 1, filterValues, filterDateType),
+          2000,
+        );
       } else {
-        setMembers([]); // Give up and set empty to stop the crash
+        setMembers([]);
       }
     } finally {
       setLoading(false);
@@ -388,8 +414,8 @@ export default function MembersTable() {
     sortDir,
     profile?.ownerId,
     profile.gymId,
-    filters,
-    dateType,
+    // filters,
+    // dateType,
   ]);
 
   // useEffect(() => {
@@ -409,17 +435,41 @@ export default function MembersTable() {
       ? 0
       : Math.min((currentPage + 1) * pageSize, totalElements);
 
+  // const resetFilters = () => {
+  //   if (profile.planName === "No Active Plan") {
+  //     // 1. Show the error toast
+  //     toast.error(
+  //       "You need an active plan to use this functionality. Please subscribe to a plan first.",
+  //     );
+  //     setLoading(false);
+  //     return;
+  //   }
+  //   setFilterPlan("");
+  //   setFilters({
+  //     name: "",
+  //     dueAmount: "",
+  //     fromDate: "",
+  //     toDate: "",
+  //     source: null,
+  //     plan: "",
+  //     isActive: null,
+  //   });
+  //   setIsFilterOpen(false);
+  //   setCurrentPage(0);
+
+  //   fetchAndPopulate();
+  // };
+
   const resetFilters = () => {
     if (profile.planName === "No Active Plan") {
-      // 1. Show the error toast
       toast.error(
         "You need an active plan to use this functionality. Please subscribe to a plan first.",
       );
       setLoading(false);
       return;
     }
-    setFilterPlan("");
-    setFilters({
+
+    const clearedFilters = {
       name: "",
       dueAmount: "",
       fromDate: "",
@@ -427,9 +477,15 @@ export default function MembersTable() {
       source: null,
       plan: "",
       isActive: null,
-    });
+    };
+
+    setFilters(clearedFilters);
+    setFilterPlan("");
     setIsFilterOpen(false);
     setCurrentPage(0);
+
+    // IMPORTANT: send the cleared values directly
+    fetchAndPopulate(3, clearedFilters, dateType);
   };
 
   function getExpiryText(expiryDate) {
@@ -465,7 +521,7 @@ export default function MembersTable() {
     }
 
     // 4. More than 7 days in the future
-    return expiryDate;
+    return formatDate(expiryDate);
   }
 
   function getExpiryTextColor(expiryDate) {
@@ -575,6 +631,11 @@ export default function MembersTable() {
     }
   };
 
+  const searchMembers = () => {
+    fetchAndPopulate();
+    setIsFilterOpen(false);
+  };
+
   // useEffect(() => {
   //   setTimeout(() => setLoading(false), 1200);
   // }, []);
@@ -662,6 +723,14 @@ export default function MembersTable() {
     // Later:
     // await membershipService.adjustMembership(data);
     // fetchMembers();
+  };
+
+  const formatDate = (date) => {
+    if (!date) return "";
+
+    const [year, month, day] = date.split("-");
+
+    return `${day}-${month}-${year}`;
   };
 
   return (
@@ -980,9 +1049,9 @@ export default function MembersTable() {
               <X className="h-4 w-4" />
               <span className="sr-only">Close</span>
             </DialogPrimitive.Close>
-            <h6 className="text-red-600 font-semibold">
+            {/* <h6 className="text-red-600 font-semibold">
               Filter works automatically, just select the values
-            </h6>
+            </h6> */}
             <DialogDescription className="sr-only">
               Filter and search through your gym members.
             </DialogDescription>
@@ -1085,8 +1154,8 @@ export default function MembersTable() {
                   >
                     <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
                     <span className="truncate">
-                      {filters.to
-                        ? format(parseISO(filters.to), "PPP")
+                      {filters.toDate
+                        ? format(parseISO(filters.toDate), "PPP")
                         : "Pick a date"}
                     </span>
                   </Button>
@@ -1096,13 +1165,13 @@ export default function MembersTable() {
                   <Calendar
                     mode="single"
                     defaultMonth={
-                      filters.to ? parseISO(filters.to) : new Date()
+                      filters.toDate ? parseISO(filters.toDate) : new Date()
                     }
-                    selected={filters.to ? parseISO(filters.to) : undefined}
+                    selected={filters.toDate ? parseISO(filters.toDate) : undefined}
                     onSelect={(date) => {
                       setFilters((prev) => ({
                         ...prev,
-                        to: date ? format(date, "yyyy-MM-dd") : "",
+                        toDate: date ? format(date, "yyyy-MM-dd") : "",
                       }));
                       setMobileDateToOpen(false);
                     }}
@@ -1206,6 +1275,9 @@ export default function MembersTable() {
           </div>
 
           <DialogFooter>
+            <Button onClick={searchMembers} className="w-full rounded-full">
+              Search Members
+            </Button>
             <Button onClick={resetFilters} className="w-full rounded-full">
               Clear Filters
             </Button>
@@ -1452,6 +1524,19 @@ export default function MembersTable() {
             </Popover>
           </div>
 
+          <div className="space-y-1.5 w-full">
+            <Label className="text-xs font-bold uppercase text-muted-foreground">
+              Search Members
+            </Label>
+            <Button
+              onClick={searchMembers}
+              variant="outline"
+              className="w-full rounded-md"
+            >
+              Search
+            </Button>
+          </div>
+
           {/* 8. Actions */}
           <div className="space-y-1.5 w-full">
             <Label className="text-xs font-bold uppercase text-muted-foreground">
@@ -1569,13 +1654,13 @@ export default function MembersTable() {
                       {member.source || "N/A"}
                     </TableCell>
                     <TableCell className="text-center px-4 text-muted-foreground bg-card whitespace-nowrap">
-                      {member.joined}
+                      {formatDate(member.joined) || "N/A"}
                     </TableCell>
                     <TableCell
                       className={`text-center px-4 whitespace-nowrap bg-card`}
                     >
                       {/* {member.expiry} */}
-                      {member.startDate || "N/A"}
+                      {formatDate(member.startDate) || "N/A"}
                     </TableCell>
                     <TableCell
                       className={`text-center px-4 whitespace-nowrap bg-card ${getExpiryTextColor(member.expiry)}`}
@@ -1644,7 +1729,10 @@ export default function MembersTable() {
                           <DropdownMenuItem
                             className="gap-2 cursor-pointer"
                             onClick={() => {
-                              if (member.isActive === 1) {
+                              if (
+                                member.isActive === 1 ||
+                                member.isActive === 0
+                              ) {
                                 setSelectedRenewalMember(member);
                                 setRenewOpen(true);
                               } else {
@@ -1660,11 +1748,15 @@ export default function MembersTable() {
                           <DropdownMenuItem
                             className="gap-2 cursor-pointer"
                             onClick={() => {
-                              if (member.isActive === 1) {
+                              if (
+                                member.isActive === 1 ||
+                                member.isActive === 2 ||
+                                member.isActive === 3
+                              ) {
                                 openMembershipAdjustment(member, "freeze");
                               } else {
                                 toast.error(
-                                  "You can only freeze active memberships",
+                                  "Can't take action on inactive members.",
                                 );
                               }
                             }}
@@ -1672,6 +1764,18 @@ export default function MembersTable() {
                             <Snowflake className="size-4 text-cyan-500" />
                             <span>Freeze/Extend Membership</span>
                           </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="gap-2 cursor-pointer"
+                            onClick={() => {
+                              setSelectedHistoryMember(member);
+                              setHistoryOpen(true);
+                            }}
+                          >
+                            <History className="size-4 text-gray-500" />{" "}
+                            {/* Or any icon you prefer */}
+                            <span>View History</span>
+                          </DropdownMenuItem>
+
                           {member.dueAmount > 0 && (
                             <DropdownMenuItem
                               onClick={() => {
@@ -1685,47 +1789,49 @@ export default function MembersTable() {
                             </DropdownMenuItem>
                           )}
 
-                          <DropdownMenuItem
-                            className="gap-2 cursor-pointer text-red-600 focus:text-red-600"
-                            onSelect={(e) => {
-                              e.preventDefault();
+                          {member.isActive !== 2 && member.isActive !== 3 && (
+                            <DropdownMenuItem
+                              className="gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                              onSelect={(e) => {
+                                e.preventDefault();
 
-                              changeMemberStatus(
-                                member.isActive === 1 ? "inactive" : "active",
-                                member.id,
-                                profile.ownerId,
-                              );
-                            }}
-                          >
-                            {/* <Trash2 className="size-4" /> */}
-                            {isUpdating ? (
-                              <>
-                                <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                                <span className="text-muted-foreground">
-                                  Updating...
-                                </span>
-                              </>
-                            ) : (
-                              <>
-                                {member.isActive === 1 ? (
-                                  <UserX className="text-red-600 size-4" />
-                                ) : (
-                                  <UserCheck className="text-green-600 size-4" />
-                                )}
-                                <span
-                                  className={
-                                    member.isActive === 1
-                                      ? "text-red-600"
-                                      : "text-green-600"
-                                  }
-                                >
-                                  {member.isActive === 1
-                                    ? "InActive"
-                                    : "Active"}
-                                </span>
-                              </>
-                            )}
-                          </DropdownMenuItem>
+                                changeMemberStatus(
+                                  member.isActive === 1 ? "inactive" : "active",
+                                  member.id,
+                                  profile.ownerId,
+                                );
+                              }}
+                            >
+                              {/* <Trash2 className="size-4" /> */}
+                              {isUpdating ? (
+                                <>
+                                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                                  <span className="text-muted-foreground">
+                                    Updating...
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  {member.isActive === 1 ? (
+                                    <UserX className="text-red-600 size-4" />
+                                  ) : (
+                                    <UserCheck className="text-green-600 size-4" />
+                                  )}
+                                  <span
+                                    className={
+                                      member.isActive === 1
+                                        ? "text-red-600"
+                                        : "text-green-600"
+                                    }
+                                  >
+                                    {member.isActive === 1
+                                      ? "InActive"
+                                      : "Active"}
+                                  </span>
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                          )}
 
                           <DropdownMenuSeparator />
 
@@ -1873,7 +1979,7 @@ export default function MembersTable() {
         open={!!viewingMember}
         onOpenChange={() => setViewingMember(null)}
       />
-      
+
       <MembershipFreezeExtensionModalV2
         open={membershipAdjustment.open}
         onOpenChange={(open) => {
@@ -1884,6 +1990,18 @@ export default function MembersTable() {
         member={membershipAdjustment.member}
         onSuccess={handleMembershipAdjustment}
       />
+
+      <MembershipHistoryModal
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        member={selectedHistoryMember}
+      />
+
+      {/* <MembershipAdjustmentHistoryModalV2
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        member={selectedHistoryMember}
+      /> */}
 
       {/* </MembershipFreezeExtensionModal> */}
       <ImportMembersDialog

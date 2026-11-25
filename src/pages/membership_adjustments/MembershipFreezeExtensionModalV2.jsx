@@ -19,6 +19,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -32,7 +33,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { saveMemberShipAdjustment } from "../../apis/backend_apis";
+import {
+  deleteMembershipAdjustment,
+  getMembershipAdjustmentData,
+  saveMemberShipAdjustment,
+} from "../../apis/backend_apis";
 import { useProfile } from "../../contexts/ProfileContext";
 import { toast } from "sonner";
 
@@ -77,39 +82,6 @@ const formSchema = z
     }
   });
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
-/**
- * MembershipTimelinePreviewModal
- *
- * Freeze / extend flow built around a before-and-after date comparison, so
- * staff visually confirm the resulting expiry before committing.
- *
- * `member` matches the backend member payload directly — pass the object
- * you already get from your members API, e.g.:
- *   {
- *     id: 396,
- *     name: "VikasR",
- *     plan: "Silver",
- *     expiry: "2027-10-09",
- *     phone: "9000000052",
- *     email: "vikas52@gmail.com",
- *     dueAmount: 894,
- *     isActive: 1,
- *     ...
- *   }
- *
- * Usage:
- *   <MembershipTimelinePreviewModal
- *     open={open}
- *     onOpenChange={setOpen}
- *     member={member}
- *     defaultMode="extend"
- *     onSuccess={(updated) => refetchMember(updated)}
- *   />
- */
 export default function MembershipFreezeExtensionModalV2({
   open,
   onOpenChange,
@@ -123,6 +95,17 @@ export default function MembershipFreezeExtensionModalV2({
   const [submitError, setSubmitError] = useState(null);
 
   const reasons = mode === "freeze" ? FREEZE_REASONS : EXTEND_REASONS;
+  const [adjustmentData, setAdjustmentData] = useState([]);
+  const [loadingAdjustment, setLoadingAdjustment] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const currentAdjustment = adjustmentData?.find(
+    (adjustment) =>
+      (mode === "freeze" && adjustment.status === 2) ||
+      (mode === "extend" && adjustment.status === 3),
+  );
+
+  const isCurrentAdjustment = Boolean(currentAdjustment);
 
   const {
     control,
@@ -157,6 +140,44 @@ export default function MembershipFreezeExtensionModalV2({
     setSubmitError(null);
   }, [mode, setValue]);
 
+  useEffect(() => {
+    if (!open || !member?.id) return;
+
+    if (member.isActive === 2 || member.isActive === 3) {
+      getMembershipAdjustment();
+    }
+  }, [open, member?.id, member?.isActive]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    if (isCurrentAdjustment && currentAdjustment) {
+      setValue("duration", currentAdjustment.durationDays?.toString() || "15");
+
+      setValue("reason", currentAdjustment.reason || "");
+      setValue("note", currentAdjustment.notes || "");
+    } else {
+      setValue("duration", "15");
+      setValue("customDays", undefined);
+      setValue("reason", "");
+      setValue("note", "");
+    }
+  }, [open, mode, isCurrentAdjustment, currentAdjustment, setValue]);
+
+  // useEffect(() => {
+  //   if (!open || !member?.id) return;
+
+  //   const shouldFetchAdjustment =
+  //     (mode === "freeze" && member.isActive === 2) ||
+  //     (mode === "extend" && member.isActive === 3);
+
+  //   if (shouldFetchAdjustment) {
+  //     getMembershipAdjustment();
+  //   } else {
+  //     setAdjustmentData(null);
+  //   }
+  // }, [open, member?.id, member?.isActive, mode]);
+
   const days = useMemo(() => {
     if (duration === "custom") return Number(customDays) || 0;
     return Number(duration) || 0;
@@ -164,31 +185,100 @@ export default function MembershipFreezeExtensionModalV2({
 
   // Backend sends `expiry`, not `currentExpiryDate` — read from the real field.
   const currentExpiry = member?.expiry ? parseISO(member.expiry) : null;
+  const memberStatus = member?.isActive;
 
   const newExpiry = useMemo(() => {
     if (!currentExpiry || !days) return null;
-    return addDays(currentExpiry, days);
-  }, [currentExpiry, days]);
+
+    const chooseExpiryDate =
+      isCurrentAdjustment && currentAdjustment?.oldEndDate
+        ? parseISO(currentAdjustment.oldEndDate)
+        : currentExpiry;
+
+    return addDays(chooseExpiryDate, days);
+  }, [currentExpiry, days, isCurrentAdjustment, currentAdjustment]);
+
+  const getMembershipAdjustment = async () => {
+    setLoadingAdjustment(true);
+    try {
+      const response = await getMembershipAdjustmentData(member?.id);
+      if (response.status === 202) {
+        setAdjustmentData(response.data || []);
+        // setValue("duration", response?.data?.durationDays.toString());
+        // setValue("reason", response?.data?.reason);
+        // setValue("note", response?.data?.notes);
+      }
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setLoadingAdjustment(false);
+    }
+  };
+
+  const handleClose = () => {
+    onOpenChange(false);
+    setAdjustmentData([]);
+  };
+
+  const handleDelete = async () => {
+    if (!currentAdjustment?.id) return;
+    setIsDeleting(true);
+    // onOpenChange(false);
+    // setAdjustmentData(null);
+
+    try {
+      const response = await deleteMembershipAdjustment(currentAdjustment?.id);
+      if (response.status == 202) {
+        toast.success(
+          `Membership ${mode === "freeze" ? "freeze" : "extension"} deleted successfully!`,
+        );
+      }
+    } catch (err) {
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      handleClose();
+      setIsDeleting(false);
+    }
+  };
 
   const onSubmit = async (values) => {
     setSubmitError(null);
     try {
       const payload = {
+        id: isCurrentAdjustment ? currentAdjustment.id : null,
         durationDays: days,
         reason: values.reason,
         notes: values.note || undefined,
         ownerId: profile?.ownerId,
         memberId: member.id,
         newEndDate: newExpiry ? format(newExpiry, "yyyy-MM-dd") : undefined,
-        oldEndDate: member.expiry,
+        oldEndDate:
+          isCurrentAdjustment && currentAdjustment?.oldEndDate
+            ? currentAdjustment.oldEndDate
+            : member.expiry,
         status: mode === "freeze" ? 2 : 3,
+        freezeStartDate:
+          mode === "freeze" && freezeStartDate
+            ? format(freezeStartDate, "yyyy-MM-dd")
+            : undefined,
+
+        freezeEndDate:
+          mode === "freeze" && freezeEndDate
+            ? format(freezeEndDate, "yyyy-MM-dd")
+            : undefined,
       };
       const response = await saveMemberShipAdjustment(payload);
       if (response.status === 202 || response.data.statusCodeValue === 200) {
-        toast.success(
-          `Membership ${mode === "freeze" ? "frozen" : "extended"} successfully!`,
-        );
-        onOpenChange(false);
+        if (isCurrentAdjustment) {
+          toast.success(
+            `Membership ${mode === "freeze" ? "freeze" : "extension"} updated successfully!`,
+          );
+        } else {
+          toast.success(
+            `Membership ${mode === "freeze" ? "frozen" : "extended"} successfully!`,
+          );
+        }
+        handleClose();
       }
       if (response.status === 404) {
         if (response && response.message && response.message == "100") {
@@ -228,22 +318,78 @@ export default function MembershipFreezeExtensionModalV2({
       //   );
     }
   };
+  const canDeleteAdjustment = isCurrentAdjustment;
+
+  const hasFreezeAdjustment = adjustmentData.some(
+    (adjustment) => adjustment.status === 2,
+  );
+
+  const hasExtensionAdjustment = adjustmentData.some(
+    (adjustment) => adjustment.status === 3,
+  );
+
+  const isUpdatingExtension = mode === "extend" && isCurrentAdjustment;
+
+  const shouldRecalculateFreeze =
+    mode === "extend" && isCurrentAdjustment && hasFreezeAdjustment;
+
+  const freezeStartDate =
+    isCurrentAdjustment && currentAdjustment?.freezeStartDate
+      ? parseISO(currentAdjustment?.freezeStartDate)
+      : new Date();
+
+  const freezeEndDate = useMemo(() => {
+    if (mode !== "freeze" || !freezeStartDate || !days) {
+      return null;
+    }
+
+    return addDays(freezeStartDate, days);
+  }, [mode, freezeStartDate, days]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[92vh] w-[92%] flex-col gap-0 overflow-hidden rounded-lg p-0 sm:w-full sm:max-w-[440px]">
         <DialogHeader className="shrink-0 space-y-1 border-b px-4 py-3 sm:px-5">
           <DialogTitle className="text-base">
-            {mode === "freeze" ? "Freeze membership" : "Extend membership"}
+            {/* {mode === "freeze" ? "Freeze membership" : "Extend membership"} */}
+            {memberStatus === 2
+              ? "Update Freeze"
+              : memberStatus === 3
+                ? "Update Extension"
+                : mode === "freeze"
+                  ? "Freeze Membership"
+                  : "Extend Membership"}
           </DialogTitle>
           {member?.name && (
-            <div className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
-              <span className="min-w-0 truncate">{member.name}</span>
-              {member?.plan && (
-                <Badge variant="secondary" className="shrink-0 font-normal">
-                  {member.plan}
-                </Badge>
-              )}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+                <span className="truncate">{member.name}</span>
+
+                {member?.plan && (
+                  <Badge
+                    variant="secondary"
+                    className="shrink-0 bg-black font-normal text-white dark:bg-white dark:text-black"
+                  >
+                    {member.plan}
+                  </Badge>
+                )}
+              </div>
+
+              <Badge
+                className={cn(
+                  "shrink-0",
+                  memberStatus === 1 &&
+                    "bg-green-100 text-green-700 hover:bg-green-100",
+                  memberStatus === 2 &&
+                    "bg-blue-100 text-blue-700 hover:bg-blue-100",
+                  memberStatus === 3 &&
+                    "bg-orange-100 text-orange-700 hover:bg-orange-100",
+                )}
+              >
+                {memberStatus === 1 && "Active"}
+                {memberStatus === 2 && "Frozen"}
+                {memberStatus === 3 && "Extended"}
+              </Badge>
             </div>
           )}
         </DialogHeader>
@@ -266,6 +412,7 @@ export default function MembershipFreezeExtensionModalV2({
             <button
               type="button"
               onClick={() => setMode("extend")}
+              disabled={hasFreezeAdjustment && !hasExtensionAdjustment}
               className={cn(
                 "flex flex-1 items-center justify-center gap-1.5 rounded-md border px-2 py-2 text-sm font-medium transition-colors",
                 mode === "extend"
@@ -283,6 +430,52 @@ export default function MembershipFreezeExtensionModalV2({
             onSubmit={handleSubmit(onSubmit)}
             className="flex flex-col gap-4"
           >
+            {isCurrentAdjustment && (
+              <Alert
+                className={
+                  memberStatus === 2
+                    ? "border-blue-200 bg-blue-50"
+                    : "border-emerald-200 bg-emerald-50"
+                }
+              >
+                <AlertDescription
+                  className={
+                    memberStatus === 2 ? "text-blue-800" : "text-emerald-800"
+                  }
+                >
+                  This member already has an active{" "}
+                  <strong>{memberStatus === 2 ? "freeze" : "extension"}</strong>
+                  . The current membership expiry is{" "}
+                  <strong>
+                    {format(
+                      parseISO(currentAdjustment.newEndDate),
+                      "dd MMM yyyy",
+                    )}
+                  </strong>
+                  . You're updating the{" "}
+                  <strong>{memberStatus === 2 ? "freeze" : "extension"}</strong>{" "}
+                  below, or you can remove it.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {shouldRecalculateFreeze && (
+              <Alert>
+                <AlertDescription className="ml-1">
+                  <div className="space-y-1">
+                    <p className="font-medium text-blue-400 dark:text-blue-400">
+                      Your freeze will be adjusted
+                    </p>
+
+                    <p className="text-xm leading-relaxed text-black dark:text-white">
+                      You're updating the membership extension. The existing
+                      freeze will automatically be recalculated using the new
+                      expiry date.
+                    </p>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="flex flex-col gap-1.5">
               <Label>{mode === "freeze" ? "Freeze by" : "Extend by"}</Label>
               <Controller
@@ -351,15 +544,69 @@ export default function MembershipFreezeExtensionModalV2({
               </div>
             )}
 
+            {mode === "freeze" && (
+              <div className="rounded-md bg-muted px-3 py-3">
+                <p className="mb-2 text-sm text-muted-foreground">
+                  Freeze period
+                </p>
+
+                <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1 text-center">
+                    <p className="text-xs text-muted-foreground">
+                      Freeze starts
+                    </p>
+
+                    <p className="truncate text-xs font-medium sm:text-sm">
+                      {freezeStartDate
+                        ? format(freezeStartDate, "d MMM yyyy")
+                        : "—"}
+                    </p>
+                  </div>
+
+                  <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+
+                  <div className="min-w-0 flex-1 text-center">
+                    <p className="text-xs text-muted-foreground">Freeze ends</p>
+
+                    <p
+                      className={cn(
+                        "truncate text-xs font-semibold sm:text-sm",
+                        freezeEndDate
+                          ? "text-amber-600"
+                          : "text-muted-foreground",
+                      )}
+                    >
+                      {freezeEndDate
+                        ? format(freezeEndDate, "d MMM yyyy")
+                        : "—"}
+                    </p>
+                  </div>
+                </div>
+
+                {freezeEndDate && (
+                  <p className="mt-2 text-center text-xs text-muted-foreground">
+                    {/* {days} days of frozen access, <br /> */}
+                    Your membership will remain frozen during this period.
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="rounded-md bg-muted px-3 py-3">
               <p className="mb-2 text-xm text-muted-foreground">
                 New expiry date
               </p>
               <div className="flex items-center gap-2">
                 <div className="min-w-0 flex-1 text-center">
-                  <p className="text-xs text-muted-foreground">Current</p>
+                  <p className="text-xs text-muted-foreground">
+                    {isCurrentAdjustment ? "Original Date" : "Current Date"}
+                  </p>
                   <p className="truncate text-xs font-medium text-muted-foreground line-through sm:text-sm">
-                    {currentExpiry ? format(currentExpiry, "d MMM yyyy") : "—"}
+                    {isCurrentAdjustment
+                      ? format(currentAdjustment.oldEndDate, "d MMM yyyy")
+                      : currentExpiry
+                        ? format(currentExpiry, "d MMM yyyy")
+                        : "—"}
                   </p>
                 </div>
                 <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -375,9 +622,17 @@ export default function MembershipFreezeExtensionModalV2({
                   </p>
                 </div>
               </div>
-              {currentExpiry && newExpiry && (
+              {(isCurrentAdjustment || currentExpiry) && newExpiry && (
                 <p className="mt-2 text-center text-xs text-muted-foreground">
-                  {differenceInCalendarDays(newExpiry, currentExpiry)} days{" "}
+                  <span className="font-bold">
+                    {differenceInCalendarDays(
+                      newExpiry,
+                      isCurrentAdjustment && currentAdjustment?.oldEndDate
+                        ? parseISO(currentAdjustment.oldEndDate)
+                        : currentExpiry,
+                    )}{" "}
+                    days
+                  </span>{" "}
                   {mode === "freeze" ? "of frozen access" : "added"}
                 </p>
               )}
@@ -438,25 +693,43 @@ export default function MembershipFreezeExtensionModalV2({
           </form>
         </div>
 
-        <DialogFooter className="flex flex-col-reverse gap-2 border-t px-4 py-3 sm:flex-row sm:justify-end sm:px-5 m-1">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isSubmitting}
-            className="w-full sm:w-auto"
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            form="freeze-extend-form"
-            disabled={isSubmitting || !newExpiry}
-            className="w-full sm:w-auto"
-          >
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Confirm {mode === "freeze" ? "freeze" : "extension"}
-          </Button>
+        <DialogFooter className="m-1 border-t px-4 py-3 sm:px-5">
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            {/* Delete - left on desktop */}
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isSubmitting || isDeleting || !canDeleteAdjustment}
+              className="w-full sm:w-auto"
+            >
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete {mode === "freeze" ? "freeze" : "extension"}
+            </Button>
+
+            {/* Cancel + Confirm - right on desktop */}
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleClose()}
+                disabled={isSubmitting || isDeleting}
+                className="w-full sm:w-auto"
+              >
+                Cancel
+              </Button>
+
+              <Button
+                type="submit"
+                form="freeze-extend-form"
+                disabled={isSubmitting || !newExpiry || isDeleting}
+                className="w-full sm:w-auto"
+              >
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Confirm {mode === "freeze" ? "freeze" : "extension"}
+              </Button>
+            </div>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

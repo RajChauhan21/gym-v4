@@ -170,7 +170,7 @@ export async function addMember(member) {
     return response;
   } catch (error) {
     console.error("API Error in addMember:", error.response || error);
-    return error.response;
+    return response;
   }
 }
 
@@ -994,6 +994,59 @@ export async function saveMemberShipAdjustment(payload) {
       "API Error in saveMemberShipAdjustment:",
       error.response || error,
     );
+    throw error;
+  }
+}
+
+export async function getMembershipAdjustmentData(memberId) {
+  try {
+    const response = await constant.get(
+      "/member-ship-adjust/getMembershipAdjustment",
+      {
+        params: {
+          m: memberId,
+        },
+      },
+    );
+    console.log("get membership adjustment data response:", response);
+    return response;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function deleteMembershipAdjustment(adjustmentId) {
+  try {
+    const response = await constant.get(
+      "/member-ship-adjust/deleteAdjustment",
+      {
+        params: {
+          m: adjustmentId,
+        },
+      },
+    );
+    console.log("delete membership adjustment data response:", response);
+    return response;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// getMembershipAdjustmentData
+
+export async function getMembershipAdjustment(memberId) {
+  try {
+    const response = await constant.get(
+      "/member-ship-adjust/get-membership-adjustment",
+      {
+        params: {
+          m: memberId,
+        },
+      },
+    );
+    console.log("delete membership adjustment data response:", response);
+    return response;
+  } catch (error) {
     throw error;
   }
 }

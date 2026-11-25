@@ -224,15 +224,20 @@ export default function PaymentsTable() {
       console.error("unable to fetch members", error);
     }
   };
-  async function fetchPayments() {
+
+  async function fetchPayments(filterValues = filters) {
     setLoading(true);
+
     if (!profile?.ownerId) {
       setLoading(false);
       return;
     }
-    if (filters.method === "all") {
-      filters.method = "";
-    }
+
+    const apiFilters = {
+      ...filterValues,
+      method: filterValues.method === "all" ? "" : filterValues.method,
+    };
+
     try {
       const response = await getAllPayments(
         profile.ownerId,
@@ -240,14 +245,16 @@ export default function PaymentsTable() {
         pageSize,
         sortBy,
         sortDir,
-        filters,
+        apiFilters,
       );
+
       if (response.status === 202 || response.data.statusCodeValue === 200) {
         setTotalReccords(response?.data?.page?.totalElements ?? 0);
         setPayments(response?.data?.content ?? []);
         setTotalPages(response?.data?.page?.totalPages ?? 0);
         setTotalElements(response?.data?.page?.totalElements ?? 0);
-        setPageSize(response.data.page.size);
+        setPageSize(response?.data?.page?.size);
+
         if (
           currentPage >= response.data.totalPages &&
           response.data.totalPages > 0
@@ -256,18 +263,7 @@ export default function PaymentsTable() {
         } else {
           setCurrentPage(response?.data?.page?.number ?? 0);
         }
-        console.log(currentPage);
-        console.log({
-          page: response.data.number,
-          totalPages: response.data.totalPages,
-          size: response.data.size,
-          totalElements: response.data.totalElements,
-        });
-        getRevenues();
       } else if (response.status === 404) {
-        // toast.error(
-        //   "Something went wrong while fetching payments. Please try again later.",
-        // );
         if (
           response.data &&
           response.data.message &&
@@ -276,7 +272,6 @@ export default function PaymentsTable() {
           toast.error(
             "Something went wrong while fetching payments. Please try again",
           );
-          // Member already exists with the name
         }
       } else if (response.status === 429) {
         toast.error(
@@ -301,11 +296,15 @@ export default function PaymentsTable() {
   }, [query]);
 
   useEffect(() => {
+    fetchPayments();
+  }, [currentPage, pageSize, sortBy, sortDir, profile?.ownerId]);
+
+  useEffect(() => {
     if (profile?.gymId) {
       fetchPlans(profile.gymId);
     }
-    fetchPayments();
-  }, [currentPage, pageSize, sortBy, sortDir, profile?.ownerId, filters]);
+    getRevenues();
+  }, [profile?.ownerId]);
 
   {
     /* Calculate values with safe fallbacks */
@@ -326,14 +325,14 @@ export default function PaymentsTable() {
 
   const resetFilters = () => {
     if (profile.planName === "No Active Plan") {
-      // 1. Show the error toast
       toast.error(
         "You need an active plan to use this functionality. Please subscribe to a plan first.",
       );
       setLoading(false);
       return;
     }
-    setFilters({
+
+    const clearedFilters = {
       name: "",
       amount: "",
       dueAmount: "",
@@ -341,9 +340,14 @@ export default function PaymentsTable() {
       method: "",
       fromDate: "",
       toDate: "",
-    });
+    };
+
+    setFilters(clearedFilters);
     setIsFilterOpen(false);
     setCurrentPage(0);
+
+    // Use cleared filters immediately
+    fetchPayments(clearedFilters);
   };
 
   useEffect(() => {
@@ -570,6 +574,7 @@ export default function PaymentsTable() {
     });
 
     setErrors({});
+    getRevenues();
   };
 
   const resetForm = () => {
@@ -610,6 +615,12 @@ export default function PaymentsTable() {
   // if (loading) {
   //   return <Loader text="Loading Payments...." />;
   // }
+
+  const searchPayments = () => {
+    setCurrentPage(0);
+    fetchPayments(filters);
+    setIsFilterOpen(false);
+  };
 
   return (
     <div className="p-3">
@@ -665,7 +676,9 @@ export default function PaymentsTable() {
             <div className="space-y-4">
               {/* Member Name */}
               <div>
-                <Label className="mb-1">Member<span className="text-red-500">*</span></Label>
+                <Label className="mb-1">
+                  Member<span className="text-red-500">*</span>
+                </Label>
 
                 <Popover open={memberOpen} onOpenChange={setMemberOpen}>
                   <PopoverTrigger asChild>
@@ -724,7 +737,9 @@ export default function PaymentsTable() {
 
               {/* Amount */}
               <div>
-                <Label className="mb-1">Amount<span className="text-red-500">*</span></Label>
+                <Label className="mb-1">
+                  Amount<span className="text-red-500">*</span>
+                </Label>
                 <Input
                   type="number"
                   placeholder="Enter amount"
@@ -749,7 +764,9 @@ export default function PaymentsTable() {
 
               {/* Payment Method */}
               <div>
-                <Label className="mb-1">Payment Method<span className="text-red-500">*</span></Label>
+                <Label className="mb-1">
+                  Payment Method<span className="text-red-500">*</span>
+                </Label>
                 <Select
                   value={newPayment.method}
                   onValueChange={(value) => {
@@ -779,7 +796,9 @@ export default function PaymentsTable() {
               </div>
 
               <div>
-                <Label className="mb-1">Date<span className="text-red-500">*</span></Label>
+                <Label className="mb-1">
+                  Date<span className="text-red-500">*</span>
+                </Label>
                 <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                   <PopoverTrigger asChild>
                     <Button
@@ -934,9 +953,13 @@ export default function PaymentsTable() {
         <DialogContent className="w-[92%] max-w-md rounded-2xl p-6">
           <DialogHeader>
             <DialogTitle>Search Payments</DialogTitle>
-            <h6 className="text-red-600 font-semibold">
-              Filter works automatically, just select the values
-            </h6>
+             <DialogPrimitive.Close
+                className="absolute right-4 top-4 opacity-70 hover:opacity-100 transition-opacity outline-none"
+                onClick={resetForm} // Also clear form if they just close the modal
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </DialogPrimitive.Close>
             <DialogDescription className="sr-only">
               Filter and search through your gym members.
             </DialogDescription>
@@ -1137,12 +1160,12 @@ export default function PaymentsTable() {
           </div>
 
           <DialogFooter>
-            {/* <Button
-                    onClick={() => setIsFilterOpen(false)}
-                    className="w-full rounded-full"
-                  >
-                    Apply Filters
-                  </Button> */}
+            <Button
+              onClick={() => searchPayments()}
+              className="w-full rounded-full"
+            >
+              Search Payments
+            </Button>
             <Button onClick={resetFilters} className="w-full rounded-full">
               Clear Filters
             </Button>
@@ -1340,6 +1363,20 @@ export default function PaymentsTable() {
                 />
               </PopoverContent>
             </Popover>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold uppercase text-muted-foreground">
+              Search Payments
+            </Label>
+            {/* 7. Actions */}
+            <Button
+              onClick={searchPayments}
+              variant="outline"
+              className="w-full rounded-md"
+            >
+              Search
+            </Button>
           </div>
 
           <div className="space-y-1.5">

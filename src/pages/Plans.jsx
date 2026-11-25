@@ -11,7 +11,15 @@ import {
   CardDescription,
   CardFooter,
 } from "@/components/ui/card";
-import { Package, Clock, Edit3, Trash2 } from "lucide-react";
+import {
+  Package,
+  Clock,
+  Edit3,
+  Trash2,
+  TrendingUp,
+  Users,
+  Lightbulb,
+} from "lucide-react";
 import { DeleteModal } from "./DeleteModal";
 import { useGymStore } from "../store/gymStore";
 import {
@@ -141,6 +149,22 @@ export default function Plans() {
     setModalOpen(true);
   };
 
+  const mostChosenPlan =
+    plans?.length > 0
+      ? plans.reduce((max, plan) =>
+          plan.memberCount > max.memberCount ? plan : max,
+        )
+      : null;
+
+  const plansWithMembers = plans?.filter((plan) => plan.memberCount > 0) || [];
+
+  const leastChosenPlan =
+    plansWithMembers.length > 0
+      ? plansWithMembers.reduce((min, plan) =>
+          plan.memberCount < min.memberCount ? plan : min,
+        )
+      : null;
+
   return (
     <div className="p-4 space-y-8 max-w-6xl mx-auto">
       <div className="flex justify-between items-center">
@@ -161,6 +185,117 @@ export default function Plans() {
           setEditPlan={setEditPlan}
         />
       </div>
+
+      {/* --- PLAN INSIGHTS --- */}
+      {!loading && plans?.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Most Popular */}
+          <Card className="relative overflow-hidden border-2">
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Most Popular
+                  </p>
+
+                  {mostChosenPlan ? (
+                    <>
+                      <h3 className="text-2xl font-bold mt-1">
+                        {mostChosenPlan.name}
+                      </h3>
+
+                      <p className="text-sm text-muted-foreground mt-1">
+                        ₹{mostChosenPlan.price} / {mostChosenPlan.validity}{" "}
+                        {mostChosenPlan.validity > 1 ? "months" : "month"}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-2">
+                      No plan data available
+                    </p>
+                  )}
+                </div>
+
+                <div className="size-10 rounded-full bg-green-100 dark:bg-green-950/40 flex items-center justify-center">
+                  <TrendingUp className="size-5 text-green-600 dark:text-green-400" />
+                </div>
+              </div>
+
+              {mostChosenPlan && (
+                <div className="mt-5 flex items-center gap-2">
+                  <Users className="size-4 text-green-600 dark:text-green-400" />
+
+                  <span className="text-lg font-bold">
+                    {mostChosenPlan.memberCount}
+                  </span>
+
+                  <span className="text-sm text-muted-foreground">
+                    active{" "}
+                    {mostChosenPlan.memberCount === 1 ? "member" : "members"}
+                  </span>
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground mt-2">
+                Your gym's most selected membership plan.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Needs Attention */}
+          <Card className="relative overflow-hidden border-2">
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Needs Attention
+                  </p>
+
+                  {leastChosenPlan ? (
+                    <>
+                      <h3 className="text-2xl font-bold mt-1">
+                        {leastChosenPlan.name}
+                      </h3>
+
+                      <p className="text-sm text-muted-foreground mt-1">
+                        ₹{leastChosenPlan.price} / {leastChosenPlan.validity}{" "}
+                        {leastChosenPlan.validity > 1 ? "months" : "month"}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-2">
+                      No member activity yet
+                    </p>
+                  )}
+                </div>
+
+                <div className="size-10 rounded-full bg-yellow-100 dark:bg-yellow-950/40 flex items-center justify-center">
+                  <Lightbulb className="size-5 text-yellow-600 dark:text-yellow-400" />
+                </div>
+              </div>
+
+              {leastChosenPlan && (
+                <div className="mt-5 flex items-center gap-2">
+                  <Users className="size-4 text-yellow-600 dark:text-yellow-400" />
+
+                  <span className="text-lg font-bold">
+                    {leastChosenPlan.memberCount}
+                  </span>
+
+                  <span className="text-sm text-muted-foreground">
+                    active{" "}
+                    {leastChosenPlan.memberCount === 1 ? "member" : "members"}
+                  </span>
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground mt-2">
+                Consider reviewing its pricing or benefits.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* --- VISUAL PLAN CARDS GRID --- */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -249,7 +384,7 @@ export default function Plans() {
                 open={!!planToDelete}
                 onOpenChange={(isOpen) => !isOpen && setPlanToDelete(null)}
                 itemName={planToDelete.plan.name}
-                memberShipId={planToDelete.plan.id}
+                membersCount={planToDelete.plan.memberCount}
                 onConfirm={() => {
                   confirmDelete(planToDelete.idx);
                   setPlanToDelete(null); // Clear state after deleting

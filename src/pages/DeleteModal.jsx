@@ -19,11 +19,11 @@ export function DeleteModal({
   onOpenChange,
   onConfirm,
   itemName,
-  memberShipId,
+  membersCount,
 }) {
   const { profile } = useProfile();
-  const [membersCount, setMembersCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
+  // const [membersCount, setMembersCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
 
   const findMembersCountOnMemberShipId = async (memberShipId) => {
     setIsLoading(true);
@@ -34,17 +34,18 @@ export function DeleteModal({
         profile?.ownerId,
       );
       if (response.status === 202) {
-        setMembersCount(response.data);
+        // setMembersCount(response.data);
       }
     } catch (error) {
-      setMembersCount(0);
+      // setMembersCount(0);
     } finally {
       setIsLoading(false);
     }
   };
-  useEffect(() => {
-    findMembersCountOnMemberShipId(memberShipId);
-  }, [memberShipId]);
+  // useEffect(() => {
+  //   // findMembersCountOnMemberShipId(memberShipId);
+  //   setMembersCount(membersCount)
+  // }, [membersCount]);
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>

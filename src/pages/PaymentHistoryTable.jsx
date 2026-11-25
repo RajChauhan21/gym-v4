@@ -102,28 +102,86 @@ export default function PaymentHistoryTable() {
     endDate: "", // Matches @Param "joinedTo"
   });
 
-  const filteredData = useMemo(() => {
-    return mockData.filter((item) =>
-      item.id.toLowerCase().includes(search.toLowerCase()),
-    );
-  }, [search]);
-
   useEffect(() => {
     fetchPaymentsHistory();
-  }, [currentPage, pageSize, sortBy, sortDir, profile?.ownerId, filters]);
+  }, [currentPage, pageSize, sortBy, sortDir, profile?.ownerId]);
 
-  async function fetchPaymentsHistory() {
+  // async function fetchPaymentsHistory() {
+  //   setLoading(true);
+  //   if (!profile?.ownerId) {
+  //     setLoading(false);
+  //     return;
+  //   }
+  //   const apiFilters = {
+  //     amount: filters.amount || "",
+  //     status: filters.status ? filters.status : "",
+  //     startDate: filters.startDate ? filters.startDate : "",
+  //     endDate: filters.endDate ? filters.endDate : "",
+  //   };
+  //   try {
+  //     const response = await getAllPaymentsOfOwner(
+  //       profile.ownerId,
+  //       currentPage,
+  //       pageSize,
+  //       sortBy,
+  //       sortDir,
+  //       apiFilters,
+  //     );
+  //     console.log(currentPage);
+  //     if (response.status === 202 || response.data.statusCodeValue === 202) {
+  //       setPayments(response.data.content || []);
+  //       setTotalPages(response?.data?.page?.totalPages ?? 0);
+  //       setTotalElements(response?.data?.page?.totalElements ?? 0);
+  //       setPageSize(response.data.page.size);
+  //       if (
+  //         currentPage >= response.data.totalPages &&
+  //         response.data.totalPages > 0
+  //       ) {
+  //         setCurrentPage(0);
+  //       } else {
+  //         setCurrentPage(response?.data?.page?.number ?? 0);
+  //       }
+  //     } else if (response.status === 404) {
+  //       if (
+  //         response.data &&
+  //         response.data.message &&
+  //         response.data.message !== "100"
+  //       ) {
+  //         toast.error(
+  //           "Something went wrong while fetching payments. Please try again",
+  //         );
+  //         // Member already exists with the name
+  //       }
+  //     } else if (response.status === 429) {
+  //       toast.error(
+  //         "You are performing actions too quickly. Please wait a few seconds and try again.",
+  //       );
+  //     }
+  //   } catch (error) {
+  //     toast.error(
+  //       "Something went wrong while fetching payment history. Please try again later.",
+  //     );
+  //     console.log(error);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // }
+
+  async function fetchPaymentsHistory(filterValues = filters) {
     setLoading(true);
+
     if (!profile?.ownerId) {
       setLoading(false);
       return;
     }
+
     const apiFilters = {
-      amount: filters.amount || "",
-      status: filters.status ? filters.status : "",
-      startDate: filters.startDate ? filters.startDate : "",
-      endDate: filters.endDate ? filters.endDate : "",
+      amount: filterValues.amount || "",
+      status: filterValues.status || "",
+      startDate: filterValues.startDate || "",
+      endDate: filterValues.endDate || "",
     };
+
     try {
       const response = await getAllPaymentsOfOwner(
         profile.ownerId,
@@ -133,16 +191,14 @@ export default function PaymentHistoryTable() {
         sortDir,
         apiFilters,
       );
-      console.log(currentPage);
+
       if (response.status === 202 || response.data.statusCodeValue === 202) {
         setPayments(response.data.content || []);
         setTotalPages(response?.data?.page?.totalPages ?? 0);
         setTotalElements(response?.data?.page?.totalElements ?? 0);
         setPageSize(response.data.page.size);
-        if (
-          currentPage >= response.data.totalPages &&
-          response.data.totalPages > 0
-        ) {
+
+        if (page >= response.data.totalPages && response.data.totalPages > 0) {
           setCurrentPage(0);
         } else {
           setCurrentPage(response?.data?.page?.number ?? 0);
@@ -156,7 +212,6 @@ export default function PaymentHistoryTable() {
           toast.error(
             "Something went wrong while fetching payments. Please try again",
           );
-          // Member already exists with the name
         }
       } else if (response.status === 429) {
         toast.error(
@@ -195,24 +250,49 @@ export default function PaymentHistoryTable() {
     });
   };
 
+  // const resetFilters = () => {
+  //   if (profile.planName === "No Active Plan") {
+  //     // 1. Show the error toast
+  //     toast.error(
+  //       "You need an active plan to use this functionality. Please subscribe to a plan first.",
+  //     );
+  //     setLoading(false);
+  //     return;
+  //   }
+  //   setFilters({
+  //     amount: "",
+  //     status: "",
+  //     method: "",
+  //     startDate: "",
+  //     endDate: "",
+  //   });
+  //   setIsFilterOpen(false);
+  //   setCurrentPage(0);
+  // };
+
   const resetFilters = () => {
     if (profile.planName === "No Active Plan") {
-      // 1. Show the error toast
       toast.error(
         "You need an active plan to use this functionality. Please subscribe to a plan first.",
       );
       setLoading(false);
       return;
     }
-    setFilters({
+
+    const clearedFilters = {
       amount: "",
       status: "",
       method: "",
       startDate: "",
       endDate: "",
-    });
+    };
+
+    setFilters(clearedFilters);
     setIsFilterOpen(false);
     setCurrentPage(0);
+
+    // Immediately fetch using cleared filters
+    fetchPaymentsHistory(clearedFilters);
   };
 
   function getExpiryBg(status) {
@@ -242,6 +322,14 @@ export default function PaymentHistoryTable() {
     }
     // Reset to first page when sorting changes
     setCurrentPage(0);
+  };
+
+  const searchHistory = () => {
+    setCurrentPage(0);
+    setIsFilterOpen(false);
+
+    // Immediately fetch using selected filters
+    fetchPaymentsHistory(filters, 0);
   };
 
   return (
@@ -337,9 +425,7 @@ export default function PaymentHistoryTable() {
         <DialogContent className="w-[92%] max-w-md rounded-2xl p-6">
           <DialogHeader>
             <DialogTitle>Search Payment History</DialogTitle>
-            <h6 className="text-red-600 font-semibold">
-              Filter works automatically, just select the values
-            </h6>
+      
             <DialogDescription className="sr-only">
               Filter and search through your payment history.
             </DialogDescription>
@@ -503,6 +589,9 @@ export default function PaymentHistoryTable() {
           </div>
 
           <DialogFooter>
+            <Button onClick={searchHistory} className="w-full rounded-full">
+              Search History
+            </Button>
             <Button onClick={resetFilters} className="w-full rounded-full">
               Clear Filters
             </Button>
@@ -670,13 +759,39 @@ export default function PaymentHistoryTable() {
           </div>
 
           {/* 7. Actions */}
-          <Button
-            onClick={resetFilters}
+          {/* <Button
+            onClick={searchHistory}
             variant="outline"
             className="w-full rounded-md"
           >
-            Clear
-          </Button>
+            Search History
+          </Button> */}
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold uppercase text-muted-foreground">
+              Search History
+            </Label>
+            <Button
+              onClick={searchHistory}
+              variant="outline"
+              className="w-full rounded-md"
+            >
+              Search History
+            </Button>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold uppercase text-muted-foreground">
+              Clear Filters
+            </Label>
+            <Button
+              onClick={resetFilters}
+              variant="outline"
+              className="w-full rounded-md"
+            >
+              Clear
+            </Button>
+          </div>
         </div>
       </Card>
 

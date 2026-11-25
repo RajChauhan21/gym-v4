@@ -154,7 +154,7 @@ export function MemberDetailsModal({ member, open, onOpenChange }) {
               <div className="flex flex-wrap gap-2 mt-1">
                 <Badge
                   variant="outline"
-                  className="font-semibold bg-background"
+                  className="font-semibold bg-black text-white dark:bg-white dark:text-black"
                 >
                   {member.plan} Plan
                 </Badge>
